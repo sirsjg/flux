@@ -16,7 +16,7 @@ Ship with less chaos. Flux is a fast, simple Kanban board with MCP integration s
 ## Roadmap
 
 - ✅ **Server-Sent Events (SSE)** - real-time updates for web while MCP is making changes.
-- **Webhooks (up next)** - push task/epic/project events to other tools in real time. This makes Flux a great control center for automations like notifying Slack, creating GitHub issues, updating CI status, or triggering other workflows whenever work moves on the board.
+- ✅ **Webhooks (up next)** - push task/epic/project events to other tools in real time. This makes Flux a great control center for automations like notifying Slack, creating GitHub issues, updating CI status, or triggering other workflows whenever work moves on the board.
 - **Tests** - eek!
 
 ## Contributing

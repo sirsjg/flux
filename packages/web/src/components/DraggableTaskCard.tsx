@@ -73,10 +73,22 @@ export function DraggableTaskCard({
       {/* Footer */}
       <div class="flex items-center justify-between mt-auto pt-2">
         <div class="flex items-center gap-2">
+          {task.status === 'todo' && (
+            <>
+              <progress class="progress progress-warning w-10" value={0} max={100} />
+              <span class="badge badge-ghost badge-warning badge-xs">To do</span>
+            </>
+          )}
           {task.status === 'in_progress' && (
             <>
-              <progress class="progress progress-success w-10" />
-              <span class="badge badge-ghost badge-xs">Agent working</span>
+              <progress class="progress progress-warning w-10" />
+              <span class="badge badge-ghost badge-warning badge-xs">Agent working</span>
+            </>
+          )}
+          {task.status === 'done' && (
+            <>
+              <progress class="progress progress-success w-10" value={100} max={100} />
+              <span class="badge badge-ghost badge-success badge-xs">Done</span>
             </>
           )}
           {task.depends_on.length > 0 && (
