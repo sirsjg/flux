@@ -11,6 +11,8 @@ Ship with less chaos. Flux is a fast, simple Kanban board with MCP integration s
 - **Search and filters** - Find tasks by text, filter by epic or blocked status
 - **MCP Server** - Allow LLMs to manage your Kanban board via Model Context Protocol
 
+![Demo](./docs/demo.gif)
+
 ## Roadmap
 
 - ✅ **Server-Sent Events (SSE)** - real-time updates for web while MCP is making changes.

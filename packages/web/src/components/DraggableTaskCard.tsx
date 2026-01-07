@@ -74,7 +74,10 @@ export function DraggableTaskCard({
       <div class="flex items-center justify-between mt-auto pt-2">
         <div class="flex items-center gap-2">
           {task.status === 'in_progress' && (
-            <progress class="progress progress-success w-10" />
+            <>
+              <progress class="progress progress-success w-10" />
+              <span class="badge badge-ghost badge-xs">Agent working</span>
+            </>
           )}
           {task.depends_on.length > 0 && (
             <div class={`flex items-center gap-1 text-xs ${task.blocked ? 'text-warning' : 'text-base-content/40'}`}>
