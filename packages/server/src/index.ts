@@ -130,6 +130,7 @@ const notifyDataChange = () => {
 };
 
 watch(DATA_FILE, () => {
+  fileAdapter.read();  // Reload data from disk before notifying clients
   notifyDataChange();
 });
 
