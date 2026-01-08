@@ -368,7 +368,7 @@ Create a webhook to post task updates to Slack:
 | ✅ | Webhooks | Push task/epic/project events to other tools in real time |
 | ✅ | Planning Phase | Add planning to Kanban for ideation phase |
 | | Concurrency | The shared single file (packages/data/flux.json) is a concurrency hot spot; concurrent writes potentially can clobber each other if two agents update at the same time |
-| | Tests | eek! |
+| ✅ | Tests | Better coverage |
 
 ## Contributing
 
