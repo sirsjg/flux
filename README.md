@@ -1,19 +1,13 @@
-<p align="center">
-  <img src="./docs/kibo-mascot.png" alt="Kibo - Flux Mascot" width="300">
-</p>
+# Flux &middot; [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js_21+-339933?style=flat&logo=node.js&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-f69220?style=flat&logo=pnpm&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
 
-# [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js_21+-339933?style=flat&logo=node.js&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-f69220?style=flat&logo=pnpm&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
-
-> Open, execution-agnostic task management
-
-Flux is a **completely open, unopinionated task management engine**.
+> Flux is a **completely open, unopinionated task management engine**.
 
 It doesn’t tell you how to work, who should do the work, or what should execute it.  
 Flux simply tracks **what needs to be done** — and leaves everything else up to you.
 
-Create tasks manually, via APIs, MCP, or automation tools.  
-Execute them yourself, with AI agents, or through systems like n8n.  
-Close them by hand or programmatically.
+- Create tasks manually, via APIs, MCP, or automation tools.  
+- Execute them yourself, with AI agents, or through systems like n8n.  
+- Close them by hand or programmatically.
 
 Flux is just the **source of truth for tasks**.
 
