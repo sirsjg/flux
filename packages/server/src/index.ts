@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, watch, openSync, closeSync, unlinkSync, renameSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, watchFile, openSync, closeSync, unlinkSync, renameSync, statSync } from 'fs';
 import {
   setStorageAdapter,
   initStore,
@@ -179,9 +179,21 @@ const notifyDataChange = () => {
   }, 75);
 };
 
-watch(DATA_FILE, () => {
-  fileAdapter.read();  // Reload data from disk before notifying clients
-  notifyDataChange();
+// Use watchFile with polling - more reliable than watch() on macOS with atomic renames
+let lastMtime = 0;
+try {
+  lastMtime = statSync(DATA_FILE).mtimeMs;
+} catch {
+  // File may not exist yet
+}
+
+watchFile(DATA_FILE, { interval: 100 }, (curr) => {
+  // Only trigger if modification time actually changed (avoids duplicate events)
+  if (curr.mtimeMs !== lastMtime) {
+    lastMtime = curr.mtimeMs;
+    fileAdapter.read();  // Reload data from disk before notifying clients
+    notifyDataChange();
+  }
 });
 
 app.get('/api/events', () => {

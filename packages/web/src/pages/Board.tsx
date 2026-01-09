@@ -90,8 +90,10 @@ export function Board({ projectId }: BoardProps) {
   useEffect(() => {
     if (!projectId) return;
     const eventsBase = import.meta.env.DEV ? "http://localhost:3000" : "";
-    const source = new EventSource(`${eventsBase}/api/events`);
+    let source: EventSource | null = null;
     let refreshTimeout: number | null = null;
+    let reconnectTimeout: number | null = null;
+    let isMounted = true;
 
     const scheduleRefresh = () => {
       if (refreshTimeout) {
@@ -102,13 +104,38 @@ export function Board({ projectId }: BoardProps) {
       }, 100);
     };
 
-    source.addEventListener("data-changed", scheduleRefresh);
+    const connect = () => {
+      if (!isMounted) return;
+
+      source = new EventSource(`${eventsBase}/api/events`);
+
+      source.addEventListener("data-changed", scheduleRefresh);
+
+      source.addEventListener("connected", () => {
+        // Refresh data on reconnect to catch any missed updates
+        scheduleRefresh();
+      });
+
+      source.onerror = () => {
+        source?.close();
+        // Reconnect after 2 seconds
+        if (isMounted) {
+          reconnectTimeout = window.setTimeout(connect, 2000);
+        }
+      };
+    };
+
+    connect();
 
     return () => {
+      isMounted = false;
       if (refreshTimeout) {
         window.clearTimeout(refreshTimeout);
       }
-      source.close();
+      if (reconnectTimeout) {
+        window.clearTimeout(reconnectTimeout);
+      }
+      source?.close();
     };
   }, [projectId]);
 
