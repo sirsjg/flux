@@ -15,10 +15,10 @@ export type Priority = 0 | 1 | 2;
 
 export const PRIORITIES: Priority[] = [0, 1, 2];
 
-export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
-  0: { label: 'P0', color: '#ef4444' }, // red - urgent
-  1: { label: 'P1', color: '#f59e0b' }, // amber - normal
-  2: { label: 'P2', color: '#6b7280' }, // gray - low
+export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; ansi: string }> = {
+  0: { label: 'P0', color: '#ef4444', ansi: '\x1b[31m' }, // red - urgent
+  1: { label: 'P1', color: '#f59e0b', ansi: '\x1b[33m' }, // yellow - normal
+  2: { label: 'P2', color: '#6b7280', ansi: '\x1b[90m' }, // gray - low
 };
 
 // Task represents a single work item.

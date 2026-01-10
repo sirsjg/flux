@@ -1,4 +1,6 @@
-import { getTask, isTaskBlocked, getEpic, getProject } from '@flux/shared';
+import { getTask, isTaskBlocked, getEpic, getProject, PRIORITY_CONFIG, type Priority } from '@flux/shared';
+
+const RESET = '\x1b[0m';
 import { output } from '../index.js';
 
 export async function showCommand(
@@ -32,11 +34,12 @@ export async function showCommand(
   if (json) {
     output(result, true);
   } else {
-    const priority = task.priority !== undefined ? `P${task.priority}` : 'P2';
+    const p = task.priority ?? 2;
+    const { label: priority, ansi } = PRIORITY_CONFIG[p as Priority];
     console.log(`Task: ${task.id}`);
     console.log(`Title: ${task.title}`);
     console.log(`Status: ${task.status}${blocked ? ' [BLOCKED]' : ''}`);
-    console.log(`Priority: ${priority}`);
+    console.log(`Priority: ${ansi}${priority}${RESET}`);
     if (project) console.log(`Project: ${project.name}`);
     if (epic) console.log(`Epic: ${epic.title}`);
     if (task.depends_on.length > 0) {

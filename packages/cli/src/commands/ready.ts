@@ -1,4 +1,6 @@
-import { getReadyTasks, getProjects } from '@flux/shared';
+import { getReadyTasks, getProjects, PRIORITY_CONFIG, type Priority } from '@flux/shared';
+
+const RESET = '\x1b[0m';
 import { output } from '../index.js';
 
 export async function readyCommand(
@@ -19,8 +21,9 @@ export async function readyCommand(
       console.log('Ready tasks (unblocked, sorted by priority):');
       console.log('');
       for (const t of tasks) {
-        const priority = t.priority !== undefined ? `P${t.priority}` : 'P2';
-        console.log(`${t.id}  ${priority}  [${t.status}]  ${t.title}`);
+        const p = t.priority ?? 2;
+        const { label, ansi } = PRIORITY_CONFIG[p as Priority];
+        console.log(`${t.id}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}`);
         if (t.notes) {
           console.log(`    → ${t.notes.split('\n')[0]}...`);
         }

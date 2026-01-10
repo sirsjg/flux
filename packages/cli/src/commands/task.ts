@@ -6,8 +6,12 @@ import {
   deleteTask,
   addTaskNote,
   isTaskBlocked,
+  PRIORITY_CONFIG,
+  PRIORITIES,
   type Priority,
 } from '@flux/shared';
+
+const RESET = '\x1b[0m';
 import { output } from '../index.js';
 
 export async function taskCommand(
@@ -44,9 +48,10 @@ export async function taskCommand(
           console.log('No tasks');
         } else {
           for (const t of tasks) {
-            const priority = t.priority !== undefined ? `P${t.priority}` : '  ';
+            const p = t.priority ?? 2;
+            const { label, ansi } = PRIORITY_CONFIG[p as Priority];
             const blocked = t.blocked ? ' [BLOCKED]' : '';
-            console.log(`${t.id}  ${priority}  [${t.status}]  ${t.title}${blocked}`);
+            console.log(`${t.id}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}${blocked}`);
           }
         }
       }
@@ -62,7 +67,9 @@ export async function taskCommand(
       }
       const epicId = (flags.e || flags.epic) as string | undefined;
       const priorityStr = (flags.P || flags.priority) as string | undefined;
-      const priority = priorityStr !== undefined ? parseInt(priorityStr, 10) as Priority : undefined;
+      const priority = priorityStr !== undefined && PRIORITIES.includes(parseInt(priorityStr, 10) as Priority)
+        ? parseInt(priorityStr, 10) as Priority
+        : undefined;
       const notes = flags.note as string | undefined;
 
       const task = createTask(projectId, title, epicId, { notes, priority });
