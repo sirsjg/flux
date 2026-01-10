@@ -7,10 +7,9 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import Database from 'better-sqlite3';
 import {
   setStorageAdapter,
   initStore,
@@ -45,10 +44,8 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Data file path - shared with API server
-const DATA_DIR = join(__dirname, '../../data');
-const DB_FILE = join(DATA_DIR, 'flux.sqlite');
-const LEGACY_JSON_FILE = join(DATA_DIR, 'flux.json');
+// Data file path - configurable via FLUX_DATA env var
+const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
 
 // Default store data
 const defaultData: Store = {
@@ -57,70 +54,30 @@ const defaultData: Store = {
   tasks: [],
 };
 
-// Create SQLite-based storage adapter
-function createSqliteAdapter(): { read: () => void; write: () => void; data: Store } {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  const db = new Database(DB_FILE);
-  db.pragma('journal_mode = WAL');
-  db.exec('CREATE TABLE IF NOT EXISTS store (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
-
-  const selectStmt = db.prepare('SELECT data FROM store WHERE id = 1');
-  const insertStmt = db.prepare('INSERT INTO store (id, data) VALUES (1, ?)');
-  const updateStmt = db.prepare('UPDATE store SET data = ? WHERE id = 1');
-
+// Create JSON file storage adapter
+function createJsonAdapter(filePath: string): { read: () => void; write: () => void; data: Store } {
   let data: Store = { ...defaultData };
-
-  const loadFromDb = (): boolean => {
-    const row = selectStmt.get() as { data?: string } | undefined;
-    if (row?.data) {
-      try {
-        data = JSON.parse(row.data) as Store;
-        return true;
-      } catch {
-        data = { ...defaultData };
-        return false;
-      }
-    }
-    return false;
-  };
-
-  const persist = (): void => {
-    const serialized = JSON.stringify(data);
-    const row = selectStmt.get() as { data?: string } | undefined;
-    if (row) {
-      updateStmt.run(serialized);
-    } else {
-      insertStmt.run(serialized);
-    }
-  };
-
-  const migrateFromJson = (): boolean => {
-    if (!existsSync(LEGACY_JSON_FILE)) return false;
-    try {
-      const content = readFileSync(LEGACY_JSON_FILE, 'utf-8');
-      data = JSON.parse(content) as Store;
-      persist();
-      unlinkSync(LEGACY_JSON_FILE);
-      return true;
-    } catch {
-      return false;
-    }
-  };
 
   return {
     read() {
-      const loaded = loadFromDb();
-      if (loaded) return;
-      data = { ...defaultData };
-      if (!migrateFromJson()) {
-        persist();
+      if (existsSync(filePath)) {
+        try {
+          const content = readFileSync(filePath, 'utf-8');
+          data = JSON.parse(content) as Store;
+        } catch {
+          data = { ...defaultData };
+        }
+      } else {
+        data = { ...defaultData };
+        this.write();
       }
     },
     write() {
-      persist();
+      const dir = dirname(filePath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      writeFileSync(filePath, JSON.stringify(data, null, 2));
     },
     get data() {
       return data;
@@ -129,8 +86,8 @@ function createSqliteAdapter(): { read: () => void; write: () => void; data: Sto
 }
 
 // Initialize storage
-const sqliteAdapter = createSqliteAdapter();
-setStorageAdapter(sqliteAdapter);
+const jsonAdapter = createJsonAdapter(DATA_FILE);
+setStorageAdapter(jsonAdapter);
 initStore();
 
 // Create MCP server
@@ -534,7 +491,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   // Re-read data to get latest state (in case web app made changes)
-  sqliteAdapter.read();
+  jsonAdapter.read();
 
   switch (name) {
     // Project operations

@@ -4,8 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, readFileSync, unlinkSync, watchFile, statSync } from 'fs';
-import Database from 'better-sqlite3';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, watchFile, statSync } from 'fs';
 import {
   setStorageAdapter,
   initStore,
@@ -48,11 +47,8 @@ const buildInfo = {
   time: process.env.BUILD_TIME ?? new Date().toISOString(),
 };
 
-// Data file path
-const DATA_DIR = join(__dirname, '../../data');
-const DB_FILE = join(DATA_DIR, 'flux.sqlite');
-const LEGACY_JSON_FILE = join(DATA_DIR, 'flux.json');
-const WAL_FILE = `${DB_FILE}-wal`;
+// Data file path - configurable via FLUX_DATA env var
+const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
 
 // Default store data
 const defaultData: Store = {
@@ -61,71 +57,30 @@ const defaultData: Store = {
   tasks: [],
 };
 
-// Create SQLite-based storage adapter
-function createSqliteAdapter(): { read: () => void; write: () => void; data: Store } {
-  // Ensure data directory exists
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  const db = new Database(DB_FILE);
-  db.pragma('journal_mode = WAL');
-  db.exec('CREATE TABLE IF NOT EXISTS store (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)');
-
-  const selectStmt = db.prepare('SELECT data FROM store WHERE id = 1');
-  const insertStmt = db.prepare('INSERT INTO store (id, data) VALUES (1, ?)');
-  const updateStmt = db.prepare('UPDATE store SET data = ? WHERE id = 1');
-
+// Create JSON file storage adapter
+function createJsonAdapter(filePath: string): { read: () => void; write: () => void; data: Store } {
   let data: Store = { ...defaultData };
-
-  const loadFromDb = (): boolean => {
-    const row = selectStmt.get() as { data?: string } | undefined;
-    if (row?.data) {
-      try {
-        data = JSON.parse(row.data) as Store;
-        return true;
-      } catch {
-        data = { ...defaultData };
-        return false;
-      }
-    }
-    return false;
-  };
-
-  const persist = (): void => {
-    const serialized = JSON.stringify(data);
-    const row = selectStmt.get() as { data?: string } | undefined;
-    if (row) {
-      updateStmt.run(serialized);
-    } else {
-      insertStmt.run(serialized);
-    }
-  };
-
-  const migrateFromJson = (): boolean => {
-    if (!existsSync(LEGACY_JSON_FILE)) return false;
-    try {
-      const content = readFileSync(LEGACY_JSON_FILE, 'utf-8');
-      data = JSON.parse(content) as Store;
-      persist();
-      unlinkSync(LEGACY_JSON_FILE);
-      return true;
-    } catch {
-      return false;
-    }
-  };
 
   return {
     read() {
-      const loaded = loadFromDb();
-      if (loaded) return;
-      data = { ...defaultData };
-      if (!migrateFromJson()) {
-        persist();
+      if (existsSync(filePath)) {
+        try {
+          const content = readFileSync(filePath, 'utf-8');
+          data = JSON.parse(content) as Store;
+        } catch {
+          data = { ...defaultData };
+        }
+      } else {
+        data = { ...defaultData };
+        this.write();
       }
     },
     write() {
-      persist();
+      const dir = dirname(filePath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      writeFileSync(filePath, JSON.stringify(data, null, 2));
     },
     get data() {
       return data;
@@ -134,9 +89,11 @@ function createSqliteAdapter(): { read: () => void; write: () => void; data: Sto
 }
 
 // Initialize storage
-const sqliteAdapter = createSqliteAdapter();
-setStorageAdapter(sqliteAdapter);
+const jsonAdapter = createJsonAdapter(DATA_FILE);
+setStorageAdapter(jsonAdapter);
 initStore();
+
+console.log(`Flux server using: ${DATA_FILE}`);
 
 // Set up webhook event handler
 setWebhookEventHandler(handleWebhookEvent);
@@ -192,7 +149,7 @@ const notifyDataChange = () => {
   }, 75);
 };
 
-// Use watchFile with polling - more reliable than watch() on macOS with atomic renames
+// Watch JSON file for external changes (e.g., CLI updates)
 const getMtime = (filePath: string): number => {
   try {
     return statSync(filePath).mtimeMs;
@@ -201,22 +158,18 @@ const getMtime = (filePath: string): number => {
   }
 };
 
-let lastDbMtime = getMtime(DB_FILE);
-let lastWalMtime = getMtime(WAL_FILE);
+let lastMtime = getMtime(DATA_FILE);
 
-const handleDbChange = () => {
-  const nextDbMtime = getMtime(DB_FILE);
-  const nextWalMtime = getMtime(WAL_FILE);
-  if (nextDbMtime !== lastDbMtime || nextWalMtime !== lastWalMtime) {
-    lastDbMtime = nextDbMtime;
-    lastWalMtime = nextWalMtime;
-    sqliteAdapter.read();
+const handleFileChange = () => {
+  const nextMtime = getMtime(DATA_FILE);
+  if (nextMtime !== lastMtime) {
+    lastMtime = nextMtime;
+    jsonAdapter.read();
     notifyDataChange();
   }
 };
 
-watchFile(DB_FILE, { interval: 100 }, handleDbChange);
-watchFile(WAL_FILE, { interval: 100 }, handleDbChange);
+watchFile(DATA_FILE, { interval: 100 }, handleFileChange);
 
 app.get('/api/events', () => {
   let clientController: ReadableStreamDefaultController<Uint8Array> | null = null;
