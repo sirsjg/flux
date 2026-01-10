@@ -4,28 +4,44 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ## Project Overview
 
-Flux is a Kanban board application with multi-project support, designed for both web UI and AI assistant integration via MCP (Model Context Protocol). It's a TypeScript monorepo with four packages sharing a common SQLite data store.
+Flux is a Kanban board application with multi-project support, designed for both web UI and AI assistant integration via MCP (Model Context Protocol). It's a TypeScript monorepo with five packages sharing a common data store.
+
+## Dogfooding
+
+This repo uses Flux to manage itself. Check `.flux/data.json` for current tasks:
+
+```bash
+flux ready              # Show unblocked tasks
+flux show <id>          # Task details
+```
 
 ## Common Commands
 
-### Development (requires two terminals)
+### Development
 
 ```bash
-# Terminal 1: Start API server (port 3000)
-pnpm --filter @flux/server dev
+# Start API server (port 3000)
+bun --filter @flux/server dev
 
-# Terminal 2: Start web dev server (port 5173, proxies API to :3000)
-pnpm --filter @flux/web dev
-
-# Optional - MCP server for local testing
-pnpm --filter @flux/mcp dev
+# Start web dev server (port 5173, proxies API to :3000)
+bun --filter @flux/web dev
 ```
 
-### Build & Type Check
+### Build & Test
 
 ```bash
-pnpm build          # Build all packages
-pnpm typecheck      # Type check all packages
+bun run build           # Build all packages
+bun run typecheck       # Type check all packages
+bun run test            # Run tests
+```
+
+### CLI
+
+```bash
+cd packages/cli && bun link   # Link globally
+flux init                     # Initialize in a repo
+flux ready                    # Show ready tasks
+flux task create <project> <title> -P 0  # Create P0 task
 ```
 
 ### Docker
@@ -45,16 +61,18 @@ docker run -d -p 3000:3000 -v flux-data:/app/packages/data flux-mcp node package
 
 ```
 packages/
-├── shared/     # Core types (Task, Epic, Project, Store) and storage abstraction
-├── web/        # Preact + Vite + Tailwind/DaisyUI frontend with drag-drop (@dnd-kit)
-├── server/     # Hono REST API server
-├── mcp/        # MCP server for LLM integration (Claude Desktop, Claude Code)
-└── data/       # Shared SQLite file storage (flux.sqlite)
+├── cli/        # CLI tool (`flux` command)
+├── shared/     # Core types and storage abstraction
+├── web/        # Preact + Vite + Tailwind/DaisyUI frontend
+├── server/     # Hono REST API server + SSE
+├── mcp/        # MCP server for LLM integration
+└── data/       # SQLite storage (Docker/MCP)
 ```
 
 **Key architectural decisions:**
-- All interfaces (web UI, REST API, MCP) read/write to the same `packages/data/flux.sqlite` file
-- Storage adapter pattern in `packages/shared/src/store.ts` allows pluggable backends
+- All interfaces (CLI, web, REST API, MCP) share the same store API
+- CLI uses `.flux/data.json`, Docker/MCP uses `packages/data/flux.sqlite`
+- Tasks have P0/P1/P2 priority levels for agent task ordering
 - Tasks can depend on other tasks/epics; blocked tasks show visual indicators
 - Epics act as swimlanes grouping tasks on the Kanban board
 
@@ -64,17 +82,20 @@ packages/
 type Task = {
   id: string;
   title: string;
-  status: 'todo' | 'in_progress' | 'done';
-  depends_on: string[];  // Task/Epic IDs
-  notes: string;
+  status: 'planning' | 'todo' | 'in_progress' | 'done';
+  depends_on: string[];
+  notes: string;           // Append with --note for agent memory
   epic_id?: string;
   project_id: string;
+  priority?: 0 | 1 | 2;    // P0=urgent, P1=normal, P2=low
+  created_at?: string;
+  updated_at?: string;
 };
 
 type Epic = {
   id: string;
   title: string;
-  status: 'todo' | 'in_progress' | 'done';
+  status: string;
   depends_on: string[];
   notes: string;
   project_id: string;
@@ -89,13 +110,13 @@ type Project = {
 
 ## Tech Stack
 
+- **CLI:** Bun, TypeScript
 - **Frontend:** Preact, Vite, Tailwind CSS, DaisyUI, @dnd-kit
 - **Backend:** Hono, Node.js 22
-- **Data:** SQLite (single-file persistence)
+- **Data:** SQLite (Docker) or JSON (CLI)
 - **LLM Integration:** @modelcontextprotocol/sdk
-- **Build:** TypeScript 5.6, pnpm workspaces
+- **Build:** TypeScript 5.6, Bun workspaces
 
 ## Requirements
 
-- Node.js 21+
-- pnpm 10+
+- Bun 1.0+
