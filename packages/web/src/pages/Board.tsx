@@ -252,7 +252,8 @@ export function Board({ projectId }: BoardProps) {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesTitle = task.title.toLowerCase().includes(query);
-      const matchesNotes = task.notes.toLowerCase().includes(query);
+      const notesText = Array.isArray(task.notes) ? task.notes.join(" ") : (task.notes || "");
+      const matchesNotes = notesText.toLowerCase().includes(query);
       if (!matchesTitle && !matchesNotes) return false;
     }
     if (filterStatus !== "all" && task.status !== filterStatus) return false;

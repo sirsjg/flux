@@ -59,7 +59,7 @@ export function TaskForm({
     setDependencyFilter("");
     if (task) {
       setTitle(task.title);
-      setNotes(task.notes);
+      setNotes(Array.isArray(task.notes) ? task.notes.join("\n") : (task.notes || ""));
       setStatus(task.status);
       setEpicId(task.epic_id || "");
       setDependsOn([...task.depends_on]);

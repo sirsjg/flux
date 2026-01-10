@@ -10,6 +10,17 @@ export const AGENT_CONFIG: Record<Agent, { label: string }> = {
   other: { label: 'Other' },
 };
 
+// Priority levels: P0 = urgent, P1 = normal, P2 = low
+export type Priority = 0 | 1 | 2;
+
+export const PRIORITIES: Priority[] = [0, 1, 2];
+
+export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string }> = {
+  0: { label: 'P0', color: '#ef4444' }, // red - urgent
+  1: { label: 'P1', color: '#f59e0b' }, // amber - normal
+  2: { label: 'P2', color: '#6b7280' }, // gray - low
+};
+
 // Task represents a single work item.
 export type Task = {
   id: string;
@@ -21,6 +32,9 @@ export type Task = {
   project_id: string;
   agent?: Agent; // Optional agent assignment
   archived?: boolean; // Whether the task is archived
+  priority?: Priority; // P0 = urgent, P1 = normal, P2 = low
+  created_at?: string;
+  updated_at?: string;
 };
 
 // Epic represents a grouped set of tasks.

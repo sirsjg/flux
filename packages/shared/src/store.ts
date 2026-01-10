@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority } from './types.js';
 
 // Storage adapter interface - can be localStorage or file-based
 export interface StorageAdapter {
@@ -31,6 +31,8 @@ export function initStore(): Store {
 
   // Migrate from old single-project structure if needed
   const data = db.data as any;
+  let needsWrite = false;
+
   if (!Array.isArray(data.projects)) {
     data.projects = [];
     // Migrate old project if it exists
@@ -45,13 +47,23 @@ export function initStore(): Store {
         data.epics.forEach((e: any) => { e.project_id = oldProject.id; });
       }
       delete data.project;
-      db.write();
+      needsWrite = true;
     }
   }
 
   // Ensure arrays exist
   if (!Array.isArray(data.tasks)) data.tasks = [];
   if (!Array.isArray(data.epics)) data.epics = [];
+
+  // Migrate tasks: convert notes from array to string (legacy cleanup)
+  data.tasks.forEach((t: any) => {
+    if (Array.isArray(t.notes)) {
+      t.notes = t.notes.join('\n\n');
+      needsWrite = true;
+    }
+  });
+
+  if (needsWrite) db.write();
 
   return db.data;
 }
@@ -191,18 +203,32 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  notes: string = ''
+  options?: { notes?: string; priority?: Priority }
 ): Task {
+  const now = new Date().toISOString();
   const task: Task = {
     id: generateId(),
     title,
     status: 'planning',
     depends_on: [],
-    notes,
+    notes: options?.notes || '',
     epic_id: epicId,
     project_id: projectId,
+    priority: options?.priority,
+    created_at: now,
+    updated_at: now,
   };
   db.data.tasks.push(task);
+  db.write();
+  return task;
+}
+
+// Add a note to a task (appends to existing notes)
+export function addTaskNote(taskId: string, note: string): Task | undefined {
+  const task = db.data.tasks.find(t => t.id === taskId);
+  if (!task) return undefined;
+  task.notes = task.notes ? `${task.notes}\n\n${note}` : note;
+  task.updated_at = new Date().toISOString();
   db.write();
   return task;
 }
@@ -210,7 +236,11 @@ export function createTask(
 export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task | undefined {
   const index = db.data.tasks.findIndex(t => t.id === id);
   if (index === -1) return undefined;
-  db.data.tasks[index] = { ...db.data.tasks[index], ...updates };
+  db.data.tasks[index] = {
+    ...db.data.tasks[index],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
   db.write();
   return db.data.tasks[index];
 }
@@ -258,6 +288,23 @@ export function isTaskBlocked(taskId: string): boolean {
     const dep = db.data.tasks.find(t => t.id === depId);
     return dep && dep.status !== 'done';
   });
+}
+
+// Get ready tasks: unblocked, not done, not archived, sorted by priority
+export function getReadyTasks(projectId?: string): Task[] {
+  let tasks = db.data.tasks.filter(t => !t.archived && t.status !== 'done');
+  if (projectId) {
+    tasks = tasks.filter(t => t.project_id === projectId);
+  }
+  // Filter out blocked tasks
+  tasks = tasks.filter(t => !isTaskBlocked(t.id));
+  // Sort by priority (P0 first, then P1, then P2, then undefined)
+  tasks.sort((a, b) => {
+    const pa = a.priority ?? 2;
+    const pb = b.priority ?? 2;
+    return pa - pb;
+  });
+  return tasks;
 }
 
 // ============ Archive Operations ============

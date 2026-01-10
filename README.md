@@ -1,4 +1,4 @@
-# Flux &middot; [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js_21+-339933?style=flat&logo=node.js&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-f69220?style=flat&logo=pnpm&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
+# Flux &middot; [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Bun](https://img.shields.io/badge/Bun-fbf0df?style=flat&logo=bun&logoColor=black) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
 
 > Flux is a **completely open, unopinionated task management engine**.
 
@@ -40,14 +40,15 @@ If you want **maximum flexibility**, it probably is.
 
 ## Features
 
+- **CLI-first** - Full CLI with MCP parity (`flux ready`, `flux task`, etc.)
+- **Agent memory** - Tasks have notes arrays for persistent context across sessions
+- **Priority system** - P0/P1/P2 priorities for agent task ordering
 - **Multi-project support** - Manage multiple Kanban boards
 - **Epics and Tasks** - Organize work with epics (swimlanes) and tasks
 - **Dependencies** - Track task/epic dependencies with blocked indicators
-- **Drag and drop** - Move tasks between columns and epics
-- **Search and filters** - Find tasks by text, filter by epic or blocked status
 - **MCP Server** - Allow LLMs to manage your Kanban board via Model Context Protocol
-- **Real-time updates** - SSE-powered live updates when data changes
-- **Webhooks** - Push notifications to external services when events occur (Slack, GitHub, CI, etc.)
+- **Web UI** - Drag and drop Kanban board with real-time updates
+- **Webhooks** - Push notifications to external services when events occur
 
 ## Quick Start (Docker)
 
@@ -137,20 +138,54 @@ docker run -d -p 3000:3000 -v ~/flux-data:/app/packages/data --name flux-web flu
 
 ### Prerequisites
 
-- Node.js 21+
-- pnpm 10+
+- Bun 1.0+
 
 ### Setup
 
 ```bash
-pnpm install
-pnpm build
+bun install
+bun run build
 ```
 
-### Running
+### CLI Usage
 
 ```bash
-pnpm --filter @flux/server start
+# Initialize in your repo
+flux init
+
+# Create a project and tasks
+flux project create "My Project"
+flux task create <project-id> "First task" -P 0  # P0 = high priority
+
+# Add notes (persistent memory for agents)
+flux task update <task-id> --note "Using X approach because Y"
+
+# See what's ready to work on
+flux ready --json
+
+# Mark done
+flux task done <task-id>
+```
+
+### Claude Code Integration
+
+Add to `.claude/settings.json` for automatic context on session start:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "",
+      "hooks": [{"type": "command", "command": "flux ready --json"}]
+    }]
+  }
+}
+```
+
+### Running the Server
+
+```bash
+bun --filter @flux/server start
 ```
 
 Visit http://localhost:3000
@@ -159,10 +194,10 @@ Visit http://localhost:3000
 
 ```bash
 # Terminal 1: API server with hot reload
-pnpm --filter @flux/server dev
+bun --filter @flux/server dev
 
 # Terminal 2: Web dev server with HMR
-pnpm --filter @flux/web dev
+bun --filter @flux/web dev
 ```
 
 Web UI will be at http://localhost:5173 (proxies API to :3000)
@@ -193,6 +228,21 @@ For Codex:
 ```bash
 codex mcp add flux -- node /path/to/flux/packages/mcp/dist/index.js
 ```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `flux init` | Initialize `.flux/` in current directory |
+| `flux ready [--json]` | Show unblocked tasks sorted by priority |
+| `flux show <id>` | Show task details with notes |
+| `flux project list` | List all projects |
+| `flux project create <name>` | Create a project |
+| `flux task list <project>` | List tasks in project |
+| `flux task create <project> <title> [-P 0\|1\|2]` | Create task with priority |
+| `flux task update <id> --note "..."` | Add note to task |
+| `flux task done <id>` | Mark task complete |
+| `flux task start <id>` | Mark task in progress |
 
 ## MCP Tools
 
@@ -225,6 +275,7 @@ codex mcp add flux -- node /path/to/flux/packages/mcp/dist/index.js
 
 ```
 packages/
+  cli/      - CLI (`flux` command)
   shared/   - Shared types and store logic
   web/      - Preact frontend with DaisyUI
   server/   - Hono API server
@@ -233,7 +284,9 @@ packages/
 
 ## Data Storage
 
-All data is stored in `packages/data/flux.sqlite`. This file is shared between the web UI and MCP server, so changes made via either interface are immediately visible in both. If `packages/data/flux.json` exists on first run, Flux imports it into SQLite and removes the JSON file.
+**CLI:** Data is stored in `.flux/data.json` in your repo (or `~/.flux/` globally). Initialize with `flux init`.
+
+**Docker/MCP:** Data is stored in `packages/data/flux.sqlite`. If `packages/data/flux.json` exists on first run, Flux imports it into SQLite and removes the JSON file.
 
 ## API Endpoints
 
@@ -383,11 +436,12 @@ Create a webhook to post task updates to Slack:
 
 ## Tech Stack
 
+- **CLI:** Bun, TypeScript
 - **Frontend:** Preact, TypeScript, Tailwind CSS, DaisyUI, @dnd-kit
 - **Backend:** Hono, Node.js
 - **Data:** SQLite (single-file persistence)
 - **MCP:** @modelcontextprotocol/sdk
-- **Build:** Vite, pnpm workspaces
+- **Build:** Vite, Bun workspaces
 
 ## Roadmap
 

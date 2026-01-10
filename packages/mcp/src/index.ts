@@ -646,7 +646,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args?.project_id as string,
         args?.title as string,
         args?.epic_id as string,
-        args?.notes as string
+        { notes: args?.notes as string }
       );
       return {
         content: [{ type: 'text', text: `Created task "${task.title}" with ID: ${task.id}` }],

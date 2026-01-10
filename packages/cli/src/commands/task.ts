@@ -1,0 +1,175 @@
+import {
+  getTasks,
+  getTask,
+  createTask,
+  updateTask,
+  deleteTask,
+  addTaskNote,
+  isTaskBlocked,
+  type Priority,
+} from '@flux/shared';
+import { output } from '../index.js';
+
+export async function taskCommand(
+  subcommand: string | undefined,
+  args: string[],
+  flags: Record<string, string | boolean>,
+  json: boolean
+): Promise<void> {
+  switch (subcommand) {
+    case 'list': {
+      const projectId = args[0];
+      if (!projectId) {
+        console.error('Usage: flux task list <project> [--epic] [--status]');
+        process.exit(1);
+      }
+      let tasks = getTasks(projectId).map(t => ({
+        ...t,
+        blocked: isTaskBlocked(t.id),
+      }));
+
+      // Filter by epic
+      if (flags.epic) {
+        tasks = tasks.filter(t => t.epic_id === flags.epic);
+      }
+      // Filter by status
+      if (flags.status) {
+        tasks = tasks.filter(t => t.status === flags.status);
+      }
+
+      if (json) {
+        output(tasks, true);
+      } else {
+        if (tasks.length === 0) {
+          console.log('No tasks');
+        } else {
+          for (const t of tasks) {
+            const priority = t.priority !== undefined ? `P${t.priority}` : '  ';
+            const blocked = t.blocked ? ' [BLOCKED]' : '';
+            console.log(`${t.id}  ${priority}  [${t.status}]  ${t.title}${blocked}`);
+          }
+        }
+      }
+      break;
+    }
+
+    case 'create': {
+      const projectId = args[0];
+      const title = args[1];
+      if (!projectId || !title) {
+        console.error('Usage: flux task create <project> <title> [-P priority] [-e epic]');
+        process.exit(1);
+      }
+      const epicId = (flags.e || flags.epic) as string | undefined;
+      const priorityStr = (flags.P || flags.priority) as string | undefined;
+      const priority = priorityStr !== undefined ? parseInt(priorityStr, 10) as Priority : undefined;
+      const notes = flags.note as string | undefined;
+
+      const task = createTask(projectId, title, epicId, { notes, priority });
+      output(json ? task : `Created task: ${task.id}`, json);
+      break;
+    }
+
+    case 'update': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux task update <id> [--title] [--status] [--note] [--epic]');
+        process.exit(1);
+      }
+
+      // Handle adding a note separately
+      if (flags.note) {
+        const task = addTaskNote(id, flags.note as string);
+        if (!task) {
+          console.error(`Task not found: ${id}`);
+          process.exit(1);
+        }
+        if (!flags.title && !flags.status && !flags.epic) {
+          output(json ? task : `Added note to task: ${task.id}`, json);
+          return;
+        }
+      }
+
+      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority } = {};
+      if (flags.title) updates.title = flags.title as string;
+      if (flags.status) updates.status = flags.status as string;
+      if (flags.epic) updates.epic_id = flags.epic as string;
+      if (flags.P || flags.priority) {
+        updates.priority = parseInt((flags.P || flags.priority) as string, 10) as Priority;
+      }
+
+      const task = updateTask(id, updates);
+      if (!task) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+      output(json ? task : `Updated task: ${task.id}`, json);
+      break;
+    }
+
+    case 'delete': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux task delete <id>');
+        process.exit(1);
+      }
+      const task = getTask(id);
+      if (!task) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+      deleteTask(id);
+      output(json ? { deleted: id } : `Deleted task: ${id}`, json);
+      break;
+    }
+
+    case 'done': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux task done <id> [--note]');
+        process.exit(1);
+      }
+
+      // Add note if provided
+      if (flags.note) {
+        addTaskNote(id, flags.note as string);
+      }
+
+      const task = updateTask(id, { status: 'done' });
+      if (!task) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+      output(json ? task : `Completed task: ${task.id}`, json);
+      break;
+    }
+
+    case 'start': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux task start <id>');
+        process.exit(1);
+      }
+
+      const current = getTask(id);
+      if (!current) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+
+      // Check workflow: planning -> todo -> in_progress
+      if (current.status === 'planning') {
+        console.error('Task is in planning. Move to todo first: flux task update <id> --status todo');
+        process.exit(1);
+      }
+
+      const task = updateTask(id, { status: 'in_progress' });
+      output(json ? task : `Started task: ${task!.id}`, json);
+      break;
+    }
+
+    default:
+      console.error('Usage: flux task [list|create|update|delete|done|start]');
+      process.exit(1);
+  }
+}
