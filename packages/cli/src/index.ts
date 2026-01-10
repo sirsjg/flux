@@ -173,15 +173,28 @@ async function main() {
 
   if (parsed.command === 'push') {
     const msg = (parsed.subcommand || 'update tasks');
+    const fluxDir = findFluxDir();
+    const dataPath = resolve(fluxDir, 'data.json');
+
+    if (!existsSync(dataPath)) {
+      console.error('No .flux/data.json found. Run: flux init');
+      process.exit(1);
+    }
+
     try {
-      // Get current branch to return to
+      // Read file content before switching branches (gitignored, so stash won't work)
+      const content = readFileSync(dataPath, 'utf-8');
       const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-      // Stash any uncommitted changes
-      execSync('git stash --include-untracked', { stdio: 'pipe' });
-      // Switch to flux-data, update, commit, push
+
+      // Stash any uncommitted changes on main
+      execSync('git stash --include-untracked 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+
+      // Switch to flux-data and write the file
       execSync('git checkout flux-data', { stdio: 'pipe' });
-      execSync('git checkout stash -- .flux/data.json 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+      mkdirSync(fluxDir, { recursive: true });
+      writeFileSync(dataPath, content);
       execSync('git add .flux/data.json', { stdio: 'pipe' });
+
       try {
         execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe' });
         execSync('git push origin flux-data', { stdio: 'pipe' });
@@ -189,9 +202,14 @@ async function main() {
       } catch {
         console.log('No changes to push');
       }
-      // Return to original branch
+
+      // Return to original branch and restore the file (git removes it on checkout)
       execSync(`git checkout ${branch}`, { stdio: 'pipe' });
+      mkdirSync(fluxDir, { recursive: true });
+      writeFileSync(dataPath, content);
       execSync('git stash pop 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+      // Ensure file isn't staged on main
+      execSync('git restore --staged .flux/data.json 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
     } catch (e: any) {
       console.error('Failed to push:', e.message);
       process.exit(1);
