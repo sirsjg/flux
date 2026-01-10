@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { resolve, dirname } from 'path';
+import { execSync } from 'child_process';
 
 // ANSI colors
 const c = {
@@ -157,6 +158,47 @@ async function main() {
     return;
   }
 
+  // Handle git sync commands (before storage init)
+  if (parsed.command === 'pull') {
+    try {
+      execSync('git fetch origin flux-data', { stdio: 'pipe' });
+      execSync('git checkout origin/flux-data -- .flux/data.json', { stdio: 'pipe' });
+      console.log('Pulled latest tasks from flux-data branch');
+    } catch (e: any) {
+      console.error('Failed to pull. Ensure flux-data branch exists: git checkout --orphan flux-data');
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (parsed.command === 'push') {
+    const msg = (parsed.subcommand || 'update tasks');
+    try {
+      // Get current branch to return to
+      const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+      // Stash any uncommitted changes
+      execSync('git stash --include-untracked', { stdio: 'pipe' });
+      // Switch to flux-data, update, commit, push
+      execSync('git checkout flux-data', { stdio: 'pipe' });
+      execSync('git checkout stash -- .flux/data.json 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+      execSync('git add .flux/data.json', { stdio: 'pipe' });
+      try {
+        execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe' });
+        execSync('git push origin flux-data', { stdio: 'pipe' });
+        console.log(`Pushed tasks to flux-data branch: "${msg}"`);
+      } catch {
+        console.log('No changes to push');
+      }
+      // Return to original branch
+      execSync(`git checkout ${branch}`, { stdio: 'pipe' });
+      execSync('git stash pop 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+    } catch (e: any) {
+      console.error('Failed to push:', e.message);
+      process.exit(1);
+    }
+    return;
+  }
+
   // Initialize storage for other commands
   try {
     initStorage();
@@ -208,6 +250,10 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic]${c.reset}
   ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
   ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress
+
+${c.bold}Sync:${c.reset} ${c.dim}(git-based team sync via flux-data branch)${c.reset}
+  ${c.cyan}flux pull${c.reset}                          Pull latest tasks from flux-data branch
+  ${c.cyan}flux push${c.reset} ${c.yellow}[message]${c.reset}                Push tasks to flux-data branch
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON

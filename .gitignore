@@ -28,3 +28,4 @@ dist-ssr
 # Flux
 packages/data/flux.sqlite*
 packages/data/flux.json
+.flux/
