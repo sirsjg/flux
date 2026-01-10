@@ -58,6 +58,44 @@ claude mcp add flux -- docker run -i --rm -v flux-data:/app/packages/data flux-m
 codex mcp add flux -- docker run -i --rm -v flux-data:/app/packages/data flux-mcp
 ```
 
+Let your agent know!
+
+```bash
+cat << 'EOF' >> AGENTS.md
+---
+You are an autonomous agent using Flux for task management.
+
+RULES:
+- All work MUST belong to exactly one project_id.
+- You MUST NOT guess or invent a project_id.
+- You MUST NOT switch projects without explicit instruction.
+
+STARTUP (MANDATORY):
+1. List projects.
+2. Select or create ONE project.
+3. Confirm the active project_id before any work.
+
+EXECUTION:
+- Include project_id in EVERY Flux call.
+- Track all work as tasks.
+- Update task status as work progresses.
+- Close tasks immediately when complete.
+
+CONTEXT LOSS:
+- If unsure of project_id, STOP.
+- Re-list projects and tasks.
+- Ask the user if ambiguity remains.
+
+FORBIDDEN:
+- Working without a confirmed project_id.
+- Mixing tasks across projects.
+- Relying on memory outside Flux.
+
+If these rules cannot be followed, halt and request clarification.
+EOF
+```
+---
+
 ## Installation (Docker)
 
 Docker is the recommended way to run Flux. Build the image first:
