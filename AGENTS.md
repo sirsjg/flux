@@ -60,21 +60,28 @@ docker run -d -p 3000:3000 -v flux-data:/app/packages/data flux-mcp node package
 ## Architecture
 
 ```
+CLI (core, standalone)        Server (optional, multi-repo)
+├── Per-repo .flux/           ├── Aggregates multiple repos
+├── Git-native sync           ├── SQLite as cache
+├── Works offline             ├── Web dashboard
+└── Zero dependencies         └── Watches flux-data branches
+```
+
+```
 packages/
-├── cli/        # CLI tool (`flux` command)
+├── cli/        # CLI tool - core, standalone
 ├── shared/     # Core types and storage abstraction
-├── web/        # Preact + Vite + Tailwind/DaisyUI frontend
-├── server/     # Hono REST API server + SSE
-├── mcp/        # MCP server for LLM integration
-└── data/       # SQLite storage (Docker/MCP)
+├── web/        # Preact frontend (optional dashboard)
+├── server/     # Multi-repo aggregator (optional)
+└── mcp/        # MCP server for LLM integration
 ```
 
 **Key architectural decisions:**
-- All interfaces (CLI, web, REST API, MCP) share the same store API
-- CLI uses `.flux/data.json`, Docker/MCP uses `packages/data/flux.sqlite`
+- CLI is the core, works standalone with git-native sync
+- Server is optional - aggregates tasks across multiple repos
+- Each repo has `.flux/data.json` synced via `flux-data` branch
 - Tasks have P0/P1/P2 priority levels for agent task ordering
 - Tasks can depend on other tasks/epics; blocked tasks show visual indicators
-- Epics act as swimlanes grouping tasks on the Kanban board
 
 ## Data Model
 
