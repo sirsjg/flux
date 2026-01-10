@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 
 import { resolve, dirname } from 'path';
+
+// ANSI colors
+const c = {
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  cyan: '\x1b[36m',
+  yellow: '\x1b[33m',
+  green: '\x1b[32m',
+  gray: '\x1b[90m',
+};
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import {
@@ -175,33 +186,33 @@ async function main() {
       break;
     case 'help':
     default:
-      console.log(`flux - CLI for Flux task management
+      console.log(`${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
-Commands:
-  flux init                          Initialize .flux in current directory
-  flux ready [--json]                Show unblocked tasks sorted by priority
-  flux show <id> [--json]            Show task details with notes
+${c.bold}Commands:${c.reset}
+  ${c.cyan}flux init${c.reset}                          Initialize .flux in current directory
+  ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
+  ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with notes
 
-  flux project list [--json]         List all projects
-  flux project create <name>         Create a project
-  flux project update <id> [--name] [--desc]
-  flux project delete <id>
+  ${c.cyan}flux project list${c.reset} ${c.green}[--json]${c.reset}         List all projects
+  ${c.cyan}flux project create${c.reset} ${c.yellow}<name>${c.reset}         Create a project
+  ${c.cyan}flux project update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--name] [--desc]${c.reset}
+  ${c.cyan}flux project delete${c.reset} ${c.yellow}<id>${c.reset}
 
-  flux epic list <project> [--json]  List epics in project
-  flux epic create <project> <title> Create an epic
-  flux epic update <id> [--title] [--status] [--notes]
-  flux epic delete <id>
+  ${c.cyan}flux epic list${c.reset} ${c.yellow}<project>${c.reset} ${c.green}[--json]${c.reset}  List epics in project
+  ${c.cyan}flux epic create${c.reset} ${c.yellow}<project> <title>${c.reset} Create an epic
+  ${c.cyan}flux epic update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note]${c.reset}
+  ${c.cyan}flux epic delete${c.reset} ${c.yellow}<id>${c.reset}
 
-  flux task list <project> [--json] [--epic] [--status]
-  flux task create <project> <title> [-P 0|1|2] [-e epic]
-  flux task update <id> [--title] [--status] [--note] [--epic]
-  flux task done <id> [--note]       Mark task done
-  flux task start <id>               Mark task in_progress
+  ${c.cyan}flux task list${c.reset} ${c.yellow}<project>${c.reset} ${c.green}[--json] [--epic] [--status]${c.reset}
+  ${c.cyan}flux task create${c.reset} ${c.yellow}<project> <title>${c.reset} ${c.green}[-P 0|1|2] [-e epic]${c.reset}
+  ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic]${c.reset}
+  ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
+  ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress
 
-Flags:
-  --json                             Output as JSON
-  -P, --priority                     Priority (0=P0, 1=P1, 2=P2)
-  -e, --epic                         Epic ID
+${c.bold}Flags:${c.reset}
+  ${c.green}--json${c.reset}                             Output as JSON
+  ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
+  ${c.green}-e, --epic${c.reset}                         Epic ID
 `);
   }
 }
