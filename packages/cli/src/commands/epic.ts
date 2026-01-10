@@ -42,7 +42,7 @@ export async function epicCommand(
         console.error('Usage: flux epic create <project> <title>');
         process.exit(1);
       }
-      const notes = flags.notes as string | undefined;
+      const notes = (flags.note || flags.notes) as string | undefined;
       const epic = createEpic(projectId, title, notes);
       output(json ? epic : `Created epic: ${epic.id}`, json);
       break;
@@ -51,13 +51,13 @@ export async function epicCommand(
     case 'update': {
       const id = args[0];
       if (!id) {
-        console.error('Usage: flux epic update <id> [--title] [--status] [--notes]');
+        console.error('Usage: flux epic update <id> [--title] [--status] [--note]');
         process.exit(1);
       }
       const updates: { title?: string; status?: string; notes?: string } = {};
       if (flags.title) updates.title = flags.title as string;
       if (flags.status) updates.status = flags.status as string;
-      if (flags.notes) updates.notes = flags.notes as string;
+      if (flags.note || flags.notes) updates.notes = (flags.note || flags.notes) as string;
       const epic = updateEpic(id, updates);
       if (!epic) {
         console.error(`Epic not found: ${id}`);
