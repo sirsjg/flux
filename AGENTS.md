@@ -8,11 +8,12 @@ Flux is a Kanban board application with multi-project support, designed for both
 
 ## Dogfooding
 
-This repo uses Flux to manage itself. Check `.flux/data.json` for current tasks:
+This repo uses Flux to manage itself. Tasks live on `flux-data` branch:
 
 ```bash
+flux pull               # Get latest tasks
 flux ready              # Show unblocked tasks
-flux show <id>          # Task details
+flux push "message"     # Push task changes
 ```
 
 ## Common Commands
@@ -48,23 +49,19 @@ flux task create <project> <title> -P 0  # Create P0 task
 
 ```bash
 docker build -t flux-mcp .
-docker-compose up   # Web UI with persistent data
 
-# MCP mode (stdio)
-docker run -i --rm -v flux-data:/app/packages/data flux-mcp
-
-# Web mode
-docker run -d -p 3000:3000 -v flux-data:/app/packages/data flux-mcp node packages/server/dist/index.js
+# Mount repo's .flux directory
+docker run -d -p 3000:3000 -v $(pwd)/.flux:/app/.flux -e FLUX_DATA=/app/.flux/data.json flux-mcp node packages/server/dist/index.js
 ```
 
 ## Architecture
 
 ```
-CLI (core, standalone)        Server (optional, multi-repo)
-├── Per-repo .flux/           ├── Aggregates multiple repos
-├── Git-native sync           ├── SQLite as cache
-├── Works offline             ├── Web dashboard
-└── Zero dependencies         └── Watches flux-data branches
+CLI (core, standalone)        Server (optional)
+├── Per-repo .flux/           ├── Web dashboard for .flux/
+├── Git-native sync           ├── SSE for live updates
+├── Works offline             ├── Future: multi-repo aggregator
+└── Zero dependencies         └── Reads same JSON as CLI
 ```
 
 ```
@@ -120,7 +117,7 @@ type Project = {
 - **CLI:** Bun, TypeScript
 - **Frontend:** Preact, Vite, Tailwind CSS, DaisyUI, @dnd-kit
 - **Backend:** Hono, Node.js 22
-- **Data:** SQLite (Docker) or JSON (CLI)
+- **Data:** JSON file (`.flux/data.json`), git-native sync
 - **LLM Integration:** @modelcontextprotocol/sdk
 - **Build:** TypeScript 5.6, Bun workspaces
 
