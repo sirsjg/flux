@@ -354,27 +354,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'create_task',
-        description: 'Create a new task in a project',
+        description: 'Create a new task in a project. Use add_task_comment to add notes.',
         inputSchema: {
           type: 'object',
           properties: {
             project_id: { type: 'string', description: 'Project ID' },
             title: { type: 'string', description: 'Task title' },
             epic_id: { type: 'string', description: 'Optional: assign to epic' },
-            notes: { type: 'string', description: 'Optional task notes' },
           },
           required: ['project_id', 'title'],
         },
       },
       {
         name: 'update_task',
-        description: 'Update an existing task (change status, title, notes, epic, or dependencies). Note: tasks must be moved to "todo" before they can be started (moved to "in_progress").',
+        description: 'Update an existing task (change status, title, epic, or dependencies). Use add_task_comment for notes. Tasks must be moved to "todo" before they can be started (moved to "in_progress").',
         inputSchema: {
           type: 'object',
           properties: {
             task_id: { type: 'string', description: 'Task ID' },
             title: { type: 'string', description: 'New task title' },
-            notes: { type: 'string', description: 'New task notes' },
             status: {
               type: 'string',
               enum: STATUSES,
@@ -640,8 +638,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const task = createTask(
         args?.project_id as string,
         args?.title as string,
-        args?.epic_id as string,
-        { notes: args?.notes as string }
+        args?.epic_id as string
       );
       return {
         content: [{ type: 'text', text: `Created task "${task.title}" with ID: ${task.id}` }],
@@ -661,7 +658,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       const updates: Record<string, unknown> = {};
       if (args?.title) updates.title = args.title;
-      if (args?.notes !== undefined) updates.notes = args.notes;
       if (args?.status) updates.status = args.status;
       if (args?.epic_id !== undefined) updates.epic_id = args.epic_id || undefined;
       if (args?.depends_on) updates.depends_on = args.depends_on;

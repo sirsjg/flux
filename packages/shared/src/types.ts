@@ -36,7 +36,6 @@ export type Task = {
   title: string;
   status: string; // e.g. "todo" | "in_progress" | "done"
   depends_on: string[];
-  notes: string;
   comments?: TaskComment[];
   epic_id?: string;
   project_id: string;

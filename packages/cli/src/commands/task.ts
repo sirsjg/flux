@@ -4,7 +4,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
-  addTaskNote,
+  addTaskComment,
   isTaskBlocked,
   PRIORITY_CONFIG,
   PRIORITIES,
@@ -62,7 +62,7 @@ export async function taskCommand(
       const projectId = args[0];
       const title = args[1];
       if (!projectId || !title) {
-        console.error('Usage: flux task create <project> <title> [-P priority] [-e epic]');
+        console.error('Usage: flux task create <project> <title> [-P priority] [-e epic] [--note]');
         process.exit(1);
       }
       const epicId = (flags.e || flags.epic) as string | undefined;
@@ -70,9 +70,12 @@ export async function taskCommand(
       const priority = priorityStr !== undefined && PRIORITIES.includes(parseInt(priorityStr, 10) as Priority)
         ? parseInt(priorityStr, 10) as Priority
         : undefined;
-      const notes = flags.note as string | undefined;
 
-      const task = createTask(projectId, title, epicId, { notes, priority });
+      const task = createTask(projectId, title, epicId, { priority });
+      // Add initial comment if --note provided
+      if (flags.note) {
+        addTaskComment(task.id, flags.note as string, 'user');
+      }
       output(json ? task : `Created task: ${task.id}`, json);
       break;
     }
@@ -84,15 +87,16 @@ export async function taskCommand(
         process.exit(1);
       }
 
-      // Handle adding a note separately
+      // Handle adding a comment
       if (flags.note) {
-        const task = addTaskNote(id, flags.note as string);
-        if (!task) {
+        const comment = addTaskComment(id, flags.note as string, 'user');
+        if (!comment) {
           console.error(`Task not found: ${id}`);
           process.exit(1);
         }
-        if (!flags.title && !flags.status && !flags.epic) {
-          output(json ? task : `Added note to task: ${task.id}`, json);
+        if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority) {
+          const task = getTask(id);
+          output(json ? task : `Added comment to task: ${id}`, json);
           return;
         }
       }
@@ -137,9 +141,9 @@ export async function taskCommand(
         process.exit(1);
       }
 
-      // Add note if provided
+      // Add comment if provided
       if (flags.note) {
-        addTaskNote(id, flags.note as string);
+        addTaskComment(id, flags.note as string, 'user');
       }
 
       const task = updateTask(id, { status: 'done' });

@@ -48,10 +48,14 @@ export async function showCommand(
     if (task.created_at) console.log(`Created: ${task.created_at}`);
     if (task.updated_at) console.log(`Updated: ${task.updated_at}`);
 
-    if (task.notes) {
+    if (task.comments && task.comments.length > 0) {
       console.log('');
-      console.log('Notes:');
-      console.log(task.notes);
+      console.log('Comments:');
+      for (const comment of task.comments) {
+        const author = comment.author === 'mcp' ? '[agent]' : '[user]';
+        const date = comment.created_at.split('T')[0];
+        console.log(`  ${date} ${author} ${comment.body}`);
+      }
     }
   }
 }

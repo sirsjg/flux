@@ -24,8 +24,11 @@ export async function readyCommand(
         const p = t.priority ?? 2;
         const { label, ansi } = PRIORITY_CONFIG[p as Priority];
         console.log(`${t.id}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}`);
-        if (t.notes) {
-          console.log(`    → ${t.notes.split('\n')[0]}...`);
+        // Show latest comment preview
+        const lastComment = t.comments?.[t.comments.length - 1];
+        if (lastComment) {
+          const preview = lastComment.body.split('\n')[0].slice(0, 60);
+          console.log(`    → ${preview}${lastComment.body.length > 60 ? '...' : ''}`);
         }
       }
     }

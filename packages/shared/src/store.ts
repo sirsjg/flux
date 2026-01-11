@@ -69,10 +69,27 @@ export function initStore(): Store {
     }
   });
 
-  // Migrate tasks: convert notes from array to string (legacy cleanup)
+  // Migrate tasks: convert legacy notes to comments
   data.tasks.forEach((t: any) => {
+    // Handle array notes (very old format)
     if (Array.isArray(t.notes)) {
       t.notes = t.notes.join('\n\n');
+      needsWrite = true;
+    }
+    // Convert string notes to a comment
+    if (typeof t.notes === 'string' && t.notes.trim()) {
+      if (!t.comments) t.comments = [];
+      t.comments.unshift({
+        id: generateId(),
+        body: t.notes,
+        author: 'user',
+        created_at: t.created_at || new Date().toISOString(),
+      });
+      needsWrite = true;
+    }
+    // Remove notes field
+    if ('notes' in t) {
+      delete t.notes;
       needsWrite = true;
     }
   });
@@ -223,7 +240,7 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { notes?: string; priority?: Priority }
+  options?: { priority?: Priority }
 ): Task {
   const now = new Date().toISOString();
   const task: Task = {
@@ -231,7 +248,6 @@ export function createTask(
     title,
     status: 'planning',
     depends_on: [],
-    notes: options?.notes || '',
     comments: [],
     epic_id: epicId,
     project_id: projectId,
@@ -240,16 +256,6 @@ export function createTask(
     updated_at: now,
   };
   db.data.tasks.push(task);
-  db.write();
-  return task;
-}
-
-// Add a note to a task (appends to existing notes)
-export function addTaskNote(taskId: string, note: string): Task | undefined {
-  const task = db.data.tasks.find(t => t.id === taskId);
-  if (!task) return undefined;
-  task.notes = task.notes ? `${task.notes}\n\n${note}` : note;
-  task.updated_at = new Date().toISOString();
   db.write();
   return task;
 }
