@@ -4,14 +4,13 @@
 
 ## Why This Fork?
 
-The original Flux uses SQLite and requires a hosted server for team sharing. This fork takes a different approach:
+[Steve's original Flux](https://github.com/sirsjg/flux) is excellent — a beautifully designed task engine with MCP integration that pioneered the idea of AI-native project management. This fork adapts it for a different workflow:
 
 | | Original | This Fork |
 |---|---|---|
 | **Storage** | SQLite | JSON file |
 | **Team sync** | Hosted server | Git branches (`flux pull` / `flux push`) |
-| **Interface** | MCP only | CLI + MCP + Web UI |
-| **Server** | Required | Optional (`flux serve`) |
+| **Primary interface** | Server + Web UI | CLI (server optional) |
 
 **TL;DR**: Git-native task management. No server needed. Works offline. Syncs like code.
 
