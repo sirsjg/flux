@@ -28,6 +28,9 @@ import {
   deleteTaskComment,
   isTaskBlocked,
   cleanupProject,
+  getStore,
+  replaceStore,
+  mergeStore,
   type Store,
 } from '@flux/shared';
 
@@ -155,6 +158,19 @@ function createApp() {
     const body = await c.req.json();
     const result = cleanupProject(c.req.param('projectId'), body.archiveTasks ?? false, body.archiveEpics ?? false);
     return c.json(result);
+  });
+
+  // Export/Import
+  app.get('/api/export', (c) => c.json(getStore()));
+  app.post('/api/import', async (c) => {
+    const body = await c.req.json();
+    const { data, merge } = body;
+    if (merge) {
+      mergeStore(data);
+    } else {
+      replaceStore(data);
+    }
+    return c.json({ success: true });
   });
 
   return app;

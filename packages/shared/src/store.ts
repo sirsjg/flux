@@ -110,6 +110,42 @@ export function resetStore(): void {
   db.write();
 }
 
+export function getStore(): Store {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  return {
+    projects: [...(db.data.projects || [])],
+    epics: [...(db.data.epics || [])],
+    tasks: [...(db.data.tasks || [])],
+  };
+}
+
+export function replaceStore(data: Store): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  db.data.projects = data.projects || [];
+  db.data.epics = data.epics || [];
+  db.data.tasks = data.tasks || [];
+  db.write();
+}
+
+export function mergeStore(data: Store): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  // Merge by adding items that don't exist (by id)
+  const existingProjectIds = new Set(db.data.projects.map(p => p.id));
+  const existingEpicIds = new Set(db.data.epics.map(e => e.id));
+  const existingTaskIds = new Set(db.data.tasks.map(t => t.id));
+
+  for (const p of data.projects || []) {
+    if (!existingProjectIds.has(p.id)) db.data.projects.push(p);
+  }
+  for (const e of data.epics || []) {
+    if (!existingEpicIds.has(e.id)) db.data.epics.push(e);
+  }
+  for (const t of data.tasks || []) {
+    if (!existingTaskIds.has(t.id)) db.data.tasks.push(t);
+  }
+  db.write();
+}
+
 // ============ Project Operations ============
 
 export function getProjects(): Project[] {

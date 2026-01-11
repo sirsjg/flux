@@ -70,7 +70,7 @@ import { taskCommand } from './commands/task.js';
 import { readyCommand } from './commands/ready.js';
 import { showCommand } from './commands/show.js';
 import { serveCommand } from './commands/serve.js';
-import { initClient } from './client.js';
+import { initClient, exportAll, importAll } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -439,6 +439,46 @@ async function main() {
       // show doesn't have a subcommand, so subcommand IS the task ID
       await showCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json);
       break;
+    case 'export': {
+      const data = await exportAll();
+      const output = JSON.stringify(data, null, 2);
+      const outFile = parsed.flags.o as string || parsed.flags.output as string;
+      if (outFile) {
+        writeFileSync(outFile, output);
+        console.log(`Exported to ${outFile}`);
+      } else {
+        console.log(output);
+      }
+      break;
+    }
+    case 'import': {
+      const file = parsed.subcommand;
+      if (!file) {
+        console.error('Usage: flux import <file> [--merge]');
+        process.exit(1);
+      }
+      let content: string;
+      if (file === '-') {
+        // Read from stdin
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) {
+          chunks.push(chunk);
+        }
+        content = Buffer.concat(chunks).toString('utf-8');
+      } else {
+        if (!existsSync(file)) {
+          console.error(`File not found: ${file}`);
+          process.exit(1);
+        }
+        content = readFileSync(file, 'utf-8');
+      }
+      const data = JSON.parse(content);
+      const merge = parsed.flags.merge === true;
+      await importAll(data, merge);
+      const action = merge ? 'Merged' : 'Imported';
+      console.log(`${action} ${data.projects?.length || 0} projects, ${data.epics?.length || 0} epics, ${data.tasks?.length || 0} tasks`);
+      break;
+    }
     case 'help':
     default:
       console.log(`${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
@@ -463,6 +503,10 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic]${c.reset}
   ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
   ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress
+
+${c.bold}Data:${c.reset}
+  ${c.cyan}flux export${c.reset} ${c.green}[-o file]${c.reset}              Export all data to JSON
+  ${c.cyan}flux import${c.reset} ${c.yellow}<file>${c.reset} ${c.green}[--merge]${c.reset}      Import data from JSON (use - for stdin)
 
 ${c.bold}Sync:${c.reset} ${c.dim}(git-based team sync via flux-data branch)${c.reset}
   ${c.cyan}flux pull${c.reset}                          Pull latest tasks from flux-data branch

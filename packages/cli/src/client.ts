@@ -23,6 +23,9 @@ import {
   addTaskComment as localAddTaskComment,
   deleteTaskComment as localDeleteTaskComment,
   getReadyTasks as localGetReadyTasks,
+  getStore as localGetStore,
+  replaceStore as localReplaceStore,
+  mergeStore as localMergeStore,
   PRIORITY_CONFIG,
   PRIORITIES,
   type Project,
@@ -30,6 +33,7 @@ import {
   type Task,
   type TaskComment,
   type Priority,
+  type Store,
 } from '@flux/shared';
 
 // Re-export constants
@@ -289,4 +293,25 @@ export async function getReadyTasks(projectId?: string): Promise<Task[]> {
     return ready;
   }
   return localGetReadyTasks(projectId);
+}
+
+// Export all data
+export async function exportAll(): Promise<Store> {
+  if (serverUrl) {
+    return http('GET', '/api/export');
+  }
+  return localGetStore();
+}
+
+// Import data (replace or merge)
+export async function importAll(data: Store, merge: boolean = false): Promise<void> {
+  if (serverUrl) {
+    await http('POST', '/api/import', { data, merge });
+    return;
+  }
+  if (merge) {
+    localMergeStore(data);
+  } else {
+    localReplaceStore(data);
+  }
 }
