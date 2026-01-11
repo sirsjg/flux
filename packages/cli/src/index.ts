@@ -28,6 +28,7 @@ import { epicCommand } from './commands/epic.js';
 import { taskCommand } from './commands/task.js';
 import { readyCommand } from './commands/ready.js';
 import { showCommand } from './commands/show.js';
+import { serveCommand } from './commands/serve.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -217,6 +218,12 @@ async function main() {
     return;
   }
 
+  // Serve handles its own storage initialization
+  if (parsed.command === 'serve') {
+    await serveCommand(parsed.args, parsed.flags);
+    return;
+  }
+
   // Initialize storage for other commands
   try {
     initStorage();
@@ -251,7 +258,7 @@ async function main() {
 ${c.bold}Commands:${c.reset}
   ${c.cyan}flux init${c.reset}                          Initialize .flux in current directory
   ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
-  ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with notes
+  ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
 
   ${c.cyan}flux project list${c.reset} ${c.green}[--json]${c.reset}         List all projects
   ${c.cyan}flux project create${c.reset} ${c.yellow}<name>${c.reset}         Create a project
@@ -272,6 +279,9 @@ ${c.bold}Commands:${c.reset}
 ${c.bold}Sync:${c.reset} ${c.dim}(git-based team sync via flux-data branch)${c.reset}
   ${c.cyan}flux pull${c.reset}                          Pull latest tasks from flux-data branch
   ${c.cyan}flux push${c.reset} ${c.yellow}[message]${c.reset}                Push tasks to flux-data branch
+
+${c.bold}Server:${c.reset}
+  ${c.cyan}flux serve${c.reset} ${c.green}[-p port]${c.reset}              Start web UI server (default: 3589)
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON

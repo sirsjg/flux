@@ -10,7 +10,9 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
-    "@flux/shared": "workspace:*"
+    "@flux/shared": "workspace:*",
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.12"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

@@ -16,6 +16,8 @@
       },
       "dependencies": {
         "@flux/shared": "workspace:*",
+        "@hono/node-server": "^1.13.7",
+        "hono": "^4.6.12",
       },
       "devDependencies": {
         "@types/node": "^22.10.5",
