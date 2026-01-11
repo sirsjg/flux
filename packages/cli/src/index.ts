@@ -32,6 +32,64 @@ import { serveCommand } from './commands/serve.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Flux instructions for AGENTS.md/CLAUDE.md
+const FLUX_INSTRUCTIONS = `<!-- FLUX:START -->
+## Flux Task Management
+
+You have access to Flux for task management via MCP or CLI.
+
+**Rules:**
+- All work MUST belong to exactly one project_id
+- Do NOT guess or invent a project_id
+- Track all work as tasks; update status as you progress
+- Close tasks immediately when complete
+
+**Startup:**
+1. List projects (\`flux project list\`)
+2. Select or create ONE project
+3. Confirm active project_id before any work
+
+**If context is lost:** Re-list projects/tasks. Ask user if ambiguous.
+<!-- FLUX:END -->`;
+
+// Update AGENTS.md or CLAUDE.md with flux instructions
+function updateAgentInstructions(): string | null {
+  const cwd = process.cwd();
+  const candidates = ['AGENTS.md', 'CLAUDE.md'];
+
+  let targetFile: string | null = null;
+  for (const name of candidates) {
+    const path = resolve(cwd, name);
+    if (existsSync(path)) {
+      targetFile = path;
+      break;
+    }
+  }
+
+  // Default to AGENTS.md if none exist
+  if (!targetFile) {
+    targetFile = resolve(cwd, 'AGENTS.md');
+  }
+
+  let content = existsSync(targetFile) ? readFileSync(targetFile, 'utf-8') : '';
+
+  const startMarker = '<!-- FLUX:START -->';
+  const endMarker = '<!-- FLUX:END -->';
+  const startIdx = content.indexOf(startMarker);
+  const endIdx = content.indexOf(endMarker);
+
+  if (startIdx !== -1 && endIdx !== -1) {
+    // Replace existing section
+    content = content.slice(0, startIdx) + FLUX_INSTRUCTIONS + content.slice(endIdx + endMarker.length);
+  } else {
+    // Append section
+    content = content.trimEnd() + '\n\n' + FLUX_INSTRUCTIONS + '\n';
+  }
+
+  writeFileSync(targetFile, content.trimStart());
+  return targetFile;
+}
+
 // Find .flux directory (walk up from cwd, or use FLUX_DIR env)
 function findFluxDir(): string {
   if (process.env.FLUX_DIR) {
@@ -148,14 +206,17 @@ async function main() {
     const fluxDir = process.env.FLUX_DIR || resolve(process.cwd(), '.flux');
     const dataPath = resolve(fluxDir, 'data.json');
 
-    if (existsSync(dataPath)) {
+    if (!existsSync(dataPath)) {
+      mkdirSync(fluxDir, { recursive: true });
+      writeFileSync(dataPath, JSON.stringify({ projects: [], epics: [], tasks: [] }, null, 2));
+      console.log(`Initialized .flux in ${fluxDir}`);
+    } else {
       console.log('.flux already initialized');
-      return;
     }
 
-    mkdirSync(fluxDir, { recursive: true });
-    writeFileSync(dataPath, JSON.stringify({ projects: [], epics: [], tasks: [] }, null, 2));
-    console.log(`Initialized .flux in ${fluxDir}`);
+    // Always update agent instructions
+    const agentFile = updateAgentInstructions();
+    console.log(`Updated ${agentFile}`);
     return;
   }
 
