@@ -205,6 +205,7 @@ export async function serveCommand(
   args: string[],
   flags: Record<string, string | boolean>
 ): Promise<void> {
+  // Default port 3589 = "FLUX" on numeric keypad (F=3, L=5, U=8, X=9)
   const requestedPort = parseInt(flags.port as string || flags.p as string || '3589', 10);
   const dataFile = (flags.data as string) || join(process.cwd(), '.flux/data.json');
 

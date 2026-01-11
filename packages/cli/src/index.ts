@@ -513,7 +513,7 @@ ${c.bold}Sync:${c.reset} ${c.dim}(git-based team sync via flux-data branch)${c.r
   ${c.cyan}flux push${c.reset} ${c.yellow}[message]${c.reset}                Push tasks to flux-data branch
 
 ${c.bold}Server:${c.reset}
-  ${c.cyan}flux serve${c.reset} ${c.green}[-p port]${c.reset}              Start web UI server (default: 3589)
+  ${c.cyan}flux serve${c.reset} ${c.green}[-p port]${c.reset}              Start web UI (port 3589 = FLUX on keypad)
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON
