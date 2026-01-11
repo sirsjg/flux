@@ -70,6 +70,7 @@ import { taskCommand } from './commands/task.js';
 import { readyCommand } from './commands/ready.js';
 import { showCommand } from './commands/show.js';
 import { serveCommand } from './commands/serve.js';
+import { initClient } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -208,18 +209,17 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
   const config = readConfig(fluxDir);
 
   if (config.server) {
-    // Server mode - use HTTP adapter
-    const adapter = createHttpAdapter(config.server);
-    setStorageAdapter(adapter);
-    // Don't call initStore - data comes from server
+    // Server mode - initialize client with server URL
+    initClient(config.server);
     return { mode: 'server', serverUrl: config.server };
   }
 
-  // File mode - use local JSON
+  // File mode - use local JSON + initialize client without server
   const dataPath = resolve(fluxDir, 'data.json');
   const adapter = createFileAdapter(dataPath);
   setStorageAdapter(adapter);
   initStore();
+  initClient(); // No server = local mode
   return { mode: 'file' };
 }
 

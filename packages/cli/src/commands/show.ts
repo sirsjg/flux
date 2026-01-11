@@ -1,4 +1,4 @@
-import { getTask, isTaskBlocked, getEpic, getProject, PRIORITY_CONFIG, type Priority } from '@flux/shared';
+import { getTask, isTaskBlocked, getEpic, getProject, PRIORITY_CONFIG, type Priority } from '../client.js';
 
 const RESET = '\x1b[0m';
 import { output } from '../index.js';
@@ -14,15 +14,15 @@ export async function showCommand(
     process.exit(1);
   }
 
-  const task = getTask(id);
+  const task = await getTask(id);
   if (!task) {
     console.error(`Task not found: ${id}`);
     process.exit(1);
   }
 
-  const blocked = isTaskBlocked(id);
-  const epic = task.epic_id ? getEpic(task.epic_id) : undefined;
-  const project = getProject(task.project_id);
+  const blocked = await isTaskBlocked(id);
+  const epic = task.epic_id ? await getEpic(task.epic_id) : undefined;
+  const project = await getProject(task.project_id);
 
   const result = {
     ...task,

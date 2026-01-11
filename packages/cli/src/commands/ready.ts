@@ -1,4 +1,4 @@
-import { getReadyTasks, getProjects, PRIORITY_CONFIG, type Priority } from '@flux/shared';
+import { getReadyTasks, PRIORITY_CONFIG, type Priority } from '../client.js';
 
 const RESET = '\x1b[0m';
 import { output } from '../index.js';
@@ -10,7 +10,7 @@ export async function readyCommand(
 ): Promise<void> {
   const projectId = args[0] || (flags.p as string) || (flags.project as string);
 
-  const tasks = getReadyTasks(projectId);
+  const tasks = await getReadyTasks(projectId);
 
   if (json) {
     output(tasks, true);

@@ -4,7 +4,7 @@ import {
   createEpic,
   updateEpic,
   deleteEpic,
-} from '@flux/shared';
+} from '../client.js';
 import { output } from '../index.js';
 
 export async function epicCommand(
@@ -20,7 +20,7 @@ export async function epicCommand(
         console.error('Usage: flux epic list <project>');
         process.exit(1);
       }
-      const epics = getEpics(projectId);
+      const epics = await getEpics(projectId);
       if (json) {
         output(epics, true);
       } else {
@@ -43,7 +43,7 @@ export async function epicCommand(
         process.exit(1);
       }
       const notes = (flags.note || flags.notes) as string | undefined;
-      const epic = createEpic(projectId, title, notes);
+      const epic = await createEpic(projectId, title, notes);
       output(json ? epic : `Created epic: ${epic.id}`, json);
       break;
     }
@@ -58,7 +58,7 @@ export async function epicCommand(
       if (flags.title) updates.title = flags.title as string;
       if (flags.status) updates.status = flags.status as string;
       if (flags.note || flags.notes) updates.notes = (flags.note || flags.notes) as string;
-      const epic = updateEpic(id, updates);
+      const epic = await updateEpic(id, updates);
       if (!epic) {
         console.error(`Epic not found: ${id}`);
         process.exit(1);
@@ -73,12 +73,12 @@ export async function epicCommand(
         console.error('Usage: flux epic delete <id>');
         process.exit(1);
       }
-      const epic = getEpic(id);
+      const epic = await getEpic(id);
       if (!epic) {
         console.error(`Epic not found: ${id}`);
         process.exit(1);
       }
-      deleteEpic(id);
+      await deleteEpic(id);
       output(json ? { deleted: id } : `Deleted epic: ${id}`, json);
       break;
     }

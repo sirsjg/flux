@@ -9,7 +9,7 @@ import {
   PRIORITY_CONFIG,
   PRIORITIES,
   type Priority,
-} from '@flux/shared';
+} from '../client.js';
 
 const RESET = '\x1b[0m';
 import { output } from '../index.js';
@@ -27,10 +27,13 @@ export async function taskCommand(
         console.error('Usage: flux task list <project> [--epic] [--status]');
         process.exit(1);
       }
-      let tasks = getTasks(projectId).map(t => ({
-        ...t,
-        blocked: isTaskBlocked(t.id),
-      }));
+      const rawTasks = await getTasks(projectId);
+      let tasks = await Promise.all(
+        rawTasks.map(async t => ({
+          ...t,
+          blocked: await isTaskBlocked(t.id),
+        }))
+      );
 
       // Filter by epic
       if (flags.epic) {
@@ -71,10 +74,10 @@ export async function taskCommand(
         ? parseInt(priorityStr, 10) as Priority
         : undefined;
 
-      const task = createTask(projectId, title, epicId, { priority });
+      const task = await createTask(projectId, title, epicId, { priority });
       // Add initial comment if --note provided
       if (flags.note) {
-        addTaskComment(task.id, flags.note as string, 'user');
+        await addTaskComment(task.id, flags.note as string, 'user');
       }
       output(json ? task : `Created task: ${task.id}`, json);
       break;
@@ -89,13 +92,13 @@ export async function taskCommand(
 
       // Handle adding a comment
       if (flags.note) {
-        const comment = addTaskComment(id, flags.note as string, 'user');
+        const comment = await addTaskComment(id, flags.note as string, 'user');
         if (!comment) {
           console.error(`Task not found: ${id}`);
           process.exit(1);
         }
         if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority) {
-          const task = getTask(id);
+          const task = await getTask(id);
           output(json ? task : `Added comment to task: ${id}`, json);
           return;
         }
@@ -109,7 +112,7 @@ export async function taskCommand(
         updates.priority = parseInt((flags.P || flags.priority) as string, 10) as Priority;
       }
 
-      const task = updateTask(id, updates);
+      const task = await updateTask(id, updates);
       if (!task) {
         console.error(`Task not found: ${id}`);
         process.exit(1);
@@ -124,12 +127,12 @@ export async function taskCommand(
         console.error('Usage: flux task delete <id>');
         process.exit(1);
       }
-      const task = getTask(id);
+      const task = await getTask(id);
       if (!task) {
         console.error(`Task not found: ${id}`);
         process.exit(1);
       }
-      deleteTask(id);
+      await deleteTask(id);
       output(json ? { deleted: id } : `Deleted task: ${id}`, json);
       break;
     }
@@ -143,10 +146,10 @@ export async function taskCommand(
 
       // Add comment if provided
       if (flags.note) {
-        addTaskComment(id, flags.note as string, 'user');
+        await addTaskComment(id, flags.note as string, 'user');
       }
 
-      const task = updateTask(id, { status: 'done' });
+      const task = await updateTask(id, { status: 'done' });
       if (!task) {
         console.error(`Task not found: ${id}`);
         process.exit(1);
@@ -162,7 +165,7 @@ export async function taskCommand(
         process.exit(1);
       }
 
-      const current = getTask(id);
+      const current = await getTask(id);
       if (!current) {
         console.error(`Task not found: ${id}`);
         process.exit(1);
@@ -174,7 +177,7 @@ export async function taskCommand(
         process.exit(1);
       }
 
-      const task = updateTask(id, { status: 'in_progress' });
+      const task = await updateTask(id, { status: 'in_progress' });
       output(json ? task : `Started task: ${task!.id}`, json);
       break;
     }

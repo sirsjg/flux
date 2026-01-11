@@ -5,7 +5,7 @@ import {
   updateProject,
   deleteProject,
   getProjectStats,
-} from '@flux/shared';
+} from '../client.js';
 import { output } from '../index.js';
 
 export async function projectCommand(
@@ -16,17 +16,20 @@ export async function projectCommand(
 ): Promise<void> {
   switch (subcommand) {
     case 'list': {
-      const projects = getProjects().map(p => ({
-        ...p,
-        stats: getProjectStats(p.id),
-      }));
+      const projects = await getProjects();
+      const withStats = await Promise.all(
+        projects.map(async p => ({
+          ...p,
+          stats: await getProjectStats(p.id),
+        }))
+      );
       if (json) {
-        output(projects, true);
+        output(withStats, true);
       } else {
-        if (projects.length === 0) {
+        if (withStats.length === 0) {
           console.log('No projects');
         } else {
-          for (const p of projects) {
+          for (const p of withStats) {
             console.log(`${p.id}  ${p.name}  (${p.stats.done}/${p.stats.total} done)`);
           }
         }
@@ -41,7 +44,7 @@ export async function projectCommand(
         process.exit(1);
       }
       const desc = flags.desc as string | undefined;
-      const project = createProject(name, desc);
+      const project = await createProject(name, desc);
       output(json ? project : `Created project: ${project.id}`, json);
       break;
     }
@@ -55,7 +58,7 @@ export async function projectCommand(
       const updates: { name?: string; description?: string } = {};
       if (flags.name) updates.name = flags.name as string;
       if (flags.desc) updates.description = flags.desc as string;
-      const project = updateProject(id, updates);
+      const project = await updateProject(id, updates);
       if (!project) {
         console.error(`Project not found: ${id}`);
         process.exit(1);
@@ -70,12 +73,12 @@ export async function projectCommand(
         console.error('Usage: flux project delete <id>');
         process.exit(1);
       }
-      const project = getProject(id);
+      const project = await getProject(id);
       if (!project) {
         console.error(`Project not found: ${id}`);
         process.exit(1);
       }
-      deleteProject(id);
+      await deleteProject(id);
       output(json ? { deleted: id } : `Deleted project: ${id}`, json);
       break;
     }
