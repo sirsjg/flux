@@ -2,6 +2,19 @@
 
 > Flux is a **completely open, hackable, unopinionated task management engine**.
 
+## Why This Fork?
+
+The original Flux uses SQLite and requires a hosted server for team sharing. This fork takes a different approach:
+
+| | Original | This Fork |
+|---|---|---|
+| **Storage** | SQLite | JSON file |
+| **Team sync** | Hosted server | Git branches (`flux pull` / `flux push`) |
+| **Interface** | MCP only | CLI + MCP + Web UI |
+| **Server** | Required | Optional (`flux serve`) |
+
+**TL;DR**: Git-native task management. No server needed. Works offline. Syncs like code.
+
 <p align="center">
   <img src="./docs/kibo-mascot.png" width="220" />
 </p>
@@ -18,7 +31,7 @@ Ever felt like your projects are a tangled mess of tools, bots, and half-baked i
 
 - **Execution-Agnostic**: Tasks live here, but how they get done? That's up to you – manual, API, webhooks, or let Claude/GPT take the wheel.
 - **AI-Powered Awesomeness**: Hook up your LLMs via MCP and watch them automate the mundane. "Hey AI, create a task for fixing that bug!" – Done. 🤖
-- **Simple & Speedy**: Single-file SQLite backend, drag-and-drop UI, real-time updates. No bloat, just flow.
+- **Simple & Speedy**: Single JSON file, drag-and-drop UI, git-native sync. No bloat, just flow.
 
 Flux isn't just another Kanban board – it's the open-source engine for the future of work. Developers love it because it's hackable, extensible, and screams "build on me!" If you're tinkering with AI agents or just need a better way to organize, this is your ticket to productivity paradise.
 
@@ -36,10 +49,10 @@ Flux isn't just another Kanban board – it's the open-source engine for the fut
 - 📡 **Real-Time Updates**: SSE keeps everyone in sync – web UI, APIs, and beyond.
 - 🪝 **Webhooks Galore**: Integrate with Slack, GitHub, CI/CD – trigger actions on task changes.
 - 📱 **API-First Design**: Full REST endpoints for ultimate control.
-- 💾 **SQLite Simplicity**: All data in one file, with JSON import for easy starts.
+- 💾 **Git-Native Sync**: `flux push` / `flux pull` syncs via `flux-data` branch.
 
 - 🖥️ **CLI-First**: Full CLI with MCP parity (`flux ready`, `flux task`, etc.)
-- 🧠 **Agent Memory**: Task notes for persistent context across sessions
+- 🧠 **Agent Memory**: Task comments for persistent context across sessions
 - ⚡ **Priority System**: P0/P1/P2 priorities for agent task ordering
 
 ## Quick Start: Up and Running in a Flux Second ⚡
