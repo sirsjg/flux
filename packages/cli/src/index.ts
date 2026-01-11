@@ -15,12 +15,53 @@ const c = {
 };
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { createInterface } from 'readline';
 import {
   setStorageAdapter,
   initStore,
   type StorageAdapter,
   type Store,
 } from '@flux/shared';
+
+// Config types
+type FluxConfig = {
+  server?: string;  // Optional server URL
+};
+
+// Read config from .flux/config.json
+function readConfig(fluxDir: string): FluxConfig {
+  const configPath = resolve(fluxDir, 'config.json');
+  if (existsSync(configPath)) {
+    try {
+      return JSON.parse(readFileSync(configPath, 'utf-8'));
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+// Write config to .flux/config.json
+function writeConfig(fluxDir: string, config: FluxConfig): void {
+  const configPath = resolve(fluxDir, 'config.json');
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
+}
+
+// Interactive prompt helper
+function prompt(question: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+// Check if running interactively
+function isInteractive(): boolean {
+  return process.stdin.isTTY === true;
+}
 
 // Commands
 import { projectCommand } from './commands/project.js';
@@ -137,13 +178,49 @@ function createFileAdapter(dataPath: string): StorageAdapter {
   };
 }
 
-// Initialize storage
-function initStorage(): void {
+// Create HTTP-based storage adapter for server mode
+function createHttpAdapter(serverUrl: string): StorageAdapter {
+  let data: Store = { projects: [], epics: [], tasks: [] };
+  const baseUrl = serverUrl.replace(/\/$/, '');
+
+  return {
+    get data() {
+      return data;
+    },
+    set data(newData: Store) {
+      data = newData;
+    },
+    read() {
+      // Sync fetch for compatibility with existing sync API
+      const fetch = require('node:http').request;
+      // For now, we'll use individual API calls in commands
+      // This adapter is a passthrough - real data comes from API
+    },
+    write() {
+      // Server handles persistence - no-op here
+    },
+  };
+}
+
+// Initialize storage (file or server mode)
+function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
   const fluxDir = findFluxDir();
+  const config = readConfig(fluxDir);
+
+  if (config.server) {
+    // Server mode - use HTTP adapter
+    const adapter = createHttpAdapter(config.server);
+    setStorageAdapter(adapter);
+    // Don't call initStore - data comes from server
+    return { mode: 'server', serverUrl: config.server };
+  }
+
+  // File mode - use local JSON
   const dataPath = resolve(fluxDir, 'data.json');
   const adapter = createFileAdapter(dataPath);
   setStorageAdapter(adapter);
   initStore();
+  return { mode: 'file' };
 }
 
 // Parse arguments
@@ -205,18 +282,68 @@ async function main() {
   if (parsed.command === 'init') {
     const fluxDir = process.env.FLUX_DIR || resolve(process.cwd(), '.flux');
     const dataPath = resolve(fluxDir, 'data.json');
+    const configPath = resolve(fluxDir, 'config.json');
+    const isNew = !existsSync(dataPath);
 
-    if (!existsSync(dataPath)) {
-      mkdirSync(fluxDir, { recursive: true });
-      writeFileSync(dataPath, JSON.stringify({ projects: [], epics: [], tasks: [] }, null, 2));
-      console.log(`Initialized .flux in ${fluxDir}`);
-    } else {
-      console.log('.flux already initialized');
+    mkdirSync(fluxDir, { recursive: true });
+
+    // Determine mode: --server flag, interactive prompt, or default to git
+    let serverUrl: string | undefined = parsed.flags.server as string | undefined;
+    const useGit = parsed.flags.git === true;
+
+    if (!serverUrl && !useGit && isNew && isInteractive()) {
+      // Interactive mode for new init
+      console.log(`${c.bold}Flux Setup${c.reset}\n`);
+      console.log('Choose how to sync tasks:\n');
+      console.log(`  ${c.cyan}1${c.reset}) ${c.bold}Git branches${c.reset} (default) - sync via flux-data branch`);
+      console.log(`  ${c.cyan}2${c.reset}) ${c.bold}Server${c.reset} - connect to a Flux server\n`);
+
+      const choice = await prompt('Choice [1]: ');
+
+      if (choice === '2') {
+        serverUrl = await prompt('Server URL: ');
+        if (!serverUrl) {
+          console.error('Server URL required');
+          process.exit(1);
+        }
+      }
     }
 
-    // Always update agent instructions
-    const agentFile = updateAgentInstructions();
-    console.log(`Updated ${agentFile}`);
+    // Write config if server mode
+    const config: FluxConfig = serverUrl ? { server: serverUrl } : {};
+    writeConfig(fluxDir, config);
+
+    // Create data.json for git mode (server mode doesn't need it)
+    if (!serverUrl && !existsSync(dataPath)) {
+      writeFileSync(dataPath, JSON.stringify({ projects: [], epics: [], tasks: [] }, null, 2));
+    }
+
+    if (isNew) {
+      console.log(`Initialized .flux in ${fluxDir}`);
+      if (serverUrl) {
+        console.log(`Mode: server (${serverUrl})`);
+      } else {
+        console.log('Mode: git (use flux pull/push to sync)');
+      }
+    } else {
+      console.log('.flux already initialized');
+      if (serverUrl) {
+        console.log(`Updated server: ${serverUrl}`);
+      }
+    }
+
+    // Update agent instructions (interactive or skip with --no-agents)
+    if (parsed.flags['no-agents'] !== true) {
+      let updateAgents = true;
+      if (isNew && isInteractive()) {
+        const answer = await prompt('\nUpdate AGENTS.md with Flux instructions? [Y/n]: ');
+        updateAgents = answer.toLowerCase() !== 'n';
+      }
+      if (updateAgents) {
+        const agentFile = updateAgentInstructions();
+        console.log(`Updated ${agentFile}`);
+      }
+    }
     return;
   }
 
@@ -317,7 +444,7 @@ async function main() {
       console.log(`${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
 ${c.bold}Commands:${c.reset}
-  ${c.cyan}flux init${c.reset}                          Initialize .flux in current directory
+  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--git]${c.reset}  Initialize .flux (interactive or with flags)
   ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
   ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
 
