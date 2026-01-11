@@ -16,7 +16,7 @@ const resolveBuildSha = () => {
 }
 
 const buildSha = resolveBuildSha()
-const buildTime = process.env.BUILD_TIME ?? new Date().toISOString()
+const buildTime = process.env.BUILD_TIME?.trim() || new Date().toISOString()
 
 // https://vite.dev/config/
 export default defineConfig({

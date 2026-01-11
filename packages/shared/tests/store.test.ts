@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Store } from '../src/types.js';
 import {
   addDependency,
+  addTaskComment,
   archiveDoneTasks,
   cleanupProject,
   createEpic,
   createProject,
   createTask,
   deleteProject,
+  deleteTaskComment,
   getProject,
   getTasks,
   initStore,
@@ -62,6 +64,7 @@ describe('store', () => {
           status: 'todo',
           depends_on: [],
           notes: '',
+          auto: false,
         } as Store['epics'][number],
       ],
     };
@@ -118,5 +121,18 @@ describe('store', () => {
 
     const result = cleanupProject(project.id, false, true);
     expect(result).toEqual({ archivedTasks: 0, deletedEpics: 1 });
+  });
+
+  it('adds and deletes task comments', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task');
+    const comment = addTaskComment(task.id, 'First', 'user');
+
+    expect(comment?.body).toBe('First');
+    expect(task.comments).toHaveLength(1);
+
+    const deleted = deleteTaskComment(task.id, comment!.id);
+    expect(deleted).toBe(true);
+    expect(task.comments).toHaveLength(0);
   });
 });

@@ -11,7 +11,7 @@ import {
   updateProject,
   type ProjectWithStats,
 } from "../stores";
-import { Modal, ThemeToggle } from "../components";
+import { ConfirmModal, Modal, ThemeToggle } from "../components";
 import { WebhooksPanel } from "../components/WebhooksPanel";
 
 export function ProjectList(_props: RoutableProps) {
@@ -34,6 +34,7 @@ export function ProjectList(_props: RoutableProps) {
     "unknown"
   );
   const [resetting, setResetting] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
     refreshProjects();
@@ -42,6 +43,7 @@ export function ProjectList(_props: RoutableProps) {
   useEffect(() => {
     if (!settingsOpen) {
       setSseStatus("unknown");
+      setResetConfirmOpen(false);
       return;
     }
     setSseStatus("unknown");
@@ -104,16 +106,13 @@ export function ProjectList(_props: RoutableProps) {
 
   const handleReset = async () => {
     if (resetting) return;
-    const confirmed = confirm(
-      "This will wipe all projects, tasks, epics, and webhooks. Continue?"
-    );
-    if (!confirmed) return;
     setResetting(true);
     try {
       await resetDatabase();
       await refreshProjects();
     } finally {
       setResetting(false);
+      setResetConfirmOpen(false);
     }
   };
 
@@ -373,7 +372,7 @@ export function ProjectList(_props: RoutableProps) {
                 <button
                   type="button"
                   class="btn btn-error"
-                  onClick={handleReset}
+                  onClick={() => setResetConfirmOpen(true)}
                   disabled={resetting}
                 >
                   {resetting ? (
@@ -443,6 +442,19 @@ export function ProjectList(_props: RoutableProps) {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={resetConfirmOpen}
+        title="Reset Database?"
+        description="This will wipe all projects, tasks, epics, and webhooks. This action cannot be undone."
+        confirmLabel="Reset"
+        confirmClassName="btn-error"
+        onConfirm={handleReset}
+        onClose={() => {
+          if (!resetting) setResetConfirmOpen(false);
+        }}
+        isLoading={resetting}
+      />
     </div>
   );
 }

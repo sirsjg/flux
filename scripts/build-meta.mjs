@@ -15,11 +15,11 @@ const resolveSha = () => {
 }
 
 const buildSha = resolveSha()
-const buildTime = process.env.BUILD_TIME ?? new Date().toISOString()
+const buildTime = process.env.BUILD_TIME?.trim() || new Date().toISOString()
 
 const result = spawnSync(
-  'pnpm',
-  ['-r', 'build', ...process.argv.slice(2)],
+  'bun',
+  ['run', '--filter', '*', 'build', ...process.argv.slice(2)],
   {
     stdio: 'inherit',
     env: {

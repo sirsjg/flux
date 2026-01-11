@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'preact/hooks'
+import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 import { createEpic, updateEpic, deleteEpic, getEpics } from '../stores'
 import type { Epic, Status } from '@flux/shared'
@@ -19,12 +20,15 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
   const [dependsOn, setDependsOn] = useState<string[]>([])
   const [availableEpics, setAvailableEpics] = useState<Epic[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
   const isEdit = !!epic
 
   useEffect(() => {
     if (isOpen) {
       loadFormData()
+    } else {
+      setDeleteConfirmOpen(false)
     }
   }, [isOpen, epic, projectId])
 
@@ -70,13 +74,22 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
     }
   }
 
-  const handleDelete = async () => {
-    if (epic && confirm('Delete this epic? Tasks will be moved to Unassigned.')) {
-      setSubmitting(true)
+  const handleDelete = () => {
+    if (epic && !submitting) {
+      setDeleteConfirmOpen(true)
+    }
+  }
+
+  const handleDeleteConfirmed = async () => {
+    if (!epic || submitting) return
+    setSubmitting(true)
+    try {
       await deleteEpic(epic.id)
       await onSave()
       onClose()
+    } finally {
       setSubmitting(false)
+      setDeleteConfirmOpen(false)
     }
   }
 
@@ -89,8 +102,9 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Epic' : 'New Epic'}>
-      <form onSubmit={handleSubmit}>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Epic' : 'New Epic'}>
+        <form onSubmit={handleSubmit}>
         <div class="form-control mb-4">
           <label class="label">
             <span class="label-text">Title *</span>
@@ -173,7 +187,20 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
             {submitting ? <span class="loading loading-spinner loading-sm"></span> : (isEdit ? 'Save' : 'Create')}
           </button>
         </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        title="Delete Epic?"
+        description="Tasks in this epic will be moved to Unassigned."
+        confirmLabel="Delete"
+        confirmClassName="btn-error"
+        onConfirm={handleDeleteConfirmed}
+        onClose={() => {
+          if (!submitting) setDeleteConfirmOpen(false)
+        }}
+        isLoading={submitting}
+      />
+    </>
   )
 }

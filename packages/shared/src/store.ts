@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment } from './types.js';
 
 // Storage adapter interface - can be localStorage or file-based
 export interface StorageAdapter {
@@ -35,6 +35,7 @@ export function initStore(): Store {
 
   if (!Array.isArray(data.projects)) {
     data.projects = [];
+    needsWrite = true;
     // Migrate old project if it exists
     if (data.project) {
       const oldProject = data.project;
@@ -47,13 +48,26 @@ export function initStore(): Store {
         data.epics.forEach((e: any) => { e.project_id = oldProject.id; });
       }
       delete data.project;
-      needsWrite = true;
     }
   }
 
   // Ensure arrays exist
-  if (!Array.isArray(data.tasks)) data.tasks = [];
-  if (!Array.isArray(data.epics)) data.epics = [];
+  if (!Array.isArray(data.tasks)) {
+    data.tasks = [];
+    needsWrite = true;
+  }
+  if (!Array.isArray(data.epics)) {
+    data.epics = [];
+    needsWrite = true;
+  }
+
+  // Migrate epics: ensure auto field exists
+  data.epics.forEach((epic: any) => {
+    if (epic.auto === undefined) {
+      epic.auto = false;
+      needsWrite = true;
+    }
+  });
 
   // Migrate tasks: convert notes from array to string (legacy cleanup)
   data.tasks.forEach((t: any) => {
@@ -141,13 +155,19 @@ export function getEpic(id: string): Epic | undefined {
   return db.data.epics.find(e => e.id === id);
 }
 
-export function createEpic(projectId: string, title: string, notes: string = ''): Epic {
+export function createEpic(
+  projectId: string,
+  title: string,
+  notes: string = '',
+  auto: boolean = false
+): Epic {
   const epic: Epic = {
     id: generateId(),
     title,
     status: 'planning',
     depends_on: [],
     notes,
+    auto,
     project_id: projectId,
   };
   db.data.epics.push(epic);
@@ -212,6 +232,7 @@ export function createTask(
     status: 'planning',
     depends_on: [],
     notes: options?.notes || '',
+    comments: [],
     epic_id: epicId,
     project_id: projectId,
     priority: options?.priority,
@@ -256,6 +277,37 @@ export function deleteTask(id: string): boolean {
       task.depends_on.splice(depIndex, 1);
     }
   });
+  db.write();
+  return true;
+}
+
+// ============ Comment Operations ============
+
+export function addTaskComment(
+  taskId: string,
+  body: string,
+  author: CommentAuthor
+): TaskComment | undefined {
+  const task = db.data.tasks.find(t => t.id === taskId);
+  if (!task) return undefined;
+  const comment: TaskComment = {
+    id: generateId(),
+    body,
+    author,
+    created_at: new Date().toISOString(),
+  };
+  if (!task.comments) task.comments = [];
+  task.comments.push(comment);
+  db.write();
+  return comment;
+}
+
+export function deleteTaskComment(taskId: string, commentId: string): boolean {
+  const task = db.data.tasks.find(t => t.id === taskId);
+  if (!task?.comments) return false;
+  const index = task.comments.findIndex(comment => comment.id === commentId);
+  if (index === -1) return false;
+  task.comments.splice(index, 1);
   db.write();
   return true;
 }

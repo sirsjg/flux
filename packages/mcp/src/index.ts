@@ -29,6 +29,8 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  addTaskComment,
+  deleteTaskComment,
   isTaskBlocked,
   getWebhooks,
   getWebhook,
@@ -288,6 +290,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             project_id: { type: 'string', description: 'Project ID' },
             title: { type: 'string', description: 'Epic title' },
             notes: { type: 'string', description: 'Optional epic notes' },
+            auto: { type: 'boolean', description: 'Optional auto flag (defaults to false)' },
           },
           required: ['project_id', 'title'],
         },
@@ -310,6 +313,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: 'array',
               items: { type: 'string' },
               description: 'IDs of epics this epic depends on',
+            },
+            auto: {
+              type: 'boolean',
+              description: 'Enable or disable auto for the epic',
             },
           },
           required: ['epic_id'],
@@ -408,6 +415,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['task_id', 'status'],
+        },
+      },
+      {
+        name: 'add_task_comment',
+        description: 'Add a comment to a task',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+            body: { type: 'string', description: 'Comment body' },
+            author: {
+              type: 'string',
+              enum: ['user', 'mcp'],
+              description: 'Comment author type (defaults to mcp)',
+            },
+          },
+          required: ['task_id', 'body'],
+        },
+      },
+      {
+        name: 'delete_task_comment',
+        description: 'Delete a comment from a task',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+            comment_id: { type: 'string', description: 'Comment ID' },
+          },
+          required: ['task_id', 'comment_id'],
         },
       },
 
@@ -546,7 +582,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const epic = createEpic(
         args?.project_id as string,
         args?.title as string,
-        args?.notes as string
+        args?.notes as string,
+        args?.auto as boolean | undefined
       );
       return {
         content: [{ type: 'text', text: `Created epic "${epic.title}" with ID: ${epic.id}` }],
@@ -559,6 +596,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args?.notes !== undefined) updates.notes = args.notes;
       if (args?.status) updates.status = args.status;
       if (args?.depends_on) updates.depends_on = args.depends_on;
+      if (args?.auto !== undefined) updates.auto = args.auto;
       const epic = updateEpic(args?.epic_id as string, updates);
       if (!epic) {
         return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
@@ -670,6 +708,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           { type: 'text', text: `Moved task "${task.title}" to ${args?.status}` },
         ],
+      };
+    }
+
+    case 'add_task_comment': {
+      const body = (args?.body as string | undefined)?.trim();
+      if (!body) {
+        return { content: [{ type: 'text', text: 'Comment body required' }], isError: true };
+      }
+      const author = args?.author === 'user' ? 'user' : 'mcp';
+      const comment = addTaskComment(args?.task_id as string, body, author);
+      if (!comment) {
+        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: `Added comment ${comment.id}` }],
+      };
+    }
+
+    case 'delete_task_comment': {
+      const success = deleteTaskComment(args?.task_id as string, args?.comment_id as string);
+      if (!success) {
+        return { content: [{ type: 'text', text: 'Comment not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: `Deleted comment ${args?.comment_id}` }],
       };
     }
 

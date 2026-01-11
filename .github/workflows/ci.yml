@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: build and test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,6 +33,7 @@ jobs:
         run: BUILD_SHA=${GITHUB_SHA::7} BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) pnpm build
 
   docker:
+    name: publish docker image
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
@@ -40,6 +42,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -59,11 +64,19 @@ jobs:
             type=raw,value=latest
             type=sha,format=short
 
+      - name: Set build metadata
+        run: |
+          echo "BUILD_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            BUILD_SHA=${{ env.BUILD_SHA }}
+            BUILD_TIME=${{ env.BUILD_TIME }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

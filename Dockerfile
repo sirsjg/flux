@@ -1,7 +1,7 @@
 # Flux - Kanban Board with MCP Server
 # Multi-stage build for optimized image size
 
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -12,7 +12,11 @@ WORKDIR /app
 FROM base AS deps
 
 # Native deps for better-sqlite3
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+  && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -46,7 +50,7 @@ COPY . .
 RUN pnpm run build
 
 # ============ Production Stage ============
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 

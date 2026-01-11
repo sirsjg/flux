@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Webhook, WebhookDelivery, WebhookEventType } from '@flux/shared';
+import type { Task, Epic, Project, Webhook, WebhookDelivery, WebhookEventType, TaskComment, CommentAuthor } from '@flux/shared';
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:3000/api' : '/api';
 
@@ -124,6 +124,24 @@ export async function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>)
 
 export async function deleteTask(id: string): Promise<boolean> {
   const res = await fetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
+  return res.ok;
+}
+
+export async function addTaskComment(
+  id: string,
+  body: string,
+  author?: CommentAuthor
+): Promise<TaskComment> {
+  const res = await fetch(`${API_BASE}/tasks/${id}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body, author }),
+  });
+  return res.json();
+}
+
+export async function deleteTaskComment(id: string, commentId: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/tasks/${id}/comments/${commentId}`, { method: 'DELETE' });
   return res.ok;
 }
 

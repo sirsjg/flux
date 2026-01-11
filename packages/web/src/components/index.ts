@@ -1,6 +1,7 @@
 export { TaskCard } from './TaskCard'
 export { EpicHeader } from './EpicHeader'
 export { Modal } from './Modal'
+export { ConfirmModal } from './ConfirmModal'
 export { TaskForm } from './TaskForm'
 export { EpicForm } from './EpicForm'
 export { DraggableTaskCard } from './DraggableTaskCard'

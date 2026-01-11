@@ -21,6 +21,15 @@ export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; a
   2: { label: 'P2', color: '#6b7280', ansi: '\x1b[90m' }, // gray - low
 };
 
+export type CommentAuthor = 'user' | 'mcp';
+
+export type TaskComment = {
+  id: string;
+  body: string;
+  author: CommentAuthor;
+  created_at: string;
+};
+
 // Task represents a single work item.
 export type Task = {
   id: string;
@@ -28,6 +37,7 @@ export type Task = {
   status: string; // e.g. "todo" | "in_progress" | "done"
   depends_on: string[];
   notes: string;
+  comments?: TaskComment[];
   epic_id?: string;
   project_id: string;
   agent?: Agent; // Optional agent assignment
@@ -44,6 +54,7 @@ export type Epic = {
   status: string;
   depends_on: string[];
   notes: string;
+  auto: boolean;
   project_id: string;
 };
 

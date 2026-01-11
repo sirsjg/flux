@@ -25,6 +25,8 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  addTaskComment,
+  deleteTaskComment,
   isTaskBlocked,
   cleanupProject,
   getWebhooks,
@@ -44,7 +46,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const buildInfo = {
   sha: process.env.BUILD_SHA ?? process.env.GIT_SHA ?? 'dev',
-  time: process.env.BUILD_TIME ?? new Date().toISOString(),
+  time: process.env.BUILD_TIME?.trim() || new Date().toISOString(),
 };
 
 // Data file path - configurable via FLUX_DATA env var
@@ -259,7 +261,7 @@ app.get('/api/epics/:id', (c) => {
 app.post('/api/projects/:projectId/epics', async (c) => {
   const body = await c.req.json();
   const projectId = c.req.param('projectId');
-  const epic = createEpic(projectId, body.title, body.notes);
+  const epic = createEpic(projectId, body.title, body.notes, body.auto);
   // Trigger webhook
   triggerWebhooks('epic.created', { epic }, projectId);
   return c.json(epic, 201);
@@ -299,6 +301,27 @@ app.get('/api/tasks/:id', (c) => {
   const task = getTask(c.req.param('id'));
   if (!task) return c.json({ error: 'Task not found' }, 404);
   return c.json({ ...task, blocked: isTaskBlocked(task.id) });
+});
+
+app.post('/api/tasks/:id/comments', async (c) => {
+  const taskId = c.req.param('id');
+  const task = getTask(taskId);
+  if (!task) return c.json({ error: 'Task not found' }, 404);
+  const body = await c.req.json().catch(() => null);
+  const commentBody = typeof body?.body === 'string' ? body.body.trim() : '';
+  if (!commentBody) return c.json({ error: 'Comment body required' }, 400);
+  const author = body?.author === 'mcp' ? 'mcp' : 'user';
+  const comment = addTaskComment(taskId, commentBody, author);
+  if (!comment) return c.json({ error: 'Task not found' }, 404);
+  return c.json(comment, 201);
+});
+
+app.delete('/api/tasks/:id/comments/:commentId', (c) => {
+  const taskId = c.req.param('id');
+  const commentId = c.req.param('commentId');
+  const deleted = deleteTaskComment(taskId, commentId);
+  if (!deleted) return c.json({ error: 'Comment not found' }, 404);
+  return c.json({ success: true });
 });
 
 app.post('/api/projects/:projectId/tasks', async (c) => {

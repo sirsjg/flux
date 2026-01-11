@@ -18,6 +18,7 @@ import {
   getProjects,
   type ProjectWithStats,
 } from '../stores/api'
+import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 
 export function WebhooksPanel() {
@@ -29,6 +30,8 @@ export function WebhooksPanel() {
   const [showDeliveries, setShowDeliveries] = useState<string | null>(null)
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([])
   const [testResult, setTestResult] = useState<{ webhookId: string; result: any } | null>(null)
+  const [pendingDeleteWebhook, setPendingDeleteWebhook] = useState<Webhook | null>(null)
+  const [deletingWebhookId, setDeletingWebhookId] = useState<string | null>(null)
 
   // Form state
   const [formName, setFormName] = useState('')
@@ -100,10 +103,20 @@ export function WebhooksPanel() {
     loadData()
   }
 
-  async function handleDelete(webhook: Webhook) {
-    if (!confirm(`Delete webhook "${webhook.name}"?`)) return
-    await deleteWebhook(webhook.id)
-    loadData()
+  function handleDelete(webhook: Webhook) {
+    setPendingDeleteWebhook(webhook)
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!pendingDeleteWebhook || deletingWebhookId) return
+    setDeletingWebhookId(pendingDeleteWebhook.id)
+    try {
+      await deleteWebhook(pendingDeleteWebhook.id)
+      loadData()
+    } finally {
+      setDeletingWebhookId(null)
+      setPendingDeleteWebhook(null)
+    }
   }
 
   async function handleToggleEnabled(webhook: Webhook) {
@@ -437,6 +450,23 @@ export function WebhooksPanel() {
           </div>
         )}
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!pendingDeleteWebhook}
+        title="Delete Webhook?"
+        description={
+          pendingDeleteWebhook
+            ? `Delete webhook "${pendingDeleteWebhook.name}"? This action cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        confirmClassName="btn-error"
+        onConfirm={handleDeleteConfirmed}
+        onClose={() => {
+          if (!deletingWebhookId) setPendingDeleteWebhook(null)
+        }}
+        isLoading={!!deletingWebhookId}
+      />
     </div>
   )
 }
