@@ -39,6 +39,9 @@ import {
 // Re-export constants
 export { PRIORITY_CONFIG, PRIORITIES, type Priority };
 
+// Server response includes computed blocked field
+type TaskWithBlocked = Task & { blocked: boolean };
+
 // Client state
 let serverUrl: string | null = null;
 
@@ -232,8 +235,8 @@ export async function deleteTask(id: string): Promise<boolean> {
 export async function isTaskBlocked(id: string): Promise<boolean> {
   if (serverUrl) {
     // Server includes blocked status in task response
-    const task = await getTask(id);
-    return (task as any)?.blocked ?? false;
+    const task = await http<TaskWithBlocked>('GET', `/api/tasks/${id}`).catch(() => undefined);
+    return task?.blocked ?? false;
   }
   return localIsTaskBlocked(id);
 }
@@ -275,9 +278,9 @@ export async function getReadyTasks(projectId?: string): Promise<Task[]> {
       ? projects.filter(p => p.id === projectId)
       : projects;
 
-    const allTasks: Task[] = [];
+    const allTasks: TaskWithBlocked[] = [];
     for (const p of targetProjects) {
-      const tasks = await getTasks(p.id);
+      const tasks = await http<TaskWithBlocked[]>('GET', `/api/projects/${p.id}/tasks`);
       allTasks.push(...tasks);
     }
 
@@ -285,7 +288,7 @@ export async function getReadyTasks(projectId?: string): Promise<Task[]> {
     const ready = allTasks.filter(t =>
       t.status !== 'done' &&
       !t.archived &&
-      !(t as any).blocked
+      !t.blocked
     );
 
     // Sort by priority

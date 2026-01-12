@@ -179,30 +179,6 @@ function createFileAdapter(dataPath: string): StorageAdapter {
   };
 }
 
-// Create HTTP-based storage adapter for server mode
-function createHttpAdapter(serverUrl: string): StorageAdapter {
-  let data: Store = { projects: [], epics: [], tasks: [] };
-  const baseUrl = serverUrl.replace(/\/$/, '');
-
-  return {
-    get data() {
-      return data;
-    },
-    set data(newData: Store) {
-      data = newData;
-    },
-    read() {
-      // Sync fetch for compatibility with existing sync API
-      const fetch = require('node:http').request;
-      // For now, we'll use individual API calls in commands
-      // This adapter is a passthrough - real data comes from API
-    },
-    write() {
-      // Server handles persistence - no-op here
-    },
-  };
-}
-
 // Initialize storage (file or server mode)
 function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
   const fluxDir = findFluxDir();
@@ -370,16 +346,39 @@ async function main() {
       process.exit(1);
     }
 
+    // Read file content before switching branches (gitignored, so stash won't work)
+    const content = readFileSync(dataPath, 'utf-8');
+    let branch: string;
+    let stashed = false;
+    let switchedBranch = false;
+
     try {
-      // Read file content before switching branches (gitignored, so stash won't work)
-      const content = readFileSync(dataPath, 'utf-8');
-      const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+      branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+    } catch {
+      console.error('Not in a git repository');
+      process.exit(1);
+    }
 
-      // Stash any uncommitted changes on main
-      execSync('git stash --include-untracked 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+    try {
+      // Check for uncommitted changes
+      try {
+        execSync('git diff-index --quiet HEAD --', { stdio: 'pipe' });
+      } catch {
+        // Has uncommitted changes, try to stash
+        execSync('git stash --include-untracked', { stdio: 'pipe' });
+        stashed = true;
+      }
 
-      // Switch to flux-data and write the file
-      execSync('git checkout flux-data', { stdio: 'pipe' });
+      // Switch to flux-data
+      try {
+        execSync('git checkout flux-data', { stdio: 'pipe' });
+        switchedBranch = true;
+      } catch {
+        console.error('Branch flux-data not found. Create it with: git checkout --orphan flux-data && git rm -rf . && git commit --allow-empty -m "init flux-data"');
+        throw new Error('flux-data branch missing');
+      }
+
+      // Write and commit
       mkdirSync(fluxDir, { recursive: true });
       writeFileSync(dataPath, content);
       execSync('git add .flux/data.json', { stdio: 'pipe' });
@@ -391,17 +390,27 @@ async function main() {
       } catch {
         console.log('No changes to push');
       }
-
-      // Return to original branch and restore the file (git removes it on checkout)
-      execSync(`git checkout ${branch}`, { stdio: 'pipe' });
+    } finally {
+      // Always restore original state
+      if (switchedBranch) {
+        try {
+          execSync(`git checkout ${branch}`, { stdio: 'pipe' });
+        } catch (e) {
+          console.error(`Warning: failed to return to branch ${branch}`);
+        }
+      }
+      // Restore the data file (git removes gitignored files on checkout)
       mkdirSync(fluxDir, { recursive: true });
       writeFileSync(dataPath, content);
-      execSync('git stash pop 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
-      // Ensure file isn't staged on main
+      if (stashed) {
+        try {
+          execSync('git stash pop', { stdio: 'pipe' });
+        } catch {
+          console.error('Warning: failed to restore stashed changes. Run: git stash pop');
+        }
+      }
+      // Ensure file isn't staged
       execSync('git restore --staged .flux/data.json 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
-    } catch (e: any) {
-      console.error('Failed to push:', e.message);
-      process.exit(1);
     }
     return;
   }
