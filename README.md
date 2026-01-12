@@ -2,18 +2,6 @@
 
 > Flux is a **completely open, hackable, unopinionated task management engine**.
 
-## Why This Fork?
-
-[Steve's original Flux](https://github.com/sirsjg/flux) is excellent — a beautifully designed task engine with MCP integration that pioneered the idea of AI-native project management. This fork adapts it for a different workflow:
-
-| | Original | This Fork |
-|---|---|---|
-| **Storage** | SQLite | JSON file |
-| **Team sync** | Hosted server | Git branches (`flux pull` / `flux push`) |
-| **Primary interface** | Server + Web UI | CLI (server optional) |
-
-**TL;DR**: Git-native task management. No server needed. Works offline. Syncs like code.
-
 <p align="center">
   <img src="./docs/kibo-mascot.png" width="220" />
 </p>
