@@ -17,9 +17,20 @@ const resolveSha = () => {
 const buildSha = resolveSha()
 const buildTime = process.env.BUILD_TIME?.trim() || new Date().toISOString()
 
+// Build shared first (other packages depend on its types)
+const sharedResult = spawnSync('bun', ['run', '--filter', '@flux/shared', 'build'], {
+  stdio: 'inherit',
+  env: { ...process.env, BUILD_SHA: buildSha, BUILD_TIME: buildTime },
+})
+
+if (sharedResult.status !== 0) {
+  process.exit(sharedResult.status ?? 1)
+}
+
+// Then build everything else
 const result = spawnSync(
   'bun',
-  ['run', '--filter', '*', 'build', ...process.argv.slice(2)],
+  ['run', '--filter', '!@flux/shared', 'build', ...process.argv.slice(2)],
   {
     stdio: 'inherit',
     env: {
