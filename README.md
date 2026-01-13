@@ -56,10 +56,10 @@ This will start both the web UI ([http://localhost:3000](http://localhost:3000))
 
 ```bash
 # Claude Code
-claude mcp add flux -- docker exec -i flux-web node packages/mcp/dist/index.js
+claude mcp add flux -- docker exec -i flux-web bun packages/mcp/dist/index.js
 
 # Codex
-codex mcp add flux -- docker exec -i flux-web node packages/mcp/dist/index.js
+codex mcp add flux -- docker exec -i flux-web bun packages/mcp/dist/index.js
 ```
 
 Let your agent know!
