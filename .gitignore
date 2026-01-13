@@ -32,3 +32,4 @@ dist-ssr
 packages/data/flux.sqlite*
 packages/data/flux.json
 .env.local
+.flux/
