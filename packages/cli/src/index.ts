@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { resolve, dirname } from 'path';
 import { execSync } from 'child_process';
