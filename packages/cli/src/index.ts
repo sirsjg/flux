@@ -170,18 +170,12 @@ function ensureWorktree(gitRoot: string): string {
   }
 
   // Check if flux-data branch exists locally or remotely
-  let branchExists = false;
-  try {
-    execSync('git rev-parse --verify flux-data', { stdio: 'pipe', cwd: gitRoot });
-    branchExists = true;
-  } catch {
+  const branchExists = ['flux-data', 'origin/flux-data'].some(ref => {
     try {
-      execSync('git rev-parse --verify origin/flux-data', { stdio: 'pipe', cwd: gitRoot });
-      branchExists = true;
-    } catch {
-      // Branch doesn't exist anywhere
-    }
-  }
+      execSync(`git rev-parse --verify ${ref}`, { stdio: 'pipe', cwd: gitRoot });
+      return true;
+    } catch { return false; }
+  });
 
   if (!branchExists) {
     // Create orphan branch
@@ -283,13 +277,7 @@ export function parseArgs(args: string[]): { command: string; subcommand?: strin
 
 // Output helper
 export function output(data: unknown, json: boolean): void {
-  if (json) {
-    console.log(JSON.stringify(data, null, 2));
-  } else if (typeof data === 'string') {
-    console.log(data);
-  } else {
-    console.log(JSON.stringify(data, null, 2));
-  }
+  console.log(json ? JSON.stringify(data, null, 2) : data);
 }
 
 // Main CLI
@@ -375,78 +363,60 @@ async function main() {
       console.error('pull/push not available in server mode - data syncs automatically');
       process.exit(1);
     }
-  }
-
-  if (parsed.command === 'pull') {
     const gitRoot = findGitRoot();
     if (!gitRoot) {
       console.error('Not in a git repository');
       process.exit(1);
     }
 
-    const fluxDir = findFluxDir();
     const dataPath = resolve(fluxDir, 'data.json');
 
-    try {
-      const worktree = ensureWorktree(gitRoot);
-      const worktreeData = resolve(worktree, '.flux', 'data.json');
-
-      // Fetch and pull in worktree
-      execSync('git fetch origin flux-data', { stdio: 'pipe', cwd: worktree });
-      execSync('git reset --hard origin/flux-data', { stdio: 'pipe', cwd: worktree });
-
-      // Copy to main repo
-      if (existsSync(worktreeData)) {
-        mkdirSync(fluxDir, { recursive: true });
-        writeFileSync(dataPath, readFileSync(worktreeData, 'utf-8'));
-        console.log('Pulled latest tasks from flux-data branch');
-      } else {
-        console.log('No .flux/data.json in flux-data branch yet');
-      }
-    } catch (e: any) {
-      console.error('Failed to pull:', e.message);
-      process.exit(1);
-    }
-    return;
-  }
-
-  if (parsed.command === 'push') {
-    const gitRoot = findGitRoot();
-    if (!gitRoot) {
-      console.error('Not in a git repository');
-      process.exit(1);
-    }
-
-    const msg = parsed.subcommand || 'update tasks';
-    const fluxDir = findFluxDir();
-    const dataPath = resolve(fluxDir, 'data.json');
-
-    if (!existsSync(dataPath)) {
-      console.error('No .flux/data.json found. Run: flux init');
-      process.exit(1);
-    }
-
-    try {
-      const worktree = ensureWorktree(gitRoot);
-      const worktreeFlux = resolve(worktree, '.flux');
-      const worktreeData = resolve(worktreeFlux, 'data.json');
-
-      // Copy data to worktree
-      mkdirSync(worktreeFlux, { recursive: true });
-      writeFileSync(worktreeData, readFileSync(dataPath, 'utf-8'));
-
-      // Commit and push in worktree
-      execSync('git add .flux/data.json', { stdio: 'pipe', cwd: worktree });
+    if (parsed.command === 'pull') {
       try {
-        execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe', cwd: worktree });
-        execSync('git push origin flux-data', { stdio: 'pipe', cwd: worktree });
-        console.log(`Pushed tasks to flux-data branch: "${msg}"`);
-      } catch {
-        console.log('No changes to push');
+        const worktree = ensureWorktree(gitRoot);
+        const worktreeData = resolve(worktree, '.flux', 'data.json');
+
+        execSync('git fetch origin flux-data', { stdio: 'pipe', cwd: worktree });
+        execSync('git reset --hard origin/flux-data', { stdio: 'pipe', cwd: worktree });
+
+        if (existsSync(worktreeData)) {
+          mkdirSync(fluxDir, { recursive: true });
+          writeFileSync(dataPath, readFileSync(worktreeData, 'utf-8'));
+          console.log('Pulled latest tasks from flux-data branch');
+        } else {
+          console.log('No .flux/data.json in flux-data branch yet');
+        }
+      } catch (e: any) {
+        console.error('Failed to pull:', e.message);
+        process.exit(1);
       }
-    } catch (e: any) {
-      console.error('Failed to push:', e.message);
-      process.exit(1);
+    } else {
+      const msg = parsed.subcommand || 'update tasks';
+      if (!existsSync(dataPath)) {
+        console.error('No .flux/data.json found. Run: flux init');
+        process.exit(1);
+      }
+
+      try {
+        const worktree = ensureWorktree(gitRoot);
+        const worktreeFlux = resolve(worktree, '.flux');
+        const worktreeData = resolve(worktreeFlux, 'data.json');
+
+        mkdirSync(worktreeFlux, { recursive: true });
+        writeFileSync(worktreeData, readFileSync(dataPath, 'utf-8'));
+
+        execSync('git add .flux/data.json', { stdio: 'pipe', cwd: worktree });
+        try {
+          execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe', cwd: worktree });
+          execSync('git push origin flux-data', { stdio: 'pipe', cwd: worktree });
+          console.log(`Pushed tasks to flux-data branch: "${msg}"`);
+        } catch {
+          console.log('No changes to push');
+        }
+      } catch (e: any) {
+        console.error('Failed to push:', e.message);
+        process.exit(1);
+      }
     }
     return;
   }

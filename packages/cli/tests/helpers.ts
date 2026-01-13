@@ -1,5 +1,12 @@
 import { vi, beforeEach, afterEach } from 'vitest';
 
+// Shared mock for PRIORITY_CONFIG used across test files
+export const MOCK_PRIORITY_CONFIG = {
+  0: { label: 'P0', ansi: '\x1b[31m' },
+  1: { label: 'P1', ansi: '\x1b[33m' },
+  2: { label: 'P2', ansi: '\x1b[32m' },
+};
+
 export function captureOutput() {
   const logs: string[] = [];
   const errors: string[] = [];

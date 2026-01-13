@@ -1,13 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { setupTestEnv, teardownTestEnv, getLogs } from './helpers.js';
+import { setupTestEnv, teardownTestEnv, getLogs, MOCK_PRIORITY_CONFIG } from './helpers.js';
 
 vi.mock('../src/client.js', () => ({
   getReadyTasks: vi.fn(),
-  PRIORITY_CONFIG: {
-    0: { label: 'P0', ansi: '\x1b[31m' },
-    1: { label: 'P1', ansi: '\x1b[33m' },
-    2: { label: 'P2', ansi: '\x1b[32m' },
-  },
+  PRIORITY_CONFIG: MOCK_PRIORITY_CONFIG,
 }));
 
 import { getReadyTasks } from '../src/client.js';
