@@ -7,9 +7,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import {
   setStorageAdapter,
   initStore,
@@ -38,58 +36,18 @@ import {
   updateWebhook,
   deleteWebhook,
   getWebhookDeliveries,
-  type Store,
   STATUSES,
   WEBHOOK_EVENT_TYPES,
   type WebhookEventType,
 } from '@flux/shared';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { createAdapter } from '@flux/shared/adapters';
 
 // Data file path - configurable via FLUX_DATA env var
 const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
 
-// Default store data
-const defaultData: Store = {
-  projects: [],
-  epics: [],
-  tasks: [],
-};
-
-// Create JSON file storage adapter
-function createJsonAdapter(filePath: string): { read: () => void; write: () => void; data: Store } {
-  let data: Store = { ...defaultData };
-
-  return {
-    read() {
-      if (existsSync(filePath)) {
-        try {
-          const content = readFileSync(filePath, 'utf-8');
-          data = JSON.parse(content) as Store;
-        } catch {
-          data = { ...defaultData };
-        }
-      } else {
-        data = { ...defaultData };
-        this.write();
-      }
-    },
-    write() {
-      const dir = dirname(filePath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-      writeFileSync(filePath, JSON.stringify(data, null, 2));
-    },
-    get data() {
-      return data;
-    },
-  };
-}
-
 // Initialize storage
-const jsonAdapter = createJsonAdapter(DATA_FILE);
-setStorageAdapter(jsonAdapter);
+const adapter = createAdapter(DATA_FILE);
+setStorageAdapter(adapter);
 initStore();
 
 // Create MCP server
@@ -525,7 +483,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   // Re-read data to get latest state (in case web app made changes)
-  jsonAdapter.read();
+  adapter.read();
 
   switch (name) {
     // Project operations

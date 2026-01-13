@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, watchFile, statSync } from 'fs';
+import { existsSync, watchFile, statSync } from 'fs';
 import {
   setStorageAdapter,
   initStore,
@@ -37,9 +37,9 @@ import {
   getWebhookDeliveries,
   setWebhookEventHandler,
   triggerWebhooks,
-  type Store,
   type WebhookEventType,
 } from '@flux/shared';
+import { createAdapter } from '@flux/shared/adapters';
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -52,47 +52,9 @@ const buildInfo = {
 // Data file path - configurable via FLUX_DATA env var
 const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
 
-// Default store data
-const defaultData: Store = {
-  projects: [],
-  epics: [],
-  tasks: [],
-};
-
-// Create JSON file storage adapter
-function createJsonAdapter(filePath: string): { read: () => void; write: () => void; data: Store } {
-  let data: Store = { ...defaultData };
-
-  return {
-    read() {
-      if (existsSync(filePath)) {
-        try {
-          const content = readFileSync(filePath, 'utf-8');
-          data = JSON.parse(content) as Store;
-        } catch {
-          data = { ...defaultData };
-        }
-      } else {
-        data = { ...defaultData };
-        this.write();
-      }
-    },
-    write() {
-      const dir = dirname(filePath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-      writeFileSync(filePath, JSON.stringify(data, null, 2));
-    },
-    get data() {
-      return data;
-    },
-  };
-}
-
 // Initialize storage
-const jsonAdapter = createJsonAdapter(DATA_FILE);
-setStorageAdapter(jsonAdapter);
+const adapter = createAdapter(DATA_FILE);
+setStorageAdapter(adapter);
 initStore();
 
 console.log(`Flux server using: ${DATA_FILE}`);
@@ -166,7 +128,7 @@ const handleFileChange = () => {
   const nextMtime = getMtime(DATA_FILE);
   if (nextMtime !== lastMtime) {
     lastMtime = nextMtime;
-    jsonAdapter.read();
+    adapter.read();
     notifyDataChange();
   }
 };

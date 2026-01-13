@@ -19,9 +19,8 @@ import { createInterface } from 'readline';
 import {
   setStorageAdapter,
   initStore,
-  type StorageAdapter,
-  type Store,
 } from '@flux/shared';
+import { createAdapter } from '@flux/shared/adapters';
 
 // Config types
 type FluxConfig = {
@@ -190,33 +189,6 @@ function ensureWorktree(gitRoot: string): string {
   return worktreePath;
 }
 
-// Create file-based storage adapter
-function createFileAdapter(dataPath: string): StorageAdapter {
-  let data: Store = { projects: [], epics: [], tasks: [] };
-
-  return {
-    get data() {
-      return data;
-    },
-    set data(newData: Store) {
-      data = newData;
-    },
-    read() {
-      if (existsSync(dataPath)) {
-        const content = readFileSync(dataPath, 'utf-8');
-        data = JSON.parse(content);
-      }
-    },
-    write() {
-      const dir = dirname(dataPath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-      writeFileSync(dataPath, JSON.stringify(data, null, 2));
-    },
-  };
-}
-
 // Initialize storage (file or server mode)
 function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
   const fluxDir = findFluxDir();
@@ -228,9 +200,10 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
     return { mode: 'server', serverUrl: config.server };
   }
 
-  // File mode - use local JSON + initialize client without server
-  const dataPath = resolve(fluxDir, 'data.json');
-  const adapter = createFileAdapter(dataPath);
+  // File mode - use local storage + initialize client without server
+  // FLUX_DATA env var can specify custom data file path (supports .sqlite/.db for SQLite)
+  const dataPath = process.env.FLUX_DATA || resolve(fluxDir, 'data.json');
+  const adapter = createAdapter(dataPath);
   setStorageAdapter(adapter);
   initStore();
   initClient(); // No server = local mode
