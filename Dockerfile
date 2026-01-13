@@ -4,19 +4,6 @@
 FROM oven/bun:1.3.5 AS base
 WORKDIR /app
 
-# ============ Dependencies Stage ============
-FROM base AS deps
-
-# Copy package files
-COPY package.json bun.lock ./
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/mcp/package.json ./packages/mcp/
-COPY packages/server/package.json ./packages/server/
-COPY packages/web/package.json ./packages/web/
-
-# Install dependencies
-RUN bun install
-
 # ============ Build Stage ============
 FROM base AS builder
 
@@ -26,17 +13,11 @@ ARG BUILD_TIME
 ENV BUILD_SHA=$BUILD_SHA
 ENV BUILD_TIME=$BUILD_TIME
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/mcp/node_modules ./packages/mcp/node_modules
-COPY --from=deps /app/packages/server/node_modules ./packages/server/node_modules
-COPY --from=deps /app/packages/web/node_modules ./packages/web/node_modules
-
-# Copy source files
+# Copy everything
 COPY . .
 
-# Build all packages
-RUN bun run build
+# Install dependencies and build
+RUN bun install && bun run build
 
 # ============ Production Stage ============
 FROM oven/bun:1.3.5-slim AS runner
@@ -50,7 +31,7 @@ ENV BUILD_SHA=$BUILD_SHA
 ENV BUILD_TIME=$BUILD_TIME
 ENV NODE_ENV=production
 
-# Create non-root user for security (using base commands available in slim)
+# Create non-root user for security
 RUN groupadd --system --gid 1001 flux && \
     useradd --system --uid 1001 --gid flux flux
 
@@ -65,10 +46,10 @@ COPY --from=builder /app/packages/web/dist ./packages/web/dist
 COPY --from=builder /app/packages/web/package.json ./packages/web/
 
 # Copy node_modules for runtime dependencies
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=deps /app/packages/mcp/node_modules ./packages/mcp/node_modules
-COPY --from=deps /app/packages/server/node_modules ./packages/server/node_modules
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=builder /app/packages/mcp/node_modules ./packages/mcp/node_modules
+COPY --from=builder /app/packages/server/node_modules ./packages/server/node_modules
 
 # Copy root package.json for module resolution
 COPY package.json ./
