@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { createInterface } from 'readline';
 import { setStorageAdapter, initStore } from '@flux/shared';
 import { createAdapter } from '@flux/shared/adapters';
-import { type FluxConfig, findFluxDir, readConfig, writeConfig } from './config.js';
+import { type FluxConfig, findFluxDir, readConfig, writeConfig, loadEnvLocal } from './config.js';
 
 // ANSI colors
 const c = {
@@ -44,7 +44,7 @@ import { taskCommand } from './commands/task.js';
 import { readyCommand } from './commands/ready.js';
 import { showCommand } from './commands/show.js';
 import { serveCommand } from './commands/serve.js';
-import { initClient, exportAll, importAll } from './client.js';
+import { initClient, exportAll, importAll, getProjects, createProject } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -147,14 +147,15 @@ function ensureWorktree(gitRoot: string): string {
 }
 
 // Initialize storage (file or server mode)
-function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
+function initStorage(): { mode: 'file' | 'server'; serverUrl?: string; project?: string } {
   const fluxDir = findFluxDir();
+  loadEnvLocal(fluxDir);  // Load .env.local before reading config
   const config = readConfig(fluxDir);
 
   if (config.server) {
-    // Server mode - initialize client with server URL
-    initClient(config.server);
-    return { mode: 'server', serverUrl: config.server };
+    // Server mode - initialize client with server URL and API key
+    initClient(config.server, config.apiKey);
+    return { mode: 'server', serverUrl: config.server, project: config.project };
   }
 
   // File mode - use local storage + initialize client without server
@@ -164,7 +165,7 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
   setStorageAdapter(adapter);
   initStore();
   initClient(); // No server = local mode
-  return { mode: 'file' };
+  return { mode: 'file', project: config.project };
 }
 
 // Parse arguments
@@ -229,6 +230,7 @@ async function main() {
 
     // Determine mode: --server flag, interactive prompt, or default to git
     let serverUrl: string | undefined = parsed.flags.server as string | undefined;
+    let apiKey: string | undefined = parsed.flags['api-key'] as string | undefined;
     const useGit = parsed.flags.git === true;
 
     if (!serverUrl && !useGit && isNew && isInteractive()) {
@@ -246,12 +248,14 @@ async function main() {
           console.error('Server URL required');
           process.exit(1);
         }
+        apiKey = await prompt('API Key (or $ENV_VAR, blank for none): ');
       }
     }
 
     // Write config
     const config: FluxConfig = {};
     if (serverUrl) config.server = serverUrl;
+    if (apiKey) config.apiKey = apiKey;
     if (useSqlite) config.dataFile = 'data.sqlite';
     writeConfig(fluxDir, config);
 
@@ -293,12 +297,65 @@ async function main() {
         console.log(`Updated ${agentFile}`);
       }
     }
+
+    // Project setup (interactive or --project flag)
+    let projectId = parsed.flags.project as string | undefined;
+    if (!projectId && isInteractive()) {
+      // Initialize storage/client to fetch projects
+      if (serverUrl) {
+        initClient(serverUrl, apiKey);
+      } else {
+        const adapter = createAdapter(dataPath);
+        setStorageAdapter(adapter);
+        initStore();
+        initClient();
+      }
+
+      const projects = await getProjects();
+      if (projects.length === 0) {
+        // No projects - create one
+        const name = await prompt('\nProject name: ') || 'default';
+        const project = await createProject(name);
+        projectId = project.id;
+        console.log(`Created project: ${project.name} (${project.id})`);
+      } else if (projects.length === 1) {
+        // Single project - auto-select
+        projectId = projects[0].id;
+        console.log(`Using project: ${projects[0].name} (${projects[0].id})`);
+      } else {
+        // Multiple projects - let user choose
+        console.log('\nSelect a project:');
+        projects.forEach((p, i) => console.log(`  ${c.cyan}${i + 1}${c.reset}) ${p.name} (${p.id})`));
+        console.log(`  ${c.cyan}n${c.reset}) Create new project`);
+        const choice = await prompt('Choice: ');
+        if (choice === 'n') {
+          const name = await prompt('Project name: ');
+          if (name) {
+            const project = await createProject(name);
+            projectId = project.id;
+            console.log(`Created project: ${project.name}`);
+          }
+        } else {
+          const idx = parseInt(choice) - 1;
+          if (idx >= 0 && idx < projects.length) {
+            projectId = projects[idx].id;
+          }
+        }
+      }
+
+      // Save project to config
+      if (projectId) {
+        config.project = projectId;
+        writeConfig(fluxDir, config);
+      }
+    }
     return;
   }
 
   // Handle git sync commands (before storage init)
   if (parsed.command === 'pull' || parsed.command === 'push') {
     const fluxDir = findFluxDir();
+    loadEnvLocal(fluxDir);
     const config = readConfig(fluxDir);
     if (config.server) {
       console.error('pull/push not available in server mode - data syncs automatically');
@@ -369,8 +426,10 @@ async function main() {
   }
 
   // Initialize storage for other commands
+  let defaultProject: string | undefined;
   try {
-    initStorage();
+    const storage = initStorage();
+    defaultProject = storage.project;
   } catch (e) {
     console.error('No .flux directory found. Run: flux init');
     process.exit(1);
@@ -379,13 +438,13 @@ async function main() {
   // Route commands
   switch (parsed.command) {
     case 'project':
-      await projectCommand(parsed.subcommand, parsed.args, parsed.flags, json);
+      await projectCommand(parsed.subcommand, parsed.args, parsed.flags, json, defaultProject);
       break;
     case 'epic':
       await epicCommand(parsed.subcommand, parsed.args, parsed.flags, json);
       break;
     case 'task':
-      await taskCommand(parsed.subcommand, parsed.args, parsed.flags, json);
+      await taskCommand(parsed.subcommand, parsed.args, parsed.flags, json, defaultProject);
       break;
     case 'ready':
       // ready doesn't have a subcommand, so subcommand IS the first arg
@@ -459,11 +518,12 @@ ${c.cyan}╚═╝     ╚══════╝ ╚═════╝ ╚═╝ 
       console.log(`${c.cyan}${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
 ${c.bold}Commands:${c.reset}
-  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--sqlite] [--git]${c.reset}  Initialize .flux
+  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--api-key KEY] [--sqlite] [--git]${c.reset}  Initialize .flux
   ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
   ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
 
-  ${c.cyan}flux project list${c.reset} ${c.green}[--json]${c.reset}         List all projects
+  ${c.cyan}flux project list${c.reset} ${c.green}[--json]${c.reset}         List all projects (* = current)
+  ${c.cyan}flux project use${c.reset} ${c.yellow}<id>${c.reset}              Set default project
   ${c.cyan}flux project create${c.reset} ${c.yellow}<name>${c.reset}         Create a project
   ${c.cyan}flux project update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--name] [--desc]${c.reset}
   ${c.cyan}flux project delete${c.reset} ${c.yellow}<id>${c.reset}
@@ -473,8 +533,8 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux epic update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note]${c.reset}
   ${c.cyan}flux epic delete${c.reset} ${c.yellow}<id>${c.reset}
 
-  ${c.cyan}flux task list${c.reset} ${c.yellow}<project>${c.reset} ${c.green}[--json] [--epic] [--status]${c.reset}
-  ${c.cyan}flux task create${c.reset} ${c.yellow}<project> <title>${c.reset} ${c.green}[-P 0|1|2] [-e epic]${c.reset}
+  ${c.cyan}flux task list${c.reset} ${c.green}[project] [--json] [--epic] [--status]${c.reset}
+  ${c.cyan}flux task create${c.reset} ${c.green}[project]${c.reset} ${c.yellow}<title>${c.reset} ${c.green}[-P 0|1|2] [-e epic]${c.reset}
   ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic]${c.reset}
   ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
   ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress

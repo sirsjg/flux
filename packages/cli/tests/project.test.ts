@@ -164,7 +164,7 @@ describe('project command', () => {
   describe('invalid subcommand', () => {
     it('exits with usage error', async () => {
       await expect(projectCommand('invalid', [], {}, false)).rejects.toThrow('process.exit(1)');
-      expect(getErrors()).toContain('Usage: flux project [list|create|update|delete]');
+      expect(getErrors()).toContain('Usage: flux project [list|create|update|delete|use]');
     });
 
     it('exits with usage error when no subcommand', async () => {

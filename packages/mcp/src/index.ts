@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
@@ -8,9 +9,15 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { join } from 'path';
+
+// Parse CLI args for transport mode
+const args = process.argv.slice(2);
+const httpMode = args.includes('--http');
+const portArg = args.find(a => a.startsWith('--port='));
+const HTTP_PORT = portArg ? parseInt(portArg.split('=')[1]) : 3001;
 import {
-  setStorageAdapter,
-  initStore,
+  initClient,
+  isServerMode,
   getProjects,
   getProject,
   createProject,
@@ -36,19 +43,28 @@ import {
   updateWebhook,
   deleteWebhook,
   getWebhookDeliveries,
-  STATUSES,
-  WEBHOOK_EVENT_TYPES,
   type WebhookEventType,
-} from '@flux/shared';
+} from '@flux/shared/client';
+import { setStorageAdapter, initStore, STATUSES, WEBHOOK_EVENT_TYPES } from '@flux/shared';
 import { createAdapter } from '@flux/shared/adapters';
 
-// Data file path - configurable via FLUX_DATA env var
-const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
+// Initialize client - check for remote server mode first
+const FLUX_SERVER = process.env.FLUX_SERVER;
+const FLUX_API_KEY = process.env.FLUX_API_KEY;
 
-// Initialize storage
-const adapter = createAdapter(DATA_FILE);
-setStorageAdapter(adapter);
-initStore();
+if (FLUX_SERVER) {
+  // Remote server mode
+  initClient(FLUX_SERVER, FLUX_API_KEY);
+  console.error(`Flux MCP using remote server: ${FLUX_SERVER}`);
+} else {
+  // Local storage mode
+  const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
+  const adapter = createAdapter(DATA_FILE);
+  setStorageAdapter(adapter);
+  initStore();
+  initClient(); // Local mode
+  console.error(`Flux MCP using local storage: ${DATA_FILE}`);
+}
 
 // Create MCP server
 const server = new Server(
@@ -67,7 +83,7 @@ const server = new Server(
 // ============ Resources ============
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  const projects = getProjects();
+  const projects = await getProjects();
   const resources = [
     {
       uri: 'flux://projects',
@@ -107,10 +123,13 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
   // Parse URI
   if (uri === 'flux://projects') {
-    const projects = getProjects().map(p => ({
-      ...p,
-      stats: getProjectStats(p.id),
-    }));
+    const projectList = await getProjects();
+    const projects = await Promise.all(
+      projectList.map(async p => ({
+        ...p,
+        stats: await getProjectStats(p.id),
+      }))
+    );
     return {
       contents: [
         {
@@ -125,7 +144,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   // Match flux://projects/:id
   const projectMatch = uri.match(/^flux:\/\/projects\/([^/]+)$/);
   if (projectMatch) {
-    const project = getProject(projectMatch[1]);
+    const project = await getProject(projectMatch[1]);
     if (!project) {
       throw new Error(`Project not found: ${projectMatch[1]}`);
     }
@@ -134,7 +153,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         {
           uri,
           mimeType: 'application/json',
-          text: JSON.stringify({ ...project, stats: getProjectStats(project.id) }, null, 2),
+          text: JSON.stringify({ ...project, stats: await getProjectStats(project.id) }, null, 2),
         },
       ],
     };
@@ -143,7 +162,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   // Match flux://projects/:id/epics
   const epicsMatch = uri.match(/^flux:\/\/projects\/([^/]+)\/epics$/);
   if (epicsMatch) {
-    const epics = getEpics(epicsMatch[1]);
+    const epics = await getEpics(epicsMatch[1]);
     return {
       contents: [
         {
@@ -158,10 +177,13 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   // Match flux://projects/:id/tasks
   const tasksMatch = uri.match(/^flux:\/\/projects\/([^/]+)\/tasks$/);
   if (tasksMatch) {
-    const tasks = getTasks(tasksMatch[1]).map(t => ({
-      ...t,
-      blocked: isTaskBlocked(t.id),
-    }));
+    const taskList = await getTasks(tasksMatch[1]);
+    const tasks = await Promise.all(
+      taskList.map(async t => ({
+        ...t,
+        blocked: await isTaskBlocked(t.id),
+      }))
+    );
     return {
       contents: [
         {
@@ -482,23 +504,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  // Re-read data to get latest state (in case web app made changes)
-  adapter.read();
-
   switch (name) {
     // Project operations
     case 'list_projects': {
-      const projects = getProjects().map(p => ({
-        ...p,
-        stats: getProjectStats(p.id),
-      }));
+      const projectList = await getProjects();
+      const projects = await Promise.all(
+        projectList.map(async p => ({
+          ...p,
+          stats: await getProjectStats(p.id),
+        }))
+      );
       return {
         content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }],
       };
     }
 
     case 'create_project': {
-      const project = createProject(args?.name as string, args?.description as string);
+      const project = await createProject(args?.name as string, args?.description as string);
       return {
         content: [
           { type: 'text', text: `Created project "${project.name}" with ID: ${project.id}` },
@@ -510,7 +532,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const updates: Record<string, string> = {};
       if (args?.name) updates.name = args.name as string;
       if (args?.description !== undefined) updates.description = args.description as string;
-      const project = updateProject(args?.project_id as string, updates);
+      const project = await updateProject(args?.project_id as string, updates);
       if (!project) {
         return { content: [{ type: 'text', text: 'Project not found' }], isError: true };
       }
@@ -520,7 +542,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'delete_project': {
-      deleteProject(args?.project_id as string);
+      await deleteProject(args?.project_id as string);
       return {
         content: [{ type: 'text', text: `Deleted project ${args?.project_id}` }],
       };
@@ -528,14 +550,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Epic operations
     case 'list_epics': {
-      const epics = getEpics(args?.project_id as string);
+      const epics = await getEpics(args?.project_id as string);
       return {
         content: [{ type: 'text', text: JSON.stringify(epics, null, 2) }],
       };
     }
 
     case 'create_epic': {
-      const epic = createEpic(
+      const epic = await createEpic(
         args?.project_id as string,
         args?.title as string,
         args?.notes as string,
@@ -553,7 +575,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args?.status) updates.status = args.status;
       if (args?.depends_on) updates.depends_on = args.depends_on;
       if (args?.auto !== undefined) updates.auto = args.auto;
-      const epic = updateEpic(args?.epic_id as string, updates);
+      const epic = await updateEpic(args?.epic_id as string, updates);
       if (!epic) {
         return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
       }
@@ -563,7 +585,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'delete_epic': {
-      const success = deleteEpic(args?.epic_id as string);
+      const success = await deleteEpic(args?.epic_id as string);
       if (!success) {
         return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
       }
@@ -574,10 +596,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Task operations
     case 'list_tasks': {
-      let tasks = getTasks(args?.project_id as string).map(t => ({
-        ...t,
-        blocked: isTaskBlocked(t.id),
-      }));
+      const taskList = await getTasks(args?.project_id as string);
+      let tasks = await Promise.all(
+        taskList.map(async t => ({
+          ...t,
+          blocked: await isTaskBlocked(t.id),
+        }))
+      );
 
       // Apply filters
       if (args?.epic_id) {
@@ -593,7 +618,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'create_task': {
-      const task = createTask(
+      const task = await createTask(
         args?.project_id as string,
         args?.title as string,
         args?.epic_id as string
@@ -606,7 +631,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'update_task': {
       // Validate workflow: tasks in 'planning' cannot go directly to 'in_progress'
       if (args?.status === 'in_progress') {
-        const currentTask = getTask(args?.task_id as string);
+        const currentTask = await getTask(args?.task_id as string);
         if (currentTask?.status === 'planning') {
           return {
             content: [{ type: 'text', text: 'Cannot start a task that is still in planning. Move the task to "todo" first.' }],
@@ -619,7 +644,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args?.status) updates.status = args.status;
       if (args?.epic_id !== undefined) updates.epic_id = args.epic_id || undefined;
       if (args?.depends_on) updates.depends_on = args.depends_on;
-      const task = updateTask(args?.task_id as string, updates);
+      const task = await updateTask(args?.task_id as string, updates);
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
@@ -627,14 +652,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: 'text',
-            text: `Updated task: ${JSON.stringify({ ...task, blocked: isTaskBlocked(task.id) }, null, 2)}`,
+            text: `Updated task: ${JSON.stringify({ ...task, blocked: await isTaskBlocked(task.id) }, null, 2)}`,
           },
         ],
       };
     }
 
     case 'delete_task': {
-      const success = deleteTask(args?.task_id as string);
+      const success = await deleteTask(args?.task_id as string);
       if (!success) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
@@ -646,7 +671,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'move_task_status': {
       // Validate workflow: tasks in 'planning' cannot go directly to 'in_progress'
       if (args?.status === 'in_progress') {
-        const currentTask = getTask(args?.task_id as string);
+        const currentTask = await getTask(args?.task_id as string);
         if (currentTask?.status === 'planning') {
           return {
             content: [{ type: 'text', text: 'Cannot start a task that is still in planning. Move the task to "todo" first.' }],
@@ -654,7 +679,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
       }
-      const task = updateTask(args?.task_id as string, { status: args?.status as string });
+      const task = await updateTask(args?.task_id as string, { status: args?.status as string });
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
@@ -671,7 +696,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: 'Comment body required' }], isError: true };
       }
       const author = args?.author === 'user' ? 'user' : 'mcp';
-      const comment = addTaskComment(args?.task_id as string, body, author);
+      const comment = await addTaskComment(args?.task_id as string, body, author);
       if (!comment) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
@@ -681,7 +706,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'delete_task_comment': {
-      const success = deleteTaskComment(args?.task_id as string, args?.comment_id as string);
+      const success = await deleteTaskComment(args?.task_id as string, args?.comment_id as string);
       if (!success) {
         return { content: [{ type: 'text', text: 'Comment not found' }], isError: true };
       }
@@ -692,14 +717,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Webhook operations
     case 'list_webhooks': {
-      const webhooks = getWebhooks();
+      const webhooks = await getWebhooks();
       return {
         content: [{ type: 'text', text: JSON.stringify(webhooks, null, 2) }],
       };
     }
 
     case 'create_webhook': {
-      const webhook = createWebhook(
+      const webhook = await createWebhook(
         args?.name as string,
         args?.url as string,
         args?.events as WebhookEventType[],
@@ -724,7 +749,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args?.project_id !== undefined) updates.project_id = args.project_id || undefined;
       if (args?.enabled !== undefined) updates.enabled = args.enabled;
 
-      const webhook = updateWebhook(args?.webhook_id as string, updates);
+      const webhook = await updateWebhook(args?.webhook_id as string, updates);
       if (!webhook) {
         return { content: [{ type: 'text', text: 'Webhook not found' }], isError: true };
       }
@@ -734,7 +759,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'delete_webhook': {
-      const success = deleteWebhook(args?.webhook_id as string);
+      const success = await deleteWebhook(args?.webhook_id as string);
       if (!success) {
         return { content: [{ type: 'text', text: 'Webhook not found' }], isError: true };
       }
@@ -745,7 +770,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case 'list_webhook_deliveries': {
       const limit = (args?.limit as number) || 20;
-      const deliveries = getWebhookDeliveries(args?.webhook_id as string, limit);
+      const deliveries = await getWebhookDeliveries(args?.webhook_id as string, limit);
       return {
         content: [{ type: 'text', text: JSON.stringify(deliveries, null, 2) }],
       };
@@ -761,9 +786,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Flux MCP server running on stdio');
+  if (httpMode) {
+    // HTTP+SSE mode using Streamable HTTP transport
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
+    });
+
+    await server.connect(transport);
+
+    // Create HTTP server using Bun
+    const httpServer = Bun.serve({
+      port: HTTP_PORT,
+      async fetch(req) {
+        const url = new URL(req.url);
+
+        // Health check
+        if (url.pathname === '/health') {
+          return new Response(JSON.stringify({ status: 'ok' }), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        // MCP endpoint
+        if (url.pathname === '/mcp') {
+          return transport.handleRequest(req);
+        }
+
+        return new Response('Not Found', { status: 404 });
+      },
+    });
+
+    console.error(`Flux MCP server running on http://localhost:${httpServer.port}/mcp`);
+  } else {
+    // Default stdio mode
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('Flux MCP server running on stdio');
+  }
 }
 
 main().catch(console.error);

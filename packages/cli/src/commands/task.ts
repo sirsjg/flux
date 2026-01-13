@@ -18,13 +18,15 @@ export async function taskCommand(
   subcommand: string | undefined,
   args: string[],
   flags: Record<string, string | boolean>,
-  json: boolean
+  json: boolean,
+  defaultProject?: string
 ): Promise<void> {
   switch (subcommand) {
     case 'list': {
-      const projectId = args[0];
+      const projectId = args[0] || defaultProject;
       if (!projectId) {
-        console.error('Usage: flux task list <project> [--epic] [--status]');
+        console.error('Usage: flux task list [project] [--epic] [--status]');
+        console.error('Tip: Set default project with: flux project use <id>');
         process.exit(1);
       }
       const rawTasks = await getTasks(projectId);
@@ -62,10 +64,19 @@ export async function taskCommand(
     }
 
     case 'create': {
-      const projectId = args[0];
-      const title = args[1];
+      // Support: flux task create <title> (with default project) or flux task create <project> <title>
+      let projectId: string | undefined;
+      let title: string | undefined;
+      if (args.length === 1 && defaultProject) {
+        projectId = defaultProject;
+        title = args[0];
+      } else {
+        projectId = args[0];
+        title = args[1];
+      }
       if (!projectId || !title) {
-        console.error('Usage: flux task create <project> <title> [-P priority] [-e epic] [--note]');
+        console.error('Usage: flux task create [project] <title> [-P priority] [-e epic] [--note]');
+        console.error('Tip: Set default project with: flux project use <id>');
         process.exit(1);
       }
       const epicId = (flags.e || flags.epic) as string | undefined;

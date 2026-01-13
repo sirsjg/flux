@@ -1,0 +1,5 @@
+{
+  "server": "https://app.getflux.dev",
+  "apiKey": "$FLUX_API_KEY",
+  "project": "vjfc2y2"
+}

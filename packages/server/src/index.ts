@@ -41,6 +41,7 @@ import {
 } from '@flux/shared';
 import { createAdapter } from '@flux/shared/adapters';
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
+import { authMiddleware } from './middleware/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -67,6 +68,12 @@ const app = new Hono();
 
 // Enable CORS for development
 app.use('*', cors());
+
+// Auth middleware (readonly public, writes require FLUX_API_KEY)
+app.use('/api/*', authMiddleware);
+
+// Health check endpoint (for load balancers/monitoring)
+app.get('/health', (c) => c.json({ status: 'ok' }));
 
 // ============ Live Update Events (SSE) ============
 const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();

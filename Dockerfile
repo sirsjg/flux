@@ -61,6 +61,6 @@ USER flux
 
 EXPOSE 3000
 
-# Default to MCP server mode (stdio)
-# Override with: docker run ... bun packages/server/dist/index.js
-CMD ["bun", "packages/mcp/dist/index.js"]
+# Default to HTTP server mode
+# Override with: docker run ... bun packages/mcp/dist/index.js for MCP
+CMD ["bun", "packages/server/dist/index.js"]

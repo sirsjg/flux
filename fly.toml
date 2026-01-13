@@ -1,0 +1,29 @@
+# fly.toml app configuration file generated for flux-app-wispy-surf-20 on 2026-01-13T21:34:25+10:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'flux-app-wispy-surf-20'
+primary_region = 'syd'
+
+[build]
+
+[env]
+  FLUX_DATA = '/data/data.sqlite'
+  PORT = '3000'
+
+[[mounts]]
+  source = 'flux_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 256

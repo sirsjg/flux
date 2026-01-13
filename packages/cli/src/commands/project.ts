@@ -7,12 +7,14 @@ import {
   getProjectStats,
 } from '../client.js';
 import { output } from '../index.js';
+import { writeConfig, readConfigRaw, findFluxDir } from '../config.js';
 
 export async function projectCommand(
   subcommand: string | undefined,
   args: string[],
   flags: Record<string, string | boolean>,
-  json: boolean
+  json: boolean,
+  currentProject?: string
 ): Promise<void> {
   switch (subcommand) {
     case 'list': {
@@ -21,6 +23,7 @@ export async function projectCommand(
         projects.map(async p => ({
           ...p,
           stats: await getProjectStats(p.id),
+          current: p.id === currentProject,
         }))
       );
       if (json) {
@@ -30,10 +33,30 @@ export async function projectCommand(
           console.log('No projects');
         } else {
           for (const p of withStats) {
-            console.log(`${p.id}  ${p.name}  (${p.stats.done}/${p.stats.total} done)`);
+            const marker = p.current ? ' *' : '';
+            console.log(`${p.id}  ${p.name}  (${p.stats.done}/${p.stats.total} done)${marker}`);
           }
         }
       }
+      break;
+    }
+
+    case 'use': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux project use <id>');
+        process.exit(1);
+      }
+      const project = await getProject(id);
+      if (!project) {
+        console.error(`Project not found: ${id}`);
+        process.exit(1);
+      }
+      const fluxDir = findFluxDir();
+      const config = readConfigRaw(fluxDir);  // Use raw to preserve $ENV_VAR refs
+      config.project = id;
+      writeConfig(fluxDir, config);
+      output(json ? { project: id } : `Now using project: ${project.name} (${id})`, json);
       break;
     }
 
@@ -84,7 +107,7 @@ export async function projectCommand(
     }
 
     default:
-      console.error('Usage: flux project [list|create|update|delete]');
+      console.error('Usage: flux project [list|create|update|delete|use]');
       process.exit(1);
   }
 }
