@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build shared
+        run: bun run --filter @flux/shared build
+
       - name: Test
         run: bun test
 
