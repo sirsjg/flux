@@ -38,9 +38,10 @@ vi.mock('@flux/shared/adapters', () => ({
   createAdapter: vi.fn(() => ({})),
 }));
 
+let mockConfigReturn = {};
 vi.mock('../src/config.js', () => ({
   findFluxDir: vi.fn(() => '/tmp/.flux'),
-  readConfig: vi.fn(() => ({})),
+  readConfig: vi.fn(() => mockConfigReturn),
 }));
 
 // Mock net module so isPortAvailable always returns true
@@ -62,6 +63,7 @@ describe('serve command', () => {
   beforeEach(() => {
     setupTestEnv();
     vi.clearAllMocks();
+    mockConfigReturn = {};
   });
 
   afterEach(() => {
@@ -101,7 +103,7 @@ describe('serve command', () => {
   });
 
   it('uses dataFile from config when available', async () => {
-    vi.mocked(readConfig).mockReturnValue({ dataFile: 'custom.sqlite' });
+    mockConfigReturn = { dataFile: 'custom.sqlite' };
 
     await serveCommand([], {});
 
@@ -109,7 +111,7 @@ describe('serve command', () => {
   });
 
   it('--data flag overrides config', async () => {
-    vi.mocked(readConfig).mockReturnValue({ dataFile: 'config.json' });
+    mockConfigReturn = { dataFile: 'config.json' };
 
     await serveCommand([], { data: '/custom/path.json' });
 
