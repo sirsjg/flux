@@ -4,36 +4,35 @@ Thanks for considering a contribution. This project is intentionally small and f
 
 ## Development Setup
 
-- Node.js 21+
-- pnpm 10+
+- [Bun](https://bun.sh/) 1.1+
 
 ```bash
-pnpm install
-pnpm build
+bun install
+bun run build
 ```
 
 ### Run Locally
 
 ```bash
 # Terminal 1: API server with hot reload
-pnpm --filter @flux/server dev
+bun --filter @flux/server dev
 
 # Terminal 2: Web dev server with HMR
-pnpm --filter @flux/web dev
+bun --filter @flux/web dev
 ```
 
 ### MCP Server
 
 ```bash
-pnpm --filter @flux/mcp build
-node packages/mcp/dist/index.js
+bun --filter @flux/mcp build
+bun packages/mcp/dist/index.js
 ```
 
 ## Pull Requests
 
 - Keep PRs small and focused.
 - Update or add documentation when behavior changes.
-- Ensure `pnpm build` passes.
+- Ensure `bun run build` passes.
 
 ## Reporting Issues
 

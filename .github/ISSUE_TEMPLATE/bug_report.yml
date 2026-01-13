@@ -44,11 +44,10 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: OS, Node version, pnpm version, browser, etc.
+      description: OS, Bun version, browser, etc.
       placeholder: |
         OS:
-        Node:
-        pnpm:
+        Bun:
         Browser:
     validations:
       required: true

@@ -9,7 +9,9 @@ services:
       - "3000:3000"
     volumes:
       - flux-data:/app/packages/data
-    command: node packages/server/dist/index.js
+    environment:
+      - FLUX_DATA=/app/packages/data/flux.sqlite
+    command: bun packages/server/dist/index.js
     restart: unless-stopped
 
 volumes:

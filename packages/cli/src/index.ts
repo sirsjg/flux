@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { resolve, dirname } from 'path';
 import { execSync } from 'child_process';
@@ -24,7 +24,8 @@ import { createAdapter } from '@flux/shared/adapters';
 
 // Config types
 type FluxConfig = {
-  server?: string;  // Optional server URL
+  server?: string;    // Server URL (server mode)
+  dataFile?: string;  // Local data file path (file mode)
 };
 
 // Read config from .flux/config.json
@@ -201,8 +202,8 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
   }
 
   // File mode - use local storage + initialize client without server
-  // FLUX_DATA env var can specify custom data file path (supports .sqlite/.db for SQLite)
-  const dataPath = process.env.FLUX_DATA || resolve(fluxDir, 'data.json');
+  // Priority: FLUX_DATA env var > config.dataFile > default data.json
+  const dataPath = process.env.FLUX_DATA || (config.dataFile ? resolve(fluxDir, config.dataFile) : resolve(fluxDir, 'data.json'));
   const adapter = createAdapter(dataPath);
   setStorageAdapter(adapter);
   initStore();
@@ -262,9 +263,11 @@ async function main() {
   // Handle init separately (before storage init)
   if (parsed.command === 'init') {
     const fluxDir = process.env.FLUX_DIR || resolve(process.cwd(), '.flux');
-    const dataPath = resolve(fluxDir, 'data.json');
+    const useSqlite = parsed.flags.sqlite === true;
+    const dataFileName = useSqlite ? 'data.sqlite' : 'data.json';
+    const dataPath = resolve(fluxDir, dataFileName);
     const configPath = resolve(fluxDir, 'config.json');
-    const isNew = !existsSync(dataPath);
+    const isNew = !existsSync(resolve(fluxDir, 'data.json')) && !existsSync(resolve(fluxDir, 'data.sqlite'));
 
     mkdirSync(fluxDir, { recursive: true });
 
@@ -290,13 +293,22 @@ async function main() {
       }
     }
 
-    // Write config if server mode
-    const config: FluxConfig = serverUrl ? { server: serverUrl } : {};
+    // Write config
+    const config: FluxConfig = {};
+    if (serverUrl) config.server = serverUrl;
+    if (useSqlite) config.dataFile = 'data.sqlite';
     writeConfig(fluxDir, config);
 
-    // Create data.json for git mode (server mode doesn't need it)
+    // Create data file for git mode (server mode doesn't need it)
     if (!serverUrl && !existsSync(dataPath)) {
-      writeFileSync(dataPath, JSON.stringify({ projects: [], epics: [], tasks: [] }, null, 2));
+      if (useSqlite) {
+        // SQLite adapter creates file automatically on first use
+        const adapter = createAdapter(dataPath);
+        setStorageAdapter(adapter);
+        initStore();
+      } else {
+        writeFileSync(dataPath, JSON.stringify({ projects: [], epics: [], tasks: [] }, null, 2));
+      }
     }
 
     if (isNew) {
@@ -304,7 +316,7 @@ async function main() {
       if (serverUrl) {
         console.log(`Mode: server (${serverUrl})`);
       } else {
-        console.log('Mode: git (use flux pull/push to sync)');
+        console.log(`Mode: git (${useSqlite ? 'sqlite' : 'json'})`);
       }
     } else {
       console.log('.flux already initialized');
@@ -472,7 +484,7 @@ async function main() {
       console.log(`${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
 ${c.bold}Commands:${c.reset}
-  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--git]${c.reset}  Initialize .flux (interactive or with flags)
+  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--sqlite] [--git]${c.reset}  Initialize .flux
   ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
   ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
 

@@ -106,6 +106,7 @@ Looking for install options, assistant setup, APIs, or webhooks? Start here:
 
 - [`docs/installation-docker.md`](docs/installation-docker.md) - the fastest path to a production-ready Flux stack with a shared data volume for instant sync.
 - [`docs/installation-source.md`](docs/installation-source.md) - build from source, run locally, and get a dev workflow that feels effortless.
+- [`docs/cli.md`](docs/cli.md) - full CLI reference for terminal-based task management with MCP parity.
 - [`docs/assistant-setup.md`](docs/assistant-setup.md) - connect Claude Desktop or ChatGPT and unlock agent-driven work with best-practice guardrails.
 - [`docs/ideas.md`](docs/ideas.md) - creative ways to use Flux, from agent swarms to automation-first workflows.
 - [`docs/mcp.md`](docs/mcp.md) - the complete MCP surface area so your assistants can list, create, and update everything with confidence.

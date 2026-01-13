@@ -50,8 +50,8 @@ flux task create <project> <title> -P 0  # Create P0 task
 ```bash
 docker build -t flux-mcp .
 
-# Mount repo's .flux directory
-docker run -d -p 3000:3000 -v $(pwd)/.flux:/app/.flux -e FLUX_DATA=/app/.flux/data.json flux-mcp node packages/server/dist/index.js
+# Mount repo's .flux directory (SQLite for better concurrency)
+docker run -d -p 3000:3000 -v $(pwd)/.flux:/app/.flux -e FLUX_DATA=/app/.flux/data.sqlite flux-mcp bun packages/server/dist/index.js
 ```
 
 ## Architecture
@@ -116,7 +116,7 @@ type Project = {
 
 - **CLI:** Bun, TypeScript
 - **Frontend:** Preact, Vite, Tailwind CSS, DaisyUI, @dnd-kit
-- **Backend:** Hono, Node.js 22
+- **Backend:** Hono, Bun
 - **Data:** JSON file (`.flux/data.json`), git-native sync
 - **LLM Integration:** @modelcontextprotocol/sdk
 - **Build:** TypeScript 5.6, Bun workspaces
