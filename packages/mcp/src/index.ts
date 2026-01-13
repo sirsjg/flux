@@ -37,6 +37,7 @@ import {
   addTaskComment,
   deleteTaskComment,
   isTaskBlocked,
+  getReadyTasks,
   getWebhooks,
   getWebhook,
   createWebhook,
@@ -333,6 +334,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'list_ready_tasks',
+        description: 'List tasks that are ready to work on (not done, not blocked, sorted by priority). Use this to find actionable work.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Optional: filter by project ID' },
+          },
+        },
+      },
+      {
         name: 'create_task',
         description: 'Create a new task in a project. Use add_task_comment to add notes.',
         inputSchema: {
@@ -612,6 +623,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         tasks = tasks.filter(t => t.status === args.status);
       }
 
+      return {
+        content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }],
+      };
+    }
+
+    case 'list_ready_tasks': {
+      const tasks = await getReadyTasks(args?.project_id as string | undefined);
       return {
         content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }],
       };

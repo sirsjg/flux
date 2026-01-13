@@ -56,6 +56,26 @@ export type { Project, Epic, Task, TaskComment, Priority, Store, Webhook, Webhoo
 // Server response includes computed blocked field
 type TaskWithBlocked = Task & { blocked: boolean };
 
+// Typed HTTP error for better error discrimination
+export class FluxHttpError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public statusText: string
+  ) {
+    super(message);
+    this.name = 'FluxHttpError';
+  }
+
+  get isNotFound(): boolean {
+    return this.status === 404;
+  }
+
+  get isUnauthorized(): boolean {
+    return this.status === 401;
+  }
+}
+
 // Client state
 let serverUrl: string | null = null;
 let apiKey: string | null = null;
@@ -87,7 +107,7 @@ async function http<T>(method: string, path: string, body?: unknown): Promise<T>
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+    throw new FluxHttpError(err.error || res.statusText, res.status, res.statusText);
   }
   return res.json();
 }
@@ -104,8 +124,9 @@ export async function getProject(id: string): Promise<Project | undefined> {
   if (serverUrl) {
     try {
       return await http('GET', `/api/projects/${id}`);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localGetProject(id);
@@ -122,8 +143,9 @@ export async function updateProject(id: string, updates: Partial<Project>): Prom
   if (serverUrl) {
     try {
       return await http('PATCH', `/api/projects/${id}`, updates);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localUpdateProject(id, updates);
@@ -134,8 +156,9 @@ export async function deleteProject(id: string): Promise<boolean> {
     try {
       await http('DELETE', `/api/projects/${id}`);
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
     }
   }
   localDeleteProject(id);
@@ -162,8 +185,9 @@ export async function getEpic(id: string): Promise<Epic | undefined> {
   if (serverUrl) {
     try {
       return await http('GET', `/api/epics/${id}`);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localGetEpic(id);
@@ -180,8 +204,9 @@ export async function updateEpic(id: string, updates: Partial<Epic>): Promise<Ep
   if (serverUrl) {
     try {
       return await http('PATCH', `/api/epics/${id}`, updates);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localUpdateEpic(id, updates);
@@ -192,8 +217,9 @@ export async function deleteEpic(id: string): Promise<boolean> {
     try {
       await http('DELETE', `/api/epics/${id}`);
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
     }
   }
   return localDeleteEpic(id);
@@ -211,8 +237,9 @@ export async function getTask(id: string): Promise<Task | undefined> {
   if (serverUrl) {
     try {
       return await http('GET', `/api/tasks/${id}`);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localGetTask(id);
@@ -238,8 +265,9 @@ export async function updateTask(id: string, updates: Partial<Task>): Promise<Ta
   if (serverUrl) {
     try {
       return await http('PATCH', `/api/tasks/${id}`, updates);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localUpdateTask(id, updates);
@@ -250,8 +278,9 @@ export async function deleteTask(id: string): Promise<boolean> {
     try {
       await http('DELETE', `/api/tasks/${id}`);
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
     }
   }
   return localDeleteTask(id);
@@ -259,9 +288,13 @@ export async function deleteTask(id: string): Promise<boolean> {
 
 export async function isTaskBlocked(id: string): Promise<boolean> {
   if (serverUrl) {
-    // Server includes blocked status in task response
-    const task = await http<TaskWithBlocked>('GET', `/api/tasks/${id}`).catch(() => undefined);
-    return task?.blocked ?? false;
+    try {
+      const task = await http<TaskWithBlocked>('GET', `/api/tasks/${id}`);
+      return task.blocked;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
+    }
   }
   return localIsTaskBlocked(id);
 }
@@ -275,8 +308,9 @@ export async function addTaskComment(
   if (serverUrl) {
     try {
       return await http('POST', `/api/tasks/${taskId}/comments`, { body, author });
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localAddTaskComment(taskId, body, author);
@@ -287,8 +321,9 @@ export async function deleteTaskComment(taskId: string, commentId: string): Prom
     try {
       await http('DELETE', `/api/tasks/${taskId}/comments/${commentId}`);
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
     }
   }
   return localDeleteTaskComment(taskId, commentId);
@@ -297,28 +332,8 @@ export async function deleteTaskComment(taskId: string, commentId: string): Prom
 // Ready tasks (unblocked, not done, sorted by priority)
 export async function getReadyTasks(projectId?: string): Promise<Task[]> {
   if (serverUrl) {
-    // Fetch all projects' tasks and filter client-side
-    const projects = await getProjects();
-    const targetProjects = projectId
-      ? projects.filter(p => p.id === projectId)
-      : projects;
-
-    const allTasks: TaskWithBlocked[] = [];
-    for (const p of targetProjects) {
-      const tasks = await http<TaskWithBlocked[]>('GET', `/api/projects/${p.id}/tasks`);
-      allTasks.push(...tasks);
-    }
-
-    // Filter: not done, not archived, not blocked
-    const ready = allTasks.filter(t =>
-      t.status !== 'done' &&
-      !t.archived &&
-      !t.blocked
-    );
-
-    // Sort by priority
-    ready.sort((a, b) => (a.priority ?? 2) - (b.priority ?? 2));
-    return ready;
+    const query = projectId ? `?project_id=${projectId}` : '';
+    return http('GET', `/api/tasks/ready${query}`);
   }
   return localGetReadyTasks(projectId);
 }
@@ -356,8 +371,9 @@ export async function getWebhook(id: string): Promise<Webhook | undefined> {
   if (serverUrl) {
     try {
       return await http('GET', `/api/webhooks/${id}`);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localGetWebhook(id);
@@ -379,8 +395,9 @@ export async function updateWebhook(id: string, updates: Partial<Webhook>): Prom
   if (serverUrl) {
     try {
       return await http('PATCH', `/api/webhooks/${id}`, updates);
-    } catch {
-      return undefined;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
     }
   }
   return localUpdateWebhook(id, updates);
@@ -391,8 +408,9 @@ export async function deleteWebhook(id: string): Promise<boolean> {
     try {
       await http('DELETE', `/api/webhooks/${id}`);
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
     }
   }
   return localDeleteWebhook(id);

@@ -28,6 +28,7 @@ import {
   addTaskComment,
   deleteTaskComment,
   isTaskBlocked,
+  getReadyTasks,
   cleanupProject,
   getWebhooks,
   getWebhook,
@@ -338,6 +339,13 @@ app.delete('/api/tasks/:id', (c) => {
     triggerWebhooks('task.deleted', { task }, task.project_id);
   }
   return c.json({ success: true });
+});
+
+// Ready tasks (unblocked, not done, sorted by priority)
+app.get('/api/tasks/ready', (c) => {
+  const projectId = c.req.query('project_id');
+  const tasks = getReadyTasks(projectId);
+  return c.json(tasks);
 });
 
 // Cleanup project (archive done tasks and/or delete empty epics)

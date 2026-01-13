@@ -361,6 +361,11 @@ async function main() {
       console.error('pull/push not available in server mode - data syncs automatically');
       process.exit(1);
     }
+    if (config.dataFile?.endsWith('.sqlite')) {
+      console.error('pull/push requires JSON backend, not SQLite');
+      console.error('Tip: Export with: flux export -o backup.json');
+      process.exit(1);
+    }
     const gitRoot = findGitRoot();
     if (!gitRoot) {
       console.error('Not in a git repository');
