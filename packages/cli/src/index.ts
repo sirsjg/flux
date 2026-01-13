@@ -152,6 +152,50 @@ function findFluxDir(): string {
   return resolve(homeDir, '.flux');
 }
 
+// Find git root directory
+function findGitRoot(): string | null {
+  try {
+    return execSync('git rev-parse --show-toplevel', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Ensure worktree exists for flux-data branch
+function ensureWorktree(gitRoot: string): string {
+  const worktreePath = resolve(gitRoot, '.git', 'flux-worktree');
+
+  if (existsSync(worktreePath)) {
+    return worktreePath;
+  }
+
+  // Check if flux-data branch exists locally or remotely
+  let branchExists = false;
+  try {
+    execSync('git rev-parse --verify flux-data', { stdio: 'pipe', cwd: gitRoot });
+    branchExists = true;
+  } catch {
+    try {
+      execSync('git rev-parse --verify origin/flux-data', { stdio: 'pipe', cwd: gitRoot });
+      branchExists = true;
+    } catch {
+      // Branch doesn't exist anywhere
+    }
+  }
+
+  if (!branchExists) {
+    // Create orphan branch
+    execSync('git checkout --orphan flux-data', { stdio: 'pipe', cwd: gitRoot });
+    execSync('git rm -rf . 2>/dev/null || true', { stdio: 'pipe', cwd: gitRoot, shell: '/bin/bash' });
+    execSync('git commit --allow-empty -m "init flux-data"', { stdio: 'pipe', cwd: gitRoot });
+    execSync('git checkout -', { stdio: 'pipe', cwd: gitRoot });
+  }
+
+  // Create worktree
+  execSync(`git worktree add "${worktreePath}" flux-data`, { stdio: 'pipe', cwd: gitRoot });
+  return worktreePath;
+}
+
 // Create file-based storage adapter
 function createFileAdapter(dataPath: string): StorageAdapter {
   let data: Store = { projects: [], epics: [], tasks: [] };
@@ -200,7 +244,7 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string } {
 }
 
 // Parse arguments
-function parseArgs(args: string[]): { command: string; subcommand?: string; args: string[]; flags: Record<string, string | boolean> } {
+export function parseArgs(args: string[]): { command: string; subcommand?: string; args: string[]; flags: Record<string, string | boolean> } {
   const flags: Record<string, string | boolean> = {};
   const positional: string[] = [];
 
@@ -324,20 +368,56 @@ async function main() {
   }
 
   // Handle git sync commands (before storage init)
+  if (parsed.command === 'pull' || parsed.command === 'push') {
+    const fluxDir = findFluxDir();
+    const config = readConfig(fluxDir);
+    if (config.server) {
+      console.error('pull/push not available in server mode - data syncs automatically');
+      process.exit(1);
+    }
+  }
+
   if (parsed.command === 'pull') {
+    const gitRoot = findGitRoot();
+    if (!gitRoot) {
+      console.error('Not in a git repository');
+      process.exit(1);
+    }
+
+    const fluxDir = findFluxDir();
+    const dataPath = resolve(fluxDir, 'data.json');
+
     try {
-      execSync('git fetch origin flux-data', { stdio: 'pipe' });
-      execSync('git checkout origin/flux-data -- .flux/data.json', { stdio: 'pipe' });
-      console.log('Pulled latest tasks from flux-data branch');
+      const worktree = ensureWorktree(gitRoot);
+      const worktreeData = resolve(worktree, '.flux', 'data.json');
+
+      // Fetch and pull in worktree
+      execSync('git fetch origin flux-data', { stdio: 'pipe', cwd: worktree });
+      execSync('git reset --hard origin/flux-data', { stdio: 'pipe', cwd: worktree });
+
+      // Copy to main repo
+      if (existsSync(worktreeData)) {
+        mkdirSync(fluxDir, { recursive: true });
+        writeFileSync(dataPath, readFileSync(worktreeData, 'utf-8'));
+        console.log('Pulled latest tasks from flux-data branch');
+      } else {
+        console.log('No .flux/data.json in flux-data branch yet');
+      }
     } catch (e: any) {
-      console.error('Failed to pull. Ensure flux-data branch exists: git checkout --orphan flux-data');
+      console.error('Failed to pull:', e.message);
       process.exit(1);
     }
     return;
   }
 
   if (parsed.command === 'push') {
-    const msg = (parsed.subcommand || 'update tasks');
+    const gitRoot = findGitRoot();
+    if (!gitRoot) {
+      console.error('Not in a git repository');
+      process.exit(1);
+    }
+
+    const msg = parsed.subcommand || 'update tasks';
     const fluxDir = findFluxDir();
     const dataPath = resolve(fluxDir, 'data.json');
 
@@ -346,71 +426,27 @@ async function main() {
       process.exit(1);
     }
 
-    // Read file content before switching branches (gitignored, so stash won't work)
-    const content = readFileSync(dataPath, 'utf-8');
-    let branch: string;
-    let stashed = false;
-    let switchedBranch = false;
-
     try {
-      branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
-    } catch {
-      console.error('Not in a git repository');
-      process.exit(1);
-    }
+      const worktree = ensureWorktree(gitRoot);
+      const worktreeFlux = resolve(worktree, '.flux');
+      const worktreeData = resolve(worktreeFlux, 'data.json');
 
-    try {
-      // Check for uncommitted changes
+      // Copy data to worktree
+      mkdirSync(worktreeFlux, { recursive: true });
+      writeFileSync(worktreeData, readFileSync(dataPath, 'utf-8'));
+
+      // Commit and push in worktree
+      execSync('git add .flux/data.json', { stdio: 'pipe', cwd: worktree });
       try {
-        execSync('git diff-index --quiet HEAD --', { stdio: 'pipe' });
-      } catch {
-        // Has uncommitted changes, try to stash
-        execSync('git stash --include-untracked', { stdio: 'pipe' });
-        stashed = true;
-      }
-
-      // Switch to flux-data
-      try {
-        execSync('git checkout flux-data', { stdio: 'pipe' });
-        switchedBranch = true;
-      } catch {
-        console.error('Branch flux-data not found. Create it with: git checkout --orphan flux-data && git rm -rf . && git commit --allow-empty -m "init flux-data"');
-        throw new Error('flux-data branch missing');
-      }
-
-      // Write and commit
-      mkdirSync(fluxDir, { recursive: true });
-      writeFileSync(dataPath, content);
-      execSync('git add .flux/data.json', { stdio: 'pipe' });
-
-      try {
-        execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe' });
-        execSync('git push origin flux-data', { stdio: 'pipe' });
+        execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe', cwd: worktree });
+        execSync('git push origin flux-data', { stdio: 'pipe', cwd: worktree });
         console.log(`Pushed tasks to flux-data branch: "${msg}"`);
       } catch {
         console.log('No changes to push');
       }
-    } finally {
-      // Always restore original state
-      if (switchedBranch) {
-        try {
-          execSync(`git checkout ${branch}`, { stdio: 'pipe' });
-        } catch (e) {
-          console.error(`Warning: failed to return to branch ${branch}`);
-        }
-      }
-      // Restore the data file (git removes gitignored files on checkout)
-      mkdirSync(fluxDir, { recursive: true });
-      writeFileSync(dataPath, content);
-      if (stashed) {
-        try {
-          execSync('git stash pop', { stdio: 'pipe' });
-        } catch {
-          console.error('Warning: failed to restore stashed changes. Run: git stash pop');
-        }
-      }
-      // Ensure file isn't staged
-      execSync('git restore --staged .flux/data.json 2>/dev/null || true', { stdio: 'pipe', shell: '/bin/bash' });
+    } catch (e: any) {
+      console.error('Failed to push:', e.message);
+      process.exit(1);
     }
     return;
   }
