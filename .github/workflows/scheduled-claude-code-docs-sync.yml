@@ -1,0 +1,116 @@
+name: Scheduled - Documentation Sync
+
+on:
+  schedule:
+    # Run on the 1st of every month at 9 AM UTC
+    - cron: '0 9 1 * *'
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: 'Number of days to look back for changes'
+        required: false
+        default: '30'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  docs-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for code changes in period
+        id: check-changes
+        run: |
+          DAYS_BACK="${{ github.event.inputs.days_back || '30' }}"
+          SINCE_DATE=$(date -d "-${DAYS_BACK} days" +%Y-%m-%d)
+
+          echo "Checking for changes since: $SINCE_DATE"
+
+          # Get changed code files (excluding docs themselves)
+          CHANGED_FILES=$(git log --since="$SINCE_DATE" --name-only --pretty=format: -- \
+            '*.ts' '*.tsx' '*.js' '*.jsx' \
+            ':!*.test.*' ':!*.spec.*' ':!*.stories.*' \
+            | sort -u | grep -v '^$' | head -100)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No code changes found in the last $DAYS_BACK days"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "Found $(echo "$CHANGED_FILES" | wc -l) changed files"
+          fi
+
+          echo "since_date=$SINCE_DATE" >> $GITHUB_OUTPUT
+
+      - name: Claude Documentation Sync
+        if: steps.check-changes.outputs.has_changes == 'true'
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-opus-4-5-20251101
+          timeout_minutes: 60
+          base_branch: main
+          branch_prefix: claude/docs-sync-
+          track_progress: true
+          prompt: |
+            # Monthly Documentation Sync
+
+            You are running a scheduled documentation sync. Code has changed since ${{ steps.check-changes.outputs.since_date }}.
+
+            ## Changed Files
+            The following code files have been modified:
+            ```
+            ${{ steps.check-changes.outputs.changed_files }}
+            ```
+
+            ## Your Tasks
+
+            1. **Analyze Changes**: Review the changed files to understand what functionality was added, modified, or removed.
+
+            2. **Find Related Documentation**: Search for documentation that might be affected:
+               - `/docs/` directory
+               - README.md files
+               - TSDoc comments in the code
+
+            3. **Check for Actual Problems**: For each code change, determine if existing docs are now WRONG:
+               - Do code examples still work?
+               - Are API signatures/types now incorrect?
+               - Are prop interfaces outdated?
+
+            4. **Fix Only What's Broken**: If you find documentation that is actually wrong:
+               - Fix incorrect code examples
+               - Update wrong API signatures and types
+               - Add docs ONLY for significant new features that have zero documentation
+
+            5. **Create a PR**: If you made any changes:
+               - Create a new branch from main
+               - Commit all documentation updates
+               - Create a PR with a summary of what was fixed
+
+            ## CRITICAL Guidelines
+            - Documentation is a LIVING DOCUMENT - only fix things that are actually WRONG
+            - DO NOT add changelog-style entries
+            - ONLY update docs when they are incorrect or misleading
+            - If no problems are found, report that and DO NOT create a PR
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh:*)"
+
+      - name: Report no changes
+        if: steps.check-changes.outputs.has_changes == 'false'
+        run: |
+          echo "No code changes found in the last ${{ github.event.inputs.days_back || '30' }} days."
+          echo "Skipping documentation sync."

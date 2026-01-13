@@ -1,0 +1,116 @@
+name: Scheduled - Dependency Audit
+
+on:
+  schedule:
+    # Run every 2 weeks (1st and 15th of each month) at 10 AM UTC
+    - cron: '0 10 1,15 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for outdated dependencies
+        id: check-outdated
+        run: |
+          echo "Checking for outdated dependencies..."
+          npm outdated --json > /tmp/outdated.json 2>/dev/null || true
+
+          if [ ! -s /tmp/outdated.json ] || [ "$(cat /tmp/outdated.json)" = "{}" ]; then
+            echo "has_outdated=false" >> $GITHUB_OUTPUT
+            echo "No outdated dependencies found"
+          else
+            echo "has_outdated=true" >> $GITHUB_OUTPUT
+            echo "Found outdated dependencies"
+            cat /tmp/outdated.json
+          fi
+
+      - name: Run security audit
+        id: security-audit
+        run: |
+          echo "Running security audit..."
+          npm audit --json > /tmp/audit.json 2>/dev/null || true
+
+          if [ -s /tmp/audit.json ]; then
+            VULNERABILITIES=$(cat /tmp/audit.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('total',0))" 2>/dev/null || echo "0")
+            echo "vulnerabilities=$VULNERABILITIES" >> $GITHUB_OUTPUT
+            echo "Found $VULNERABILITIES vulnerabilities"
+          else
+            echo "vulnerabilities=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Claude Dependency Analysis & Update
+        if: steps.check-outdated.outputs.has_outdated == 'true' || steps.security-audit.outputs.vulnerabilities != '0'
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-opus-4-5-20251101
+          timeout_minutes: 45
+          base_branch: main
+          branch_prefix: claude/deps-update-
+          track_progress: true
+          prompt: |
+            # Dependency Audit
+
+            You are running a scheduled dependency audit.
+
+            ## Your Tasks
+
+            1. **Analyze outdated packages**: Run `npm outdated` and review results
+
+            2. **Analyze security vulnerabilities**: Run `npm audit` and review results
+
+            3. **Update packages safely**:
+               - Use `npm update {package}` for minor/patch updates
+               - For major versions, use `npm install {package}@latest` only if safe
+               - Run `npm audit fix` for security fixes
+
+            4. **Verify updates**:
+               - Run `npm run lint` to check for issues
+               - Run `npm test` to verify tests pass
+               - If anything fails, revert that specific update
+
+            5. **Create PR** if any updates were made:
+               - Create branch from main
+               - Commit package.json and package-lock.json changes
+               - PR title: "chore(deps): update dependencies"
+               - PR body should list:
+                 - Each package updated with old → new version
+                 - Security vulnerabilities fixed (if any)
+
+            ## Guidelines
+            - Be CONSERVATIVE - when in doubt, don't update
+            - If tests fail after an update, revert that update
+            - Group related updates together
+            - If NO updates are possible, report that and don't create a PR
+          claude_args: |
+            --max-turns 40
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(npm:*)"
+
+      - name: Report no updates needed
+        if: steps.check-outdated.outputs.has_outdated == 'false' && steps.security-audit.outputs.vulnerabilities == '0'
+        run: |
+          echo "All dependencies are up to date and no security vulnerabilities found."
+          echo "No action needed."
