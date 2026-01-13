@@ -9,6 +9,7 @@ const c = {
   bold: '\x1b[1m',
   dim: '\x1b[2m',
   cyan: '\x1b[36m',
+  cyanBright: '\x1b[96m',
   yellow: '\x1b[33m',
   green: '\x1b[32m',
   gray: '\x1b[90m',
@@ -481,7 +482,23 @@ async function main() {
     }
     case 'help':
     default:
-      console.log(`${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
+      console.log(`                                   ⠀⠀⠀⠀⠀⠐⠠⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠄⠀⠀⠀⠀
+                                   ⠀⠀⠀⡁⣾⠷⠄⠀⠈⠈⠀⠀⠀⠀⠀⠉⠀⠁⠀⣤⣾⡇⢰⠀⠀⠀⠀
+                                   ⠀⠀⠀⠁⢫⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢺⡇⠈⠀⠀⠀⠀
+                                   ⠀⠀⠀⠎⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⡟⠀⡅⠀⠀⠀⠀
+${c.cyan}███████╗██╗     ██╗   ██╗██╗  ██╗${c.reset}  ⠀⠀⠈⢂⠁⠀⢀⣤⢄⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠱⣀⣰⠀⠀⠀⠀
+${c.cyan}██╔════╝██║     ██║   ██║╚██╗██╔╝${c.reset}  ⠀⠀⢠⠂⠀⠀⠸⣻⡾⠀⠀⠀⠀⣷⣿⢿⠀⠀⠀⠀⠀⠱⡀⠀⠀⠀⠀
+${c.cyan}█████╗  ██║     ██║   ██║ ╚███╔╝${c.reset}   ⠀⠀⠀⠧⠀⢀⠀⠀⠀⠐⠖⠀⠀⠈⠋⠈⢀⠀⠀⢠⣾⣿⠃⠀⠀⠀⠀
+${c.cyan}██╔══╝  ██║     ██║   ██║ ██╔██╗${c.reset}   ⠀⠀⠀⠀⢟⡦⠿⢿⣤⣀⠀⠀⢀⣠⣦⣶⡟⣀⣀⣼⣿⠇⠀⠀⠀⠀⠀
+${c.cyan}██║     ███████╗╚██████╔╝██╔╝ ██╗${c.reset}  ⠀⠀⠀⠀⢰⣿⠶⣤⠀⠙⠟⠛⠉⣉⣭⣉⣹⣿⣿⣿⡏⠀⠀⠀⠀⠀⠀
+${c.cyan}╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝${c.reset}  ⠀⠀⠀⣰⡵⢛⡁⠀⠀⠀⠀⠀⠘⠛⠿⣋⡛⠿⡿⣿⣷⡀⠀⠀⠀⠀⠀
+                                   ⠀⢀⣴⢟⣴⣯⡀⠀⠀⠀⠀⠀⣴⣿⣦⠀⡙⢷⣌⡛⠿⣷⣄⠀⠀⠀⠀
+                                   ⢠⣾⣏⣾⣿⣿⣷⠀⠀⠀⠀⠀⢻⣿⣿⣧⡹⣿⣿⣫⡛⢿⣿⣿⣶⣄⡀
+                                   ⢣⡻⢿⠛⢿⣿⣿⣷⣦⣤⣤⣶⣿⣿⣿⣿⣷⣿⣿⣿⣿⣷⣽⡿⣿⡿⡼
+                                   ⠀⠉⠛⠀⠀⠈⠙⢻⣿⣿⣿⣿⢿⣿⣿⣿⣿⣿⠟⠿⣟⣻⣟⡻⠤⠊⠀
+                                   ⠀⠀⠀⠀⠀⠀⠀⠀⠹⠿⠟⠁⠀⠙⢿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀
+
+${c.cyan}${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
 ${c.bold}Commands:${c.reset}
   ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--sqlite] [--git]${c.reset}  Initialize .flux
