@@ -10,6 +10,8 @@
     "build": "node scripts/build-meta.mjs",
     "preview": "bun --filter @flux/web preview",
     "typecheck": "bun --filter @flux/shared build && bun --filter '*' build",
+    "lint": "bun run typecheck",
+    "clean": "find packages -name dist -type d -exec rm -rf {} + 2>/dev/null || true",
     "test": "vitest run",
     "test:watch": "vitest"
   },
