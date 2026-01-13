@@ -25,7 +25,9 @@ dist-ssr
 
 .playwright-mcp/*
 
+# Bun
+*.bun-build
+
 # Flux
 packages/data/flux.sqlite*
 packages/data/flux.json
-.flux/

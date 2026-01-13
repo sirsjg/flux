@@ -43,6 +43,17 @@ vi.mock('../src/config.js', () => ({
   readConfig: vi.fn(() => ({})),
 }));
 
+// Mock net module so isPortAvailable always returns true
+vi.mock('net', () => ({
+  createServer: vi.fn(() => ({
+    once: vi.fn((event: string, cb: () => void) => {
+      if (event === 'listening') setTimeout(cb, 0);
+    }),
+    listen: vi.fn(),
+    close: vi.fn(),
+  })),
+}));
+
 import { serve } from '@hono/node-server';
 import { serveCommand } from '../src/commands/serve.js';
 import { findFluxDir, readConfig } from '../src/config.js';
