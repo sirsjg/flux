@@ -31,10 +31,10 @@ FLUX_DATA=.flux/data.sqlite flux project list
 Connect to any Flux server (local or remote):
 
 ```bash
-# Connect to hosted instance
-flux init --server https://flux.example.com
+# Connect to hosted instance (with API key for writes)
+flux init --server https://flux.example.com --api-key '$FLUX_API_KEY'
 
-# Or local server
+# Or local server (no auth needed in dev mode)
 flux init --server http://localhost:3000
 
 # All commands now use the API
@@ -44,6 +44,14 @@ flux task create proj_abc "New task"  # → POST /api/projects/proj_abc/tasks
 
 Server mode stores the URL in `.flux/config.json`. The CLI works identically regardless of mode - all commands are transparently routed to the configured backend.
 
+Config supports `$ENV_VAR` expansion for secrets:
+```json
+{
+  "server": "https://flux.example.com",
+  "apiKey": "$FLUX_API_KEY"
+}
+```
+
 ## Commands
 
 ### Initialization
@@ -52,6 +60,7 @@ Server mode stores the URL in `.flux/config.json`. The CLI works identically reg
 flux init                    # Interactive setup (JSON storage)
 flux init --sqlite           # Use SQLite storage
 flux init --server URL       # Connect to server
+flux init --server URL --api-key KEY  # Server with auth (KEY can be $ENV_VAR)
 flux init --git              # Use git sync (default)
 flux init --no-agents        # Skip AGENTS.md update
 ```
@@ -109,12 +118,14 @@ flux show <id>               # Show task details with comments
 
 ### Data Sync
 
-**Git-based sync** (for teams):
+**Git-based sync** (for teams, JSON storage only):
 ```bash
 flux pull                    # Pull from flux-data branch
 flux push                    # Push to flux-data branch
 flux push "commit message"   # Push with custom message
 ```
+
+> **Note:** Git sync requires JSON storage. SQLite users should use export/import instead.
 
 **Export/Import**:
 ```bash

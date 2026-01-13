@@ -1,7 +1,18 @@
 # API Endpoints
 
+## Authentication
+
+The API uses Bearer token authentication via `FLUX_API_KEY` environment variable.
+
+- **GET/HEAD requests** are public (readonly)
+- **All other methods** require `Authorization: Bearer <FLUX_API_KEY>` header
+- If `FLUX_API_KEY` is not set, all requests are allowed (dev mode)
+
+## Endpoints
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/health` | Health check |
 | GET | `/api/projects` | List all projects |
 | POST | `/api/projects` | Create project |
 | GET | `/api/projects/:id` | Get project |
@@ -17,6 +28,7 @@
 | GET | `/api/tasks/:id` | Get task |
 | PATCH | `/api/tasks/:id` | Update task |
 | DELETE | `/api/tasks/:id` | Delete task |
+| GET | `/api/tasks/ready` | List ready tasks (unblocked, not done) |
 | GET | `/api/webhooks` | List all webhooks |
 | POST | `/api/webhooks` | Create webhook |
 | GET | `/api/webhooks/:id` | Get webhook |

@@ -1,5 +1,18 @@
 # MCP
 
+## Remote Server Mode
+
+The MCP server can connect to a remote Flux API instead of using local storage:
+
+```bash
+FLUX_SERVER=https://flux.example.com FLUX_API_KEY=your-key npx @flux/mcp
+```
+
+| Variable | Description |
+|----------|-------------|
+| `FLUX_SERVER` | Remote Flux server URL |
+| `FLUX_API_KEY` | API key for write operations |
+
 ## MCP Tools
 
 | Tool | Description |
@@ -13,6 +26,7 @@
 | `update_epic` | Update epic details/status/dependencies |
 | `delete_epic` | Delete an epic |
 | `list_tasks` | List tasks (with optional filters) |
+| `list_ready_tasks` | List ready tasks (unblocked, not done, sorted by priority) |
 | `create_task` | Create a new task |
 | `update_task` | Update task details/status/dependencies |
 | `delete_task` | Delete a task |
