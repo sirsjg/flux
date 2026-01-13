@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import {
   setStorageAdapter,
   initStore,
@@ -33,33 +33,9 @@ import {
   mergeStore,
 } from '@flux/shared';
 import { createAdapter } from '@flux/shared/adapters';
+import { findFluxDir, readConfig } from '../config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Read config from .flux/config.json
-type FluxConfig = { server?: string; dataFile?: string };
-function readConfig(fluxDir: string): FluxConfig {
-  const configPath = resolve(fluxDir, 'config.json');
-  if (existsSync(configPath)) {
-    try {
-      return JSON.parse(readFileSync(configPath, 'utf-8'));
-    } catch {
-      return {};
-    }
-  }
-  return {};
-}
-
-// Find .flux directory
-function findFluxDir(): string {
-  let dir = process.cwd();
-  while (dir !== '/') {
-    const fluxDir = resolve(dir, '.flux');
-    if (existsSync(fluxDir)) return fluxDir;
-    dir = dirname(dir);
-  }
-  return resolve(process.cwd(), '.flux');
-}
 
 function createApp() {
   const app = new Hono();
@@ -203,7 +179,7 @@ export async function serveCommand(
   args: string[],
   flags: Record<string, string | boolean>
 ): Promise<void> {
-  // Default port 3589 = "FLUX" on numeric keypad (F=3, L=5, U=8, X=9)
+  // Default port 3589 = "FLUX" on phone keypad (F=3, L=5, U=8, X=9)
   const requestedPort = parseInt(flags.port as string || flags.p as string || '3589', 10);
 
   // Resolve data file: --data flag > config.dataFile > default

@@ -2,6 +2,12 @@
 
 import { resolve, dirname } from 'path';
 import { execSync } from 'child_process';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { createInterface } from 'readline';
+import { setStorageAdapter, initStore } from '@flux/shared';
+import { createAdapter } from '@flux/shared/adapters';
+import { type FluxConfig, findFluxDir, readConfig, writeConfig } from './config.js';
 
 // ANSI colors
 const c = {
@@ -14,39 +20,6 @@ const c = {
   green: '\x1b[32m',
   gray: '\x1b[90m',
 };
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { createInterface } from 'readline';
-import {
-  setStorageAdapter,
-  initStore,
-} from '@flux/shared';
-import { createAdapter } from '@flux/shared/adapters';
-
-// Config types
-type FluxConfig = {
-  server?: string;    // Server URL (server mode)
-  dataFile?: string;  // Local data file path (file mode)
-};
-
-// Read config from .flux/config.json
-function readConfig(fluxDir: string): FluxConfig {
-  const configPath = resolve(fluxDir, 'config.json');
-  if (existsSync(configPath)) {
-    try {
-      return JSON.parse(readFileSync(configPath, 'utf-8'));
-    } catch {
-      return {};
-    }
-  }
-  return {};
-}
-
-// Write config to .flux/config.json
-function writeConfig(fluxDir: string, config: FluxConfig): void {
-  const configPath = resolve(fluxDir, 'config.json');
-  writeFileSync(configPath, JSON.stringify(config, null, 2));
-}
 
 // Interactive prompt helper
 function prompt(question: string): Promise<string> {
@@ -133,26 +106,6 @@ function updateAgentInstructions(): string | null {
   return targetFile;
 }
 
-// Find .flux directory (walk up from cwd, or use FLUX_DIR env)
-function findFluxDir(): string {
-  if (process.env.FLUX_DIR) {
-    return process.env.FLUX_DIR;
-  }
-
-  let dir = process.cwd();
-  while (dir !== '/') {
-    const fluxDir = resolve(dir, '.flux');
-    if (existsSync(fluxDir)) {
-      return fluxDir;
-    }
-    dir = dirname(dir);
-  }
-
-  // Fall back to ~/.flux
-  const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-  return resolve(homeDir, '.flux');
-}
-
 // Find git root directory
 function findGitRoot(): string | null {
   try {
@@ -181,7 +134,9 @@ function ensureWorktree(gitRoot: string): string {
   if (!branchExists) {
     // Create orphan branch
     execSync('git checkout --orphan flux-data', { stdio: 'pipe', cwd: gitRoot });
-    execSync('git rm -rf . 2>/dev/null || true', { stdio: 'pipe', cwd: gitRoot, shell: '/bin/bash' });
+    try {
+      execSync('git rm -rf .', { stdio: 'pipe', cwd: gitRoot });
+    } catch { /* ignore - may fail if nothing to remove */ }
     execSync('git commit --allow-empty -m "init flux-data"', { stdio: 'pipe', cwd: gitRoot });
     execSync('git checkout -', { stdio: 'pipe', cwd: gitRoot });
   }
@@ -481,8 +436,10 @@ async function main() {
       break;
     }
     case 'help':
-    default:
-      console.log(`                                   ⠀⠀⠀⠀⠀⠐⠠⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠄⠀⠀⠀⠀
+    default: {
+      const showLogo = parsed.flags['no-logo'] !== true;
+      if (showLogo) {
+        console.log(`                                   ⠀⠀⠀⠀⠀⠐⠠⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠄⠀⠀⠀⠀
                                    ⠀⠀⠀⡁⣾⠷⠄⠀⠈⠈⠀⠀⠀⠀⠀⠉⠀⠁⠀⣤⣾⡇⢰⠀⠀⠀⠀
                                    ⠀⠀⠀⠁⢫⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢺⡇⠈⠀⠀⠀⠀
                                    ⠀⠀⠀⠎⠀⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⡟⠀⡅⠀⠀⠀⠀
@@ -497,8 +454,9 @@ ${c.cyan}╚═╝     ╚══════╝ ╚═════╝ ╚═╝ 
                                    ⢣⡻⢿⠛⢿⣿⣿⣷⣦⣤⣤⣶⣿⣿⣿⣿⣷⣿⣿⣿⣿⣷⣽⡿⣿⡿⡼
                                    ⠀⠉⠛⠀⠀⠈⠙⢻⣿⣿⣿⣿⢿⣿⣿⣿⣿⣿⠟⠿⣟⣻⣟⡻⠤⠊⠀
                                    ⠀⠀⠀⠀⠀⠀⠀⠀⠹⠿⠟⠁⠀⠙⢿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀
-
-${c.cyan}${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
+`);
+      }
+      console.log(`${c.cyan}${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
 ${c.bold}Commands:${c.reset}
   ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--sqlite] [--git]${c.reset}  Initialize .flux
@@ -530,13 +488,17 @@ ${c.bold}Sync:${c.reset} ${c.dim}(git-based team sync via flux-data branch)${c.r
   ${c.cyan}flux push${c.reset} ${c.yellow}[message]${c.reset}                Push tasks to flux-data branch
 
 ${c.bold}Server:${c.reset}
-  ${c.cyan}flux serve${c.reset} ${c.green}[-p port]${c.reset}              Start web UI (port 3589 = FLUX on keypad)
+  ${c.cyan}flux serve${c.reset} ${c.green}[-p port] [--data file]${c.reset}  Start web UI (port 3589 = FLUX on keypad)
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON
   ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
   ${c.green}-e, --epic${c.reset}                         Epic ID
+  ${c.green}--data${c.reset}                             Data file path (serve command)
+  ${c.green}--no-logo${c.reset}                          Hide logo in help output
 `);
+      break;
+    }
   }
 }
 
