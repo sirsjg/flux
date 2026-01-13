@@ -254,8 +254,9 @@ export function Board({ projectId }: BoardProps) {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesTitle = task.title.toLowerCase().includes(query);
-      const matchesNotes = task.notes.toLowerCase().includes(query);
-      if (!matchesTitle && !matchesNotes) return false;
+      const commentsText = task.comments?.map(c => c.body).join(" ") || "";
+      const matchesComments = commentsText.toLowerCase().includes(query);
+      if (!matchesTitle && !matchesComments) return false;
     }
     if (filterStatus !== "all" && task.status !== filterStatus) return false;
     return true;

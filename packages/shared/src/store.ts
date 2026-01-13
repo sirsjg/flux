@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, CommentAuthor, TaskComment } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment } from './types.js';
 
 // Storage adapter interface - can be localStorage or file-based
 export interface StorageAdapter {
@@ -29,10 +29,10 @@ export function initStore(): Store {
   if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
   db.read();
 
-  let needsWrite = false;
-
   // Migrate from old single-project structure if needed
   const data = db.data as any;
+  let needsWrite = false;
+
   if (!Array.isArray(data.projects)) {
     data.projects = [];
     needsWrite = true;
@@ -48,7 +48,6 @@ export function initStore(): Store {
         data.epics.forEach((e: any) => { e.project_id = oldProject.id; });
       }
       delete data.project;
-      needsWrite = true;
     }
   }
 
@@ -62,6 +61,7 @@ export function initStore(): Store {
     needsWrite = true;
   }
 
+  // Migrate epics: ensure auto field exists
   data.epics.forEach((epic: any) => {
     if (epic.auto === undefined) {
       epic.auto = false;
@@ -69,9 +69,32 @@ export function initStore(): Store {
     }
   });
 
-  if (needsWrite) {
-    db.write();
-  }
+  // Migrate tasks: convert legacy notes to comments
+  data.tasks.forEach((t: any) => {
+    // Handle array notes (very old format)
+    if (Array.isArray(t.notes)) {
+      t.notes = t.notes.join('\n\n');
+      needsWrite = true;
+    }
+    // Convert string notes to a comment
+    if (typeof t.notes === 'string' && t.notes.trim()) {
+      if (!t.comments) t.comments = [];
+      t.comments.unshift({
+        id: generateId(),
+        body: t.notes,
+        author: 'user',
+        created_at: t.created_at || new Date().toISOString(),
+      });
+      needsWrite = true;
+    }
+    // Remove notes field
+    if ('notes' in t) {
+      delete t.notes;
+      needsWrite = true;
+    }
+  });
+
+  if (needsWrite) db.write();
 
   return db.data;
 }
@@ -84,6 +107,42 @@ export function resetStore(): void {
   const data = db.data as StoreWithWebhooks;
   data.webhooks = [];
   data.webhook_deliveries = [];
+  db.write();
+}
+
+export function getStore(): Store {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  return {
+    projects: [...(db.data.projects || [])],
+    epics: [...(db.data.epics || [])],
+    tasks: [...(db.data.tasks || [])],
+  };
+}
+
+export function replaceStore(data: Store): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  db.data.projects = data.projects || [];
+  db.data.epics = data.epics || [];
+  db.data.tasks = data.tasks || [];
+  db.write();
+}
+
+export function mergeStore(data: Store): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  // Merge by adding items that don't exist (by id)
+  const existingProjectIds = new Set(db.data.projects.map(p => p.id));
+  const existingEpicIds = new Set(db.data.epics.map(e => e.id));
+  const existingTaskIds = new Set(db.data.tasks.map(t => t.id));
+
+  for (const p of data.projects || []) {
+    if (!existingProjectIds.has(p.id)) db.data.projects.push(p);
+  }
+  for (const e of data.epics || []) {
+    if (!existingEpicIds.has(e.id)) db.data.epics.push(e);
+  }
+  for (const t of data.tasks || []) {
+    if (!existingTaskIds.has(t.id)) db.data.tasks.push(t);
+  }
   db.write();
 }
 
@@ -217,17 +276,20 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  notes: string = ''
+  options?: { priority?: Priority }
 ): Task {
+  const now = new Date().toISOString();
   const task: Task = {
     id: generateId(),
     title,
     status: 'planning',
     depends_on: [],
-    notes,
     comments: [],
     epic_id: epicId,
     project_id: projectId,
+    priority: options?.priority,
+    created_at: now,
+    updated_at: now,
   };
   db.data.tasks.push(task);
   db.write();
@@ -237,7 +299,11 @@ export function createTask(
 export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task | undefined {
   const index = db.data.tasks.findIndex(t => t.id === id);
   if (index === -1) return undefined;
-  db.data.tasks[index] = { ...db.data.tasks[index], ...updates };
+  db.data.tasks[index] = {
+    ...db.data.tasks[index],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
   db.write();
   return db.data.tasks[index];
 }
@@ -316,6 +382,23 @@ export function isTaskBlocked(taskId: string): boolean {
     const dep = db.data.tasks.find(t => t.id === depId);
     return dep && dep.status !== 'done';
   });
+}
+
+// Get ready tasks: unblocked, not done, not archived, sorted by priority
+export function getReadyTasks(projectId?: string): Task[] {
+  let tasks = db.data.tasks.filter(t => !t.archived && t.status !== 'done');
+  if (projectId) {
+    tasks = tasks.filter(t => t.project_id === projectId);
+  }
+  // Filter out blocked tasks
+  tasks = tasks.filter(t => !isTaskBlocked(t.id));
+  // Sort by priority (P0 first, then P1, then P2, then undefined)
+  tasks.sort((a, b) => {
+    const pa = a.priority ?? 2;
+    const pb = b.priority ?? 2;
+    return pa - pb;
+  });
+  return tasks;
 }
 
 // ============ Archive Operations ============

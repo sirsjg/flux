@@ -14,23 +14,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
+
+      - name: Build shared
+        run: bun run --filter @flux/shared build
 
       - name: Test
-        run: pnpm test
+        run: bun test
 
       - name: Build
-        run: BUILD_SHA=${GITHUB_SHA::7} BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) pnpm build
+        run: BUILD_SHA=${GITHUB_SHA::7} BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) bun run build
 
   docker:
     name: publish docker image

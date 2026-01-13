@@ -101,13 +101,12 @@ export async function getTask(id: string): Promise<TaskWithBlocked | null> {
 export async function createTask(
   projectId: string,
   title: string,
-  epicId?: string,
-  notes?: string
+  epicId?: string
 ): Promise<Task> {
   const res = await fetch(`${API_BASE}/projects/${projectId}/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, epic_id: epicId, notes }),
+    body: JSON.stringify({ title, epic_id: epicId }),
   });
   return res.json();
 }

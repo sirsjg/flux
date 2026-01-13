@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@9.15.0",
+  "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "pnpm --filter @flux/web dev",
-    "dev:server": "pnpm --filter @flux/server dev",
+    "dev": "bun --filter @flux/web dev",
+    "dev:server": "bun --filter @flux/server dev",
     "build": "node scripts/build-meta.mjs",
-    "preview": "pnpm --filter @flux/web preview",
-    "typecheck": "pnpm -r build",
+    "preview": "bun --filter @flux/web preview",
+    "typecheck": "bun --filter @flux/shared build && bun --filter '*' build",
     "test": "vitest run",
     "test:watch": "vitest"
   },

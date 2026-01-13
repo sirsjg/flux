@@ -18,9 +18,9 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             <span class="badge badge-warning badge-sm">Blocked</span>
           )}
         </div>
-        {task.notes && (
+        {task.comments && task.comments.length > 0 && (
           <p class="text-xs text-base-content/60 mt-1 line-clamp-2">
-            {task.notes}
+            {task.comments[task.comments.length - 1].body}
           </p>
         )}
         {task.blocked && task.depends_on.length > 0 && (

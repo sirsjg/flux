@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "",
+      "hooks": [{"type": "command", "command": "flux ready --json"}]
+    }]
+  }
+}

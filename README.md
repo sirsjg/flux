@@ -1,4 +1,4 @@
-# Flux &middot; [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js_21+-339933?style=flat&logo=node.js&logoColor=white) ![pnpm](https://img.shields.io/badge/pnpm-f69220?style=flat&logo=pnpm&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
+# Flux &middot; [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Bun](https://img.shields.io/badge/Bun-fbf0df?style=flat&logo=bun&logoColor=black) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
 
 > Flux is a **completely open, hackable, unopinionated task management engine**.
 
@@ -18,7 +18,7 @@ Ever felt like your projects are a tangled mess of tools, bots, and half-baked i
 
 - **Execution-Agnostic**: Tasks live here, but how they get done? That's up to you – manual, API, webhooks, or let Claude/GPT take the wheel.
 - **AI-Powered Awesomeness**: Hook up your LLMs via MCP and watch them automate the mundane. "Hey AI, create a task for fixing that bug!" – Done. 🤖
-- **Simple & Speedy**: Single-file SQLite backend, drag-and-drop UI, real-time updates. No bloat, just flow.
+- **Simple & Speedy**: Single JSON file, drag-and-drop UI, git-native sync. No bloat, just flow.
 
 Flux isn't just another Kanban board – it's the open-source engine for the future of work. Developers love it because it's hackable, extensible, and screams "build on me!" If you're tinkering with AI agents or just need a better way to organize, this is your ticket to productivity paradise.
 
@@ -36,7 +36,11 @@ Flux isn't just another Kanban board – it's the open-source engine for the fut
 - 📡 **Real-Time Updates**: SSE keeps everyone in sync – web UI, APIs, and beyond.
 - 🪝 **Webhooks Galore**: Integrate with Slack, GitHub, CI/CD – trigger actions on task changes.
 - 📱 **API-First Design**: Full REST endpoints for ultimate control.
-- 💾 **SQLite Simplicity**: All data in one file, with JSON import for easy starts.
+- 💾 **Git-Native Sync**: `flux push` / `flux pull` syncs via `flux-data` branch.
+
+- 🖥️ **CLI-First**: Full CLI with MCP parity (`flux ready`, `flux task`, etc.)
+- 🧠 **Agent Memory**: Task comments for persistent context across sessions
+- ⚡ **Priority System**: P0/P1/P2 priorities for agent task ordering
 
 ## Quick Start: Up and Running in a Flux Second ⚡
 

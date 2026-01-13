@@ -114,9 +114,11 @@ export function DraggableTaskCard({
       {/* Title */}
       <h4 class="font-semibold text-sm mb-1">{task.title}</h4>
 
-      {/* Notes/Description */}
-      {task.notes && (
-        <p class="text-xs text-base-content/50 mb-3 line-clamp-2">{task.notes}</p>
+      {/* Latest comment preview */}
+      {task.comments && task.comments.length > 0 && (
+        <p class="text-xs text-base-content/50 mb-3 line-clamp-2">
+          {task.comments[task.comments.length - 1].body}
+        </p>
       )}
 
       {/* Footer */}

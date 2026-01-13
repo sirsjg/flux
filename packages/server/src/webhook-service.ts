@@ -147,7 +147,7 @@ export async function testWebhookDelivery(webhook: Webhook): Promise<{
         title: 'Test Task',
         status: 'todo',
         depends_on: [],
-        notes: 'This is a test webhook delivery',
+        comments: [{ id: 'test', body: 'This is a test webhook delivery', author: 'user', created_at: new Date().toISOString() }],
         project_id: 'test-project-id',
       },
     },

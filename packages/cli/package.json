@@ -1,12 +1,13 @@
 {
-  "name": "@flux/server",
-  "private": true,
+  "name": "@flux/cli",
   "version": "0.0.0",
   "type": "module",
+  "bin": {
+    "flux": "./dist/index.js"
+  },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun run src/index.ts"
   },
   "dependencies": {
     "@flux/shared": "workspace:*",
@@ -15,7 +16,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "tsx": "^4.19.2",
     "typescript": "~5.6.2"
   }
 }

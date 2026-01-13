@@ -32,7 +32,6 @@ export function TaskForm({
   defaultEpicId,
 }: TaskFormProps) {
   const [title, setTitle] = useState("");
-  const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<string>("todo");
   const [epicId, setEpicId] = useState<string>("");
   const [epics, setEpics] = useState<Epic[]>([]);
@@ -72,14 +71,12 @@ export function TaskForm({
     setDependencyFilter("");
     if (task) {
       setTitle(task.title);
-      setNotes(task.notes);
       setStatus(task.status);
       setEpicId(task.epic_id || "");
       setDependsOn([...task.depends_on]);
       setComments(task.comments ? [...task.comments] : []);
     } else {
       setTitle("");
-      setNotes("");
       setStatus("todo");
       setEpicId(defaultEpicId || "");
       setDependsOn([]);
@@ -96,7 +93,6 @@ export function TaskForm({
       if (isEdit && task) {
         await updateTask(task.id, {
           title: title.trim(),
-          notes: notes.trim(),
           status,
           epic_id: epicId || undefined,
           depends_on: dependsOn,
@@ -105,8 +101,7 @@ export function TaskForm({
         const newTask = await createTask(
           projectId,
           title.trim(),
-          epicId || undefined,
-          notes.trim()
+          epicId || undefined
         );
         if (dependsOn.length > 0) {
           await updateTask(newTask.id, { depends_on: dependsOn });
@@ -307,21 +302,6 @@ export function TaskForm({
           </div>
 
           <div class="max-h-[60vh] overflow-y-auto pr-1">
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Notes</span>
-              </label>
-              <textarea
-                placeholder="Optional notes..."
-                class="textarea textarea-bordered w-full"
-                value={notes}
-                onInput={(e) =>
-                  setNotes((e.target as HTMLTextAreaElement).value)
-                }
-                rows={6}
-              />
-            </div>
-
             {isEdit && (
               <div class="form-control mb-4">
                 <label class="label">
