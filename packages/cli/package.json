@@ -1,6 +1,7 @@
 {
-  "name": "@flux/cli",
-  "version": "0.0.0",
+  "name": "flux-tasks",
+  "version": "0.1.1",
+  "description": "CLI for Flux task management - Kanban for AI agents",
   "type": "module",
   "bin": {
     "flux": "./dist/index.js"
@@ -9,13 +10,22 @@
     "build": "bun build src/index.ts --outdir dist --target node",
     "dev": "bun run src/index.ts"
   },
-  "dependencies": {
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sirsjg/flux.git",
+    "directory": "packages/cli"
+  },
+  "keywords": ["cli", "kanban", "tasks", "mcp", "ai", "agents"],
+  "author": "sirsjg",
+  "license": "MIT",
+  "homepage": "https://github.com/sirsjg/flux",
+  "dependencies": {},
+  "devDependencies": {
     "@flux/shared": "workspace:*",
     "@hono/node-server": "^1.13.7",
-    "hono": "^4.6.12"
-  },
-  "devDependencies": {
+    "hono": "^4.6.12",
     "@types/node": "^22.10.5",
     "typescript": "~5.6.2"
-  }
+  },
+  "files": ["dist"]
 }
