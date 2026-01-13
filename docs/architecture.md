@@ -20,4 +20,4 @@ All data is stored in `packages/data/flux.sqlite`. This file is shared between t
 - **Backend:** Hono, Node.js
 - **Data:** SQLite (single-file persistence)
 - **MCP:** @modelcontextprotocol/sdk
-- **Build:** Vite, pnpm workspaces
+- **Build:** Vite, Bun workspaces

@@ -3,19 +3,19 @@
 ## Prerequisites
 
 - Node.js 21+
-- pnpm 10+
+- Bun 1.0+
 
 ## Setup
 
 ```bash
-pnpm install
-pnpm build
+bun install
+bun run build
 ```
 
 ## Running
 
 ```bash
-pnpm --filter @flux/server start
+bun --filter @flux/server start
 ```
 
 Visit http://localhost:3000
@@ -24,10 +24,10 @@ Visit http://localhost:3000
 
 ```bash
 # Terminal 1: API server with hot reload
-pnpm --filter @flux/server dev
+bun --filter @flux/server dev
 
 # Terminal 2: Web dev server with HMR
-pnpm --filter @flux/web dev
+bun --filter @flux/web dev
 ```
 
 Web UI will be at http://localhost:5173 (proxies API to :3000)
