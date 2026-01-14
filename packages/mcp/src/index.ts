@@ -376,8 +376,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'IDs of tasks this task depends on',
             },
             blocked_reason: {
-              type: 'string',
-              description: 'External blocker reason (e.g., "Waiting for vendor quote"). Set to empty string to clear.',
+              type: ['string', 'null'],
+              description: 'External blocker reason (e.g., "Waiting for vendor quote"). Set to null or empty string to clear.',
             },
           },
           required: ['task_id'],

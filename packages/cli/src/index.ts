@@ -540,7 +540,7 @@ ${c.bold}Commands:${c.reset}
 
   ${c.cyan}flux task list${c.reset} ${c.green}[project] [--json] [--epic] [--status]${c.reset}
   ${c.cyan}flux task create${c.reset} ${c.green}[project]${c.reset} ${c.yellow}<title>${c.reset} ${c.green}[-P 0|1|2] [-e epic]${c.reset}
-  ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic]${c.reset}
+  ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic] [--blocked]${c.reset}
   ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
   ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress
 
@@ -559,6 +559,7 @@ ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON
   ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
   ${c.green}-e, --epic${c.reset}                         Epic ID
+  ${c.green}--blocked${c.reset}                          External blocker ("reason" or "clear")
   ${c.green}--data${c.reset}                             Data file path (serve command)
   ${c.green}--no-logo${c.reset}                          Hide logo in help output
 `);
