@@ -34,10 +34,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          IS_FORK=$(gh pr view ${{ github.event.issue.number }} --json isCrossRepository -q '.isCrossRepository')
+          IS_FORK=$(gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json isCrossRepository -q '.isCrossRepository')
           echo "is_fork=$IS_FORK" >> $GITHUB_OUTPUT
           if [ "$IS_FORK" == "true" ]; then
-            gh pr comment ${{ github.event.issue.number }} --body "⚠️ Claude Code Review doesn't support fork PRs yet. See [anthropics/claude-code-action#821](https://github.com/anthropics/claude-code-action/issues/821)"
+            gh pr comment ${{ github.event.issue.number }} --repo ${{ github.repository }} --body "⚠️ Claude Code Review doesn't support fork PRs yet. See [anthropics/claude-code-action#821](https://github.com/anthropics/claude-code-action/issues/821)"
           fi
 
       - name: Checkout repository (PR event)
