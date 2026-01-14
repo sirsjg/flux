@@ -44,6 +44,7 @@ import { taskCommand } from './commands/task.js';
 import { readyCommand } from './commands/ready.js';
 import { showCommand } from './commands/show.js';
 import { serveCommand } from './commands/serve.js';
+import { primeCommand } from './commands/prime.js';
 import { initClient, exportAll, importAll, getProjects, createProject } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -459,6 +460,9 @@ async function main() {
       // show doesn't have a subcommand, so subcommand IS the task ID
       await showCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json);
       break;
+    case 'prime':
+      await primeCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json, defaultProject);
+      break;
     case 'export': {
       const data = await exportAll();
       const output = JSON.stringify(data, null, 2);
@@ -526,6 +530,7 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--api-key KEY] [--sqlite] [--git]${c.reset}  Initialize .flux
   ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
   ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
+  ${c.cyan}flux prime${c.reset} ${c.green}[--mcp] [--full]${c.reset}        Output workflow context for AI hooks
 
   ${c.cyan}flux project list${c.reset} ${c.green}[--json]${c.reset}         List all projects (* = current)
   ${c.cyan}flux project use${c.reset} ${c.yellow}<id>${c.reset}              Set default project
