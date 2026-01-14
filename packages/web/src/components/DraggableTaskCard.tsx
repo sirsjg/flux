@@ -1,4 +1,4 @@
-import { ArrowDownIcon } from '@heroicons/react/24/outline'
+import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { TaskWithBlocked } from '../stores'
@@ -63,6 +63,18 @@ export function DraggableTaskCard({
             <span class="text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded font-medium flex-shrink-0">
               Blocked
             </span>
+          )}
+          {task.acceptance_criteria && task.acceptance_criteria.length > 0 && (
+            <div class="flex items-center gap-0.5 text-xs text-success/70 flex-shrink-0" title="Acceptance criteria">
+              <CheckCircleIcon className="h-3.5 w-3.5" />
+              <span>{task.acceptance_criteria.length}</span>
+            </div>
+          )}
+          {task.guardrails && task.guardrails.length > 0 && (
+            <div class="flex items-center gap-0.5 text-xs text-info/70 flex-shrink-0" title="Guardrails">
+              <ShieldCheckIcon className="h-3.5 w-3.5" />
+              <span>{task.guardrails.length}</span>
+            </div>
           )}
           {task.status === 'planning' && (
             <progress class="progress progress-secondary w-8 flex-shrink-0" value={0} max={100} />
@@ -152,6 +164,18 @@ export function DraggableTaskCard({
             <div class={`flex items-center gap-1 text-xs ${task.blocked ? 'text-warning' : 'text-base-content/40'}`}>
               <ArrowDownIcon className="h-3.5 w-3.5" />
               <span>{task.depends_on.length}</span>
+            </div>
+          )}
+          {task.acceptance_criteria && task.acceptance_criteria.length > 0 && (
+            <div class="flex items-center gap-1 text-xs text-success/70" title="Acceptance criteria">
+              <CheckCircleIcon className="h-3.5 w-3.5" />
+              <span>{task.acceptance_criteria.length}</span>
+            </div>
+          )}
+          {task.guardrails && task.guardrails.length > 0 && (
+            <div class="flex items-center gap-1 text-xs text-info/70" title="Guardrails">
+              <ShieldCheckIcon className="h-3.5 w-3.5" />
+              <span>{task.guardrails.length}</span>
             </div>
           )}
         </div>
