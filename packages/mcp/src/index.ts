@@ -362,7 +362,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               items: {
                 type: 'object',
                 properties: {
-                  number: { type: 'number', description: 'Priority number (higher = more critical, e.g., 999, 9999)' },
+                  number: { type: 'integer', minimum: 1, description: 'Priority number (higher = more critical, e.g., 999, 9999)' },
                   text: { type: 'string', description: 'Guardrail instruction' },
                 },
                 required: ['number', 'text'],
@@ -406,7 +406,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               items: {
                 type: 'object',
                 properties: {
-                  number: { type: 'number', description: 'Priority number (higher = more critical, e.g., 999, 9999)' },
+                  number: { type: 'integer', minimum: 1, description: 'Priority number (higher = more critical, e.g., 999, 9999)' },
                   text: { type: 'string', description: 'Guardrail instruction' },
                 },
                 required: ['number', 'text'],
