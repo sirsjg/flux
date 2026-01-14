@@ -352,6 +352,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             project_id: { type: 'string', description: 'Project ID' },
             title: { type: 'string', description: 'Task title' },
             epic_id: { type: 'string', description: 'Optional: assign to epic' },
+            acceptance_criteria: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Observable behavioral outcomes for ralph-loops (e.g., "Processes <5MB in <100ms")',
+            },
+            guardrails: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  number: { type: 'number', description: 'Priority number (higher = more critical, e.g., 999, 9999)' },
+                  text: { type: 'string', description: 'Guardrail instruction' },
+                },
+                required: ['number', 'text'],
+              },
+              description: 'Numbered instructions for ralph-loops (higher number = more critical)',
+            },
           },
           required: ['project_id', 'title'],
         },
@@ -378,6 +395,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             blocked_reason: {
               type: ['string', 'null'],
               description: 'External blocker reason (e.g., "Waiting for vendor quote"). Set to null or empty string to clear.',
+            },
+            acceptance_criteria: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Observable behavioral outcomes for verification (e.g., "Processes <5MB in <100ms")',
+            },
+            guardrails: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  number: { type: 'number', description: 'Priority number (higher = more critical, e.g., 999, 9999)' },
+                  text: { type: 'string', description: 'Guardrail instruction' },
+                },
+                required: ['number', 'text'],
+              },
+              description: 'Numbered behavioral constraints (higher number = more critical)',
             },
           },
           required: ['task_id'],
@@ -643,7 +677,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const task = await createTask(
         args?.project_id as string,
         args?.title as string,
-        args?.epic_id as string
+        args?.epic_id as string,
+        {
+          acceptance_criteria: args?.acceptance_criteria as string[] | undefined,
+          guardrails: args?.guardrails as { number: number; text: string }[] | undefined,
+        }
       );
       return {
         content: [{ type: 'text', text: `Created task "${task.title}" with ID: ${task.id}` }],
@@ -669,6 +707,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args?.blocked_reason !== undefined) {
         updates.blocked_reason = args.blocked_reason || undefined; // Empty string clears
       }
+      if (args?.acceptance_criteria !== undefined) updates.acceptance_criteria = args.acceptance_criteria;
+      if (args?.guardrails !== undefined) updates.guardrails = args.guardrails;
       const task = await updateTask(args?.task_id as string, updates);
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };

@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail } from './types.js';
 
 // Storage adapter interface - can be localStorage or file-based
 export interface StorageAdapter {
@@ -276,7 +276,7 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { priority?: Priority; depends_on?: string[] }
+  options?: { priority?: Priority; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
 ): Task {
   const now = new Date().toISOString();
   const id = generateId();
@@ -296,6 +296,8 @@ export function createTask(
     epic_id: epicId,
     project_id: projectId,
     priority: options?.priority,
+    acceptance_criteria: options?.acceptance_criteria,
+    guardrails: options?.guardrails,
     created_at: now,
     updated_at: now,
   };

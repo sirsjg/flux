@@ -30,6 +30,12 @@ export type TaskComment = {
   created_at: string;
 };
 
+// Guardrail for ralph-loop integration (higher number = more critical)
+export type Guardrail = {
+  number: number;
+  text: string;
+};
+
 // Task represents a single work item.
 export type Task = {
   id: string;
@@ -43,6 +49,8 @@ export type Task = {
   archived?: boolean; // Whether the task is archived
   priority?: Priority; // P0 = urgent, P1 = normal, P2 = low
   blocked_reason?: string; // External blocker (meeting, approval, etc.)
+  acceptance_criteria?: string[]; // Observable behavioral outcomes for agent loops
+  guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
   created_at?: string;
   updated_at?: string;
 };
