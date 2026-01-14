@@ -355,7 +355,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             acceptance_criteria: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Observable behavioral outcomes for ralph-loops (e.g., "Processes <5MB in <100ms")',
+              description: 'Observable behavioral outcomes for verification (e.g., "Processes <5MB in <100ms")',
             },
             guardrails: {
               type: 'array',
@@ -367,7 +367,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 },
                 required: ['number', 'text'],
               },
-              description: 'Numbered instructions for ralph-loops (higher number = more critical)',
+              description: 'Numbered behavioral constraints (higher number = more critical)',
             },
           },
           required: ['project_id', 'title'],
