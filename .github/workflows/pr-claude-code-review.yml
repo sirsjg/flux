@@ -62,7 +62,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          timeout_minutes: 30
+          track_progress: true
           prompt: |
             Review this Pull Request using the standards in .claude/agents/code-reviewer.md
 
