@@ -18,14 +18,28 @@ permissions:
 
 jobs:
   review:
-    # Run on PR events, or on issue comments that mention @claude
+    # Run on PR events (skip forks - see anthropics/claude-code-action#821), or on issue comments that mention @claude
     if: |
-      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     steps:
+      # Skip fork PRs for issue_comment (action bug: anthropics/claude-code-action#821)
+      - name: Check if fork PR
+        if: github.event_name == 'issue_comment'
+        id: fork-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IS_FORK=$(gh pr view ${{ github.event.issue.number }} --json isCrossRepository -q '.isCrossRepository')
+          echo "is_fork=$IS_FORK" >> $GITHUB_OUTPUT
+          if [ "$IS_FORK" == "true" ]; then
+            gh pr comment ${{ github.event.issue.number }} --body "⚠️ Claude Code Review doesn't support fork PRs yet. See [anthropics/claude-code-action#821](https://github.com/anthropics/claude-code-action/issues/821)"
+          fi
+
       - name: Checkout repository (PR event)
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@v4
@@ -35,18 +49,19 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
       - name: Checkout repository (issue_comment event)
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' && steps.fork-check.outputs.is_fork != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Checkout PR branch (issue_comment event)
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' && steps.fork-check.outputs.is_fork != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr checkout ${{ github.event.issue.number }}
 
       - name: Get PR base branch
+        if: steps.fork-check.outputs.is_fork != 'true'
         id: pr-info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,6 +74,7 @@ jobs:
           fi
 
       - name: Claude Code Review
+        if: steps.fork-check.outputs.is_fork != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
