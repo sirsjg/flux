@@ -55,8 +55,10 @@ export async function taskCommand(
           for (const t of tasks) {
             const p = t.priority ?? 2;
             const { label, ansi } = PRIORITY_CONFIG[p as Priority];
-            const blocked = t.blocked ? ' [BLOCKED]' : '';
-            console.log(`${t.id}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}${blocked}`);
+            const blockedInfo = t.blocked_reason
+              ? ` [BLOCKED: ${t.blocked_reason}]`
+              : t.blocked ? ' [BLOCKED]' : '';
+            console.log(`${t.id}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}${blockedInfo}`);
           }
         }
       }
@@ -97,7 +99,7 @@ export async function taskCommand(
     case 'update': {
       const id = args[0];
       if (!id) {
-        console.error('Usage: flux task update <id> [--title] [--status] [--note] [--epic]');
+        console.error('Usage: flux task update <id> [--title] [--status] [--note] [--epic] [--blocked "reason"|clear]');
         process.exit(1);
       }
 
@@ -108,19 +110,28 @@ export async function taskCommand(
           console.error(`Task not found: ${id}`);
           process.exit(1);
         }
-        if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority) {
+        if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority && flags.blocked === undefined) {
           const task = await getTask(id);
           output(json ? task : `Added comment to task: ${id}`, json);
           return;
         }
       }
 
-      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority } = {};
+      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority; blocked_reason?: string } = {};
       if (flags.title) updates.title = flags.title as string;
       if (flags.status) updates.status = flags.status as string;
       if (flags.epic) updates.epic_id = flags.epic as string;
       if (flags.P || flags.priority) {
         updates.priority = parseInt((flags.P || flags.priority) as string, 10) as Priority;
+      }
+      if (flags.blocked !== undefined) {
+        // Handle --blocked flag: string value sets blocker, "clear" or "-" clears
+        if (flags.blocked === true) {
+          console.error('--blocked requires a reason string. Use --blocked clear to remove blocker.');
+          process.exit(1);
+        }
+        const blockedVal = flags.blocked as string;
+        updates.blocked_reason = (blockedVal === 'clear' || blockedVal === '-' || blockedVal === '') ? undefined : blockedVal;
       }
 
       const task = await updateTask(id, updates);

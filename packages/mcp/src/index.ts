@@ -375,6 +375,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               items: { type: 'string' },
               description: 'IDs of tasks this task depends on',
             },
+            blocked_reason: {
+              type: 'string',
+              description: 'External blocker reason (e.g., "Waiting for vendor quote"). Set to empty string to clear.',
+            },
           },
           required: ['task_id'],
         },
@@ -662,6 +666,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (args?.status) updates.status = args.status;
       if (args?.epic_id !== undefined) updates.epic_id = args.epic_id || undefined;
       if (args?.depends_on) updates.depends_on = args.depends_on;
+      if (args?.blocked_reason !== undefined) {
+        updates.blocked_reason = args.blocked_reason || undefined; // Empty string clears
+      }
       const task = await updateTask(args?.task_id as string, updates);
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };

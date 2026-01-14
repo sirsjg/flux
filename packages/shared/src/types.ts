@@ -42,6 +42,7 @@ export type Task = {
   agent?: Agent; // Optional agent assignment
   archived?: boolean; // Whether the task is archived
   priority?: Priority; // P0 = urgent, P1 = normal, P2 = low
+  blocked_reason?: string; // External blocker (meeting, approval, etc.)
   created_at?: string;
   updated_at?: string;
 };

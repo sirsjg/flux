@@ -377,7 +377,11 @@ export function removeDependency(taskId: string, dependsOnId: string): boolean {
 
 export function isTaskBlocked(taskId: string): boolean {
   const task = db.data.tasks.find(t => t.id === taskId);
-  if (!task || task.depends_on.length === 0) return false;
+  if (!task) return false;
+  // External blocker takes precedence
+  if (task.blocked_reason) return true;
+  // Dependency-based blocking
+  if (task.depends_on.length === 0) return false;
   return task.depends_on.some(depId => {
     const dep = db.data.tasks.find(t => t.id === depId);
     return dep && dep.status !== 'done';
