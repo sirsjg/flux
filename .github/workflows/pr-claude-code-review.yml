@@ -16,10 +16,11 @@ permissions:
 
 jobs:
   review:
-    # Only run on PR comments that mention @claude
+    # Only run on PR comments that mention @claude from authorized users
     if: |
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '@claude')
+      contains(github.event.comment.body, '@claude') &&
+      contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     steps:
       - name: Check if fork PR

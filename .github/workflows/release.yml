@@ -15,26 +15,20 @@ concurrency:
 
 permissions:
   contents: write
-  issues: write
-  pull-requests: write
   id-token: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
-      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build CLI
         run: bun run build
@@ -46,62 +40,8 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Release
-        id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-        run: |
-          OUTPUT=$(npx semantic-release 2>&1) || true
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -q "Published release"; then
-            VERSION=$(echo "$OUTPUT" | grep -o "Published release [^ ]*" | sed 's/Published release //')
-            if [ -z "$VERSION" ]; then
-              echo "new_release_published=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            echo "new_release_published=true" >> $GITHUB_OUTPUT
-            echo "new_release_version=$VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "new_release_published=false" >> $GITHUB_OUTPUT
-          fi
-
-  changelog:
-    needs: release
-    if: needs.release.outputs.new_release_published == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Wait for tag propagation
-        run: sleep 10
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-
-      - name: Fetch tags
-        run: git fetch --tags
-
-      - name: Generate changelog with Claude
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            A new release was just published: v${{ needs.release.outputs.new_release_version }}
-
-            Update CHANGELOG.md with a human-readable entry for this release:
-            1. Read the current CHANGELOG.md
-            2. Get the release notes: gh release view v${{ needs.release.outputs.new_release_version }} --json body -q '.body'
-            3. Get commits since previous tag: git log --oneline $(git describe --tags --abbrev=0 v${{ needs.release.outputs.new_release_version }}^)...v${{ needs.release.outputs.new_release_version }}
-            4. Write a concise, user-friendly changelog entry at the top (after the header)
-            5. Commit and push to main
-
-            Format: ## [version] - YYYY-MM-DD with bullet points grouped by type (Added, Fixed, Changed)
-          claude_args: |
-            --model claude-sonnet-4-20250514
-            --max-turns 5
-            --allowedTools "Read,Write,Bash(git:*),Bash(gh:*)"
+        run: npx semantic-release
