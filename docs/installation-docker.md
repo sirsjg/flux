@@ -62,11 +62,20 @@ To use JSON instead:
 docker run -i --rm -v flux-data:/app/packages/data -e FLUX_DATA=/app/packages/data/flux.json flux-mcp
 ```
 
-## CLI in Docker
+## CLI with Docker Server
 
-Run CLI commands via Docker:
+Install CLI locally and connect to Docker server:
 
 ```bash
-docker run -it --rm -v flux-data:/app/packages/data -e FLUX_DATA=/app/packages/data/flux.sqlite flux-mcp flux project list
-docker run -it --rm -v flux-data:/app/packages/data -e FLUX_DATA=/app/packages/data/flux.sqlite flux-mcp flux ready
+# Install CLI
+bun add -g flux-tasks
+# or: npm install -g flux-tasks
+
+# Initialize with Docker server
+cd your-repo
+flux init --server http://localhost:3000
+
+# CLI now talks to Docker server
+flux project list
+flux ready
 ```
