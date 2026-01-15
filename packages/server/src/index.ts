@@ -297,7 +297,12 @@ app.delete('/api/tasks/:id/comments/:commentId', (c) => {
 app.post('/api/projects/:projectId/tasks', async (c) => {
   const body = await c.req.json();
   const projectId = c.req.param('projectId');
-  const task = createTask(projectId, body.title, body.epic_id, { priority: body.priority, depends_on: body.depends_on });
+  const task = createTask(projectId, body.title, body.epic_id, {
+    priority: body.priority,
+    depends_on: body.depends_on,
+    acceptance_criteria: body.acceptance_criteria,
+    guardrails: body.guardrails,
+  });
   // Trigger webhook
   triggerWebhooks('task.created', { task }, projectId);
   return c.json(task, 201);

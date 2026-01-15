@@ -40,13 +40,13 @@ export function DraggableTaskCard({
   const renderMetaIndicators = (compact = false) => (
     <>
       {task.acceptance_criteria && task.acceptance_criteria.length > 0 && (
-        <div class={`flex items-center gap-${compact ? '0.5' : '1'} text-xs text-success/70 ${compact ? 'flex-shrink-0' : ''}`} title="Acceptance criteria">
+        <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-success/70`} title="Acceptance criteria">
           <CheckCircleIcon className="h-3.5 w-3.5" />
           <span>{task.acceptance_criteria.length}</span>
         </div>
       )}
       {task.guardrails && task.guardrails.length > 0 && (
-        <div class={`flex items-center gap-${compact ? '0.5' : '1'} text-xs text-info/70 ${compact ? 'flex-shrink-0' : ''}`} title="Guardrails">
+        <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-info/70`} title="Guardrails">
           <ShieldCheckIcon className="h-3.5 w-3.5" />
           <span>{task.guardrails.length}</span>
         </div>
