@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail } from './types.js';
 
 // Storage adapter interface - can be localStorage or file-based
 export interface StorageAdapter {
@@ -12,6 +12,12 @@ let db: StorageAdapter;
 // Generate a short unique ID
 function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
+}
+
+// Ensure guardrails have IDs (for MCP/API input that may omit them)
+function ensureGuardrailIds(guardrails?: Guardrail[]): Guardrail[] | undefined {
+  if (!guardrails) return undefined;
+  return guardrails.map(g => g.id ? g : { ...g, id: generateId() });
 }
 
 // Set the storage adapter (called once at app startup)
@@ -276,7 +282,7 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { priority?: Priority; depends_on?: string[] }
+  options?: { priority?: Priority; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
 ): Task {
   const now = new Date().toISOString();
   const id = generateId();
@@ -296,6 +302,8 @@ export function createTask(
     epic_id: epicId,
     project_id: projectId,
     priority: options?.priority,
+    acceptance_criteria: options?.acceptance_criteria,
+    guardrails: ensureGuardrailIds(options?.guardrails),
     created_at: now,
     updated_at: now,
   };
@@ -318,9 +326,13 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task
       throw new Error('Circular dependency detected');
     }
   }
+  const processedUpdates = {
+    ...updates,
+    guardrails: updates.guardrails !== undefined ? ensureGuardrailIds(updates.guardrails) : undefined,
+  };
   db.data.tasks[index] = {
     ...db.data.tasks[index],
-    ...updates,
+    ...processedUpdates,
     updated_at: new Date().toISOString(),
   };
   db.write();

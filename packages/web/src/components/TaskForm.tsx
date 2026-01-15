@@ -11,7 +11,7 @@ import {
   getTasks,
   type TaskWithBlocked,
 } from "../stores";
-import type { Task, Epic, Status, TaskComment } from "@flux/shared";
+import type { Task, Epic, Status, TaskComment, Guardrail } from "@flux/shared";
 import { STATUSES, STATUS_CONFIG } from "@flux/shared";
 
 interface TaskFormProps {
@@ -45,6 +45,11 @@ export function TaskForm({
   const [blockedReason, setBlockedReason] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState<string[]>([]);
+  const [newCriterion, setNewCriterion] = useState("");
+  const [guardrails, setGuardrails] = useState<Guardrail[]>([]);
+  const [newGuardrailNumber, setNewGuardrailNumber] = useState("");
+  const [newGuardrailText, setNewGuardrailText] = useState("");
 
   const isEdit = !!task;
 
@@ -70,6 +75,9 @@ export function TaskForm({
     );
 
     setDependencyFilter("");
+    setNewCriterion("");
+    setNewGuardrailNumber("");
+    setNewGuardrailText("");
     if (task) {
       setTitle(task.title);
       setStatus(task.status);
@@ -77,6 +85,8 @@ export function TaskForm({
       setDependsOn([...task.depends_on]);
       setComments(task.comments ? [...task.comments] : []);
       setBlockedReason(task.blocked_reason || "");
+      setAcceptanceCriteria(task.acceptance_criteria ? [...task.acceptance_criteria] : []);
+      setGuardrails(task.guardrails ? [...task.guardrails] : []);
     } else {
       setTitle("");
       setStatus("todo");
@@ -84,6 +94,8 @@ export function TaskForm({
       setDependsOn([]);
       setComments([]);
       setBlockedReason("");
+      setAcceptanceCriteria([]);
+      setGuardrails([]);
     }
   };
 
@@ -100,6 +112,8 @@ export function TaskForm({
           epic_id: epicId || undefined,
           depends_on: dependsOn,
           blocked_reason: blockedReason.trim() || undefined,
+          acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
+          guardrails: guardrails.length > 0 ? guardrails : undefined,
         });
       } else {
         const newTask = await createTask(
@@ -107,8 +121,12 @@ export function TaskForm({
           title.trim(),
           epicId || undefined
         );
-        if (dependsOn.length > 0) {
-          await updateTask(newTask.id, { depends_on: dependsOn });
+        const updates: Partial<Task> = {};
+        if (dependsOn.length > 0) updates.depends_on = dependsOn;
+        if (acceptanceCriteria.length > 0) updates.acceptance_criteria = acceptanceCriteria;
+        if (guardrails.length > 0) updates.guardrails = guardrails;
+        if (Object.keys(updates).length > 0) {
+          await updateTask(newTask.id, updates);
         }
       }
       await onSave();
@@ -178,6 +196,28 @@ export function TaskForm({
         ? prev.filter((id) => id !== taskId)
         : [...prev, taskId]
     );
+  };
+
+  const addCriterion = () => {
+    if (!newCriterion.trim()) return;
+    setAcceptanceCriteria((prev) => [...prev, newCriterion.trim()]);
+    setNewCriterion("");
+  };
+
+  const removeCriterion = (index: number) => {
+    setAcceptanceCriteria((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addGuardrail = () => {
+    const num = Math.floor(parseInt(newGuardrailNumber));
+    if (isNaN(num) || num <= 0 || !newGuardrailText.trim()) return;
+    setGuardrails((prev) => [...prev, { id: crypto.randomUUID(), number: num, text: newGuardrailText.trim() }]);
+    setNewGuardrailNumber("");
+    setNewGuardrailText("");
+  };
+
+  const removeGuardrail = (id: string) => {
+    setGuardrails((prev) => prev.filter((g) => g.id !== id));
   };
 
   return (
@@ -329,6 +369,114 @@ export function TaskForm({
           </div>
 
           <div class="max-h-[60vh] overflow-y-auto pr-1">
+            {/* Acceptance Criteria */}
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Acceptance Criteria</span>
+                {acceptanceCriteria.length > 0 && (
+                  <span class="label-text-alt">{acceptanceCriteria.length}</span>
+                )}
+              </label>
+              <p class="text-xs text-base-content/50 mb-2">
+                Observable outcomes to verify task completion
+              </p>
+              <div class="space-y-2">
+                {acceptanceCriteria.map((criterion, index) => (
+                  <div
+                    key={index}
+                    class="flex items-start gap-2 border border-base-300 rounded-lg p-2"
+                  >
+                    <span class="text-sm flex-1">{criterion}</span>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs"
+                      onClick={() => removeCriterion(index)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Add criterion..."
+                    class="input input-bordered input-sm flex-1"
+                    value={newCriterion}
+                    onInput={(e) => setNewCriterion((e.target as HTMLInputElement).value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCriterion())}
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline"
+                    onClick={addCriterion}
+                    disabled={!newCriterion.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Guardrails */}
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Guardrails</span>
+                {guardrails.length > 0 && (
+                  <span class="label-text-alt">{guardrails.length}</span>
+                )}
+              </label>
+              <p class="text-xs text-base-content/50 mb-2">
+                Numbered constraints (higher number = more critical)
+              </p>
+              <div class="space-y-2">
+                {[...guardrails]
+                  .sort((a, b) => b.number - a.number)
+                  .map((guardrail) => (
+                    <div
+                      key={guardrail.id}
+                      class="flex items-start gap-2 border border-base-300 rounded-lg p-2"
+                    >
+                      <span class="badge badge-outline badge-sm font-mono">
+                        {guardrail.number}
+                      </span>
+                      <span class="text-sm flex-1">{guardrail.text}</span>
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        onClick={() => removeGuardrail(guardrail.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                <div class="flex gap-2">
+                  <input
+                    type="number"
+                    placeholder="999"
+                    class="input input-bordered input-sm w-20"
+                    value={newGuardrailNumber}
+                    onInput={(e) => setNewGuardrailNumber((e.target as HTMLInputElement).value)}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Guardrail instruction..."
+                    class="input input-bordered input-sm flex-1"
+                    value={newGuardrailText}
+                    onInput={(e) => setNewGuardrailText((e.target as HTMLInputElement).value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addGuardrail())}
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline"
+                    onClick={addGuardrail}
+                    disabled={!newGuardrailNumber || parseInt(newGuardrailNumber) <= 0 || !newGuardrailText.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {isEdit && (
               <div class="form-control mb-4">
                 <label class="label">

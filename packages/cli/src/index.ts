@@ -169,9 +169,12 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string; project?:
   return { mode: 'file', project: config.project };
 }
 
+// Flags that can appear multiple times (collected into arrays)
+const ARRAY_FLAGS = new Set(['ac', 'guardrail']);
+
 // Parse arguments
-export function parseArgs(args: string[]): { command: string; subcommand?: string; args: string[]; flags: Record<string, string | boolean> } {
-  const flags: Record<string, string | boolean> = {};
+export function parseArgs(args: string[]): { command: string; subcommand?: string; args: string[]; flags: Record<string, string | boolean | string[]> } {
+  const flags: Record<string, string | boolean | string[]> = {};
   const positional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
@@ -180,7 +183,13 @@ export function parseArgs(args: string[]): { command: string; subcommand?: strin
       const key = arg.slice(2);
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
-        flags[key] = next;
+        if (ARRAY_FLAGS.has(key)) {
+          // Collect into array
+          if (!flags[key]) flags[key] = [];
+          (flags[key] as string[]).push(next);
+        } else {
+          flags[key] = next;
+        }
         i++;
       } else {
         flags[key] = true;
@@ -189,7 +198,12 @@ export function parseArgs(args: string[]): { command: string; subcommand?: strin
       const key = arg.slice(1);
       const next = args[i + 1];
       if (next && !next.startsWith('-')) {
-        flags[key] = next;
+        if (ARRAY_FLAGS.has(key)) {
+          if (!flags[key]) flags[key] = [];
+          (flags[key] as string[]).push(next);
+        } else {
+          flags[key] = next;
+        }
         i++;
       } else {
         flags[key] = true;
@@ -544,8 +558,8 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux epic delete${c.reset} ${c.yellow}<id>${c.reset}
 
   ${c.cyan}flux task list${c.reset} ${c.green}[project] [--json] [--epic] [--status]${c.reset}
-  ${c.cyan}flux task create${c.reset} ${c.green}[project]${c.reset} ${c.yellow}<title>${c.reset} ${c.green}[-P 0|1|2] [-e epic]${c.reset}
-  ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic] [--blocked]${c.reset}
+  ${c.cyan}flux task create${c.reset} ${c.green}[project]${c.reset} ${c.yellow}<title>${c.reset} ${c.green}[-P 0|1|2] [-e epic] [--ac ...] [--guardrail ...]${c.reset}
+  ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic] [--blocked] [--ac ...] [--guardrail ...]${c.reset}
   ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
   ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress
 
@@ -565,6 +579,8 @@ ${c.bold}Flags:${c.reset}
   ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
   ${c.green}-e, --epic${c.reset}                         Epic ID
   ${c.green}--blocked${c.reset}                          External blocker ("reason" or "clear")
+  ${c.green}--ac${c.reset}                               Acceptance criterion (repeatable)
+  ${c.green}--guardrail${c.reset}                        Guardrail as "999:text" (repeatable)
   ${c.green}--data${c.reset}                             Data file path (serve command)
   ${c.green}--no-logo${c.reset}                          Hide logo in help output
 `);

@@ -198,4 +198,76 @@ describe('store', () => {
 
     expect(addDependency(task.id, 'nonexistent')).toBe(false);
   });
+
+  it('creates task with acceptance_criteria', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      acceptance_criteria: ['Processes in <100ms', 'Returns valid JSON'],
+    });
+
+    expect(task.acceptance_criteria).toHaveLength(2);
+    expect(task.acceptance_criteria?.[0]).toBe('Processes in <100ms');
+  });
+
+  it('creates task with guardrails and generates IDs', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      guardrails: [
+        { number: 999, text: 'Do not delete data' } as any,
+        { id: 'existing-id', number: 9999, text: 'Always backup' },
+      ],
+    });
+
+    expect(task.guardrails).toHaveLength(2);
+    expect(task.guardrails?.[0].id).toBeDefined();
+    expect(task.guardrails?.[0].number).toBe(999);
+    expect(task.guardrails?.[1].id).toBe('existing-id');
+  });
+
+  it('updates task acceptance_criteria (replace mode)', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      acceptance_criteria: ['Original criterion'],
+    });
+
+    const updated = updateTask(task.id, { acceptance_criteria: ['New criterion 1', 'New criterion 2'] });
+
+    expect(updated?.acceptance_criteria).toHaveLength(2);
+    expect(updated?.acceptance_criteria?.[0]).toBe('New criterion 1');
+  });
+
+  it('updates task guardrails (replace mode)', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      guardrails: [{ id: 'g1', number: 1, text: 'Original' }],
+    });
+
+    const updated = updateTask(task.id, { guardrails: [{ number: 999, text: 'New guardrail' } as any] });
+
+    expect(updated?.guardrails).toHaveLength(1);
+    expect(updated?.guardrails?.[0].number).toBe(999);
+    expect(updated?.guardrails?.[0].id).toBeDefined();
+  });
+
+  it('clears acceptance_criteria with empty array', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      acceptance_criteria: ['Criterion 1'],
+    });
+
+    const updated = updateTask(task.id, { acceptance_criteria: [] });
+
+    expect(updated?.acceptance_criteria).toHaveLength(0);
+  });
+
+  it('clears guardrails with empty array', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      guardrails: [{ id: 'g1', number: 999, text: 'Guardrail' }],
+    });
+
+    const updated = updateTask(task.id, { guardrails: [] });
+
+    expect(updated?.guardrails).toHaveLength(0);
+  });
 });
