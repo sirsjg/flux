@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, statSync } from 'fs';
 import {
   setStorageAdapter,
   initStore,
@@ -226,10 +226,38 @@ export async function serveCommand(
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
 
   if (webDistPath) {
-    app.use('/*', serveStatic({ root: webDistPath }));
-    // SPA fallback: serve index.html for non-API routes that don't match static files
     const indexHtml = readFileSync(join(webDistPath, 'index.html'), 'utf-8');
-    app.get('*', (c) => c.html(indexHtml));
+    // Hoist serveStatic handler outside request loop for performance
+    const staticHandler = serveStatic({ root: webDistPath });
+    // Whitelist of known static file extensions (avoid false positives like /projects/v2.0)
+    const staticExtensions = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|json|webp|webm|mp4|mp3|pdf)$/i;
+
+    // Custom SPA-aware static file serving
+    app.use('/*', async (c, next) => {
+      const path = c.req.path;
+
+      // Skip API routes (already handled above)
+      if (path.startsWith('/api/')) {
+        return next();
+      }
+
+      // Check if this is a request for a static file (has known extension)
+      if (staticExtensions.test(path)) {
+        const filePath = join(webDistPath, path);
+        // Security: prevent path traversal attacks
+        if (!filePath.startsWith(webDistPath + '/')) {
+          return c.notFound();
+        }
+        if (existsSync(filePath) && statSync(filePath).isFile()) {
+          return staticHandler(c, next);
+        }
+        // File with extension not found - return 404
+        return c.notFound();
+      }
+
+      // No static extension - this is a SPA route, serve index.html
+      return c.html(indexHtml);
+    });
   } else {
     app.get('/', (c) => c.text('Web UI not found. API available at /api/*'));
   }

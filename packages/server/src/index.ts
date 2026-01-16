@@ -488,13 +488,44 @@ app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
 // Serve static files from web build (production)
 const webDistPath = join(__dirname, '../../web/dist');
 if (existsSync(webDistPath)) {
-  app.use('/*', serveStatic({ root: webDistPath }));
-  // SPA fallback: serve index.html for non-API routes that don't match static files
   const indexPath = join(webDistPath, 'index.html');
-  if (existsSync(indexPath)) {
-    const indexHtml = readFileSync(indexPath, 'utf-8');
-    app.get('*', (c) => c.html(indexHtml));
-  }
+  const indexHtml = existsSync(indexPath) ? readFileSync(indexPath, 'utf-8') : null;
+  // Hoist serveStatic handler outside request loop for performance
+  const staticHandler = serveStatic({ root: webDistPath });
+  // Whitelist of known static file extensions (avoid false positives like /projects/v2.0)
+  const staticExtensions = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|json|webp|webm|mp4|mp3|pdf)$/i;
+
+  // Custom SPA-aware static file serving
+  // Check if file exists before serving, otherwise fall through to SPA handler
+  app.use('/*', async (c, next) => {
+    const path = c.req.path;
+
+    // Skip API routes (already handled above)
+    if (path.startsWith('/api/')) {
+      return next();
+    }
+
+    // Check if this is a request for a static file (has known extension)
+    if (staticExtensions.test(path)) {
+      const filePath = join(webDistPath, path);
+      // Security: prevent path traversal attacks
+      if (!filePath.startsWith(webDistPath + '/')) {
+        return c.notFound();
+      }
+      if (existsSync(filePath) && statSync(filePath).isFile()) {
+        return staticHandler(c, next);
+      }
+      // File with extension not found - return 404
+      return c.notFound();
+    }
+
+    // No static extension - this is a SPA route, serve index.html
+    if (indexHtml) {
+      return c.html(indexHtml);
+    }
+
+    return next();
+  });
 }
 
 // Start server
