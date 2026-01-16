@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { createInterface } from 'readline';
 import { setStorageAdapter, initStore } from '@flux/shared';
 import { createAdapter } from '@flux/shared/adapters';
-import { type FluxConfig, findFluxDir, readConfig, writeConfig, loadEnvLocal } from './config.js';
+import { type FluxConfig, findFluxDir, readConfig, writeConfig, loadEnvLocal, resolveDataPath } from './config.js';
 
 // ANSI colors
 const c = {
@@ -160,13 +160,184 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string; project?:
   }
 
   // File mode - use local storage + initialize client without server
-  // Priority: FLUX_DATA env var > config.dataFile > default data.json
-  const dataPath = process.env.FLUX_DATA || (config.dataFile ? resolve(fluxDir, config.dataFile) : resolve(fluxDir, 'data.json'));
+  const dataPath = resolveDataPath(fluxDir, config);
   const adapter = createAdapter(dataPath);
   setStorageAdapter(adapter);
   initStore();
   initClient(); // No server = local mode
   return { mode: 'file', project: config.project };
+}
+
+// Doctor command - diagnose and fix common issues
+async function doctorCommand(flags: Record<string, string | boolean | string[]>): Promise<void> {
+  const fix = flags.fix === true;
+  let issues = 0;
+  let fixed = 0;
+
+  console.log(`${c.bold}Flux Doctor${c.reset}\n`);
+
+  // Check 1: .flux directory exists
+  let fluxDir: string;
+  try {
+    fluxDir = findFluxDir();
+  } catch {
+    console.log(`${c.yellow}!${c.reset} No .flux directory found`);
+    console.log(`  Run ${c.cyan}flux init${c.reset} to initialize\n`);
+    return;
+  }
+
+  const fluxDirExists = existsSync(fluxDir);
+  if (!fluxDirExists) {
+    console.log(`${c.yellow}!${c.reset} .flux directory not found at ${fluxDir}`);
+    console.log(`  Run ${c.cyan}flux init${c.reset} to initialize\n`);
+    return;
+  }
+  console.log(`${c.green}OK${c.reset} .flux directory: ${fluxDir}`);
+
+  // Check 2: config.json exists
+  const configPath = resolve(fluxDir, 'config.json');
+  const configExists = existsSync(configPath);
+  if (configExists) {
+    const config = readConfig(fluxDir);
+    const mode = config.server ? 'server' : 'local';
+    const backend = config.dataFile?.endsWith('.sqlite') ? 'sqlite' : 'json';
+    console.log(`${c.green}OK${c.reset} config.json: ${mode} mode, ${backend} backend`);
+  } else {
+    console.log(`${c.yellow}!${c.reset} No config.json found (using defaults)`);
+    issues++;
+  }
+
+  // Check 3: Look for split database issue
+  const jsonPath = resolve(fluxDir, 'data.json');
+  const sqlitePath = resolve(fluxDir, 'data.sqlite');
+  const jsonExists = existsSync(jsonPath);
+  const sqliteExists = existsSync(sqlitePath);
+
+  // Helper to count records in a data file
+  const countRecords = (path: string): { projects: number; epics: number; tasks: number } | null => {
+    try {
+      const adapter = createAdapter(path);
+      adapter.read(); // populates adapter.data
+      const data = adapter.data;
+      return {
+        projects: data.projects?.length || 0,
+        epics: data.epics?.length || 0,
+        tasks: data.tasks?.length || 0,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const jsonCounts = jsonExists ? countRecords(jsonPath) : null;
+  const sqliteCounts = sqliteExists ? countRecords(sqlitePath) : null;
+
+  const jsonHasData = jsonCounts && (jsonCounts.projects > 0 || jsonCounts.tasks > 0);
+  const sqliteHasData = sqliteCounts && (sqliteCounts.projects > 0 || sqliteCounts.tasks > 0);
+
+  // Determine which file config points to
+  const config = configExists ? readConfig(fluxDir) : {};
+
+  // Server mode - skip local file checks
+  if (config.server) {
+    console.log(`${c.dim}Skipping local data file checks (server mode)${c.reset}`);
+    console.log('');
+    console.log(`${c.green}All checks passed!${c.reset}`);
+    return;
+  }
+
+  const configuredFile = config.dataFile?.endsWith('.sqlite') ? 'sqlite' : 'json';
+  const configuredPath = configuredFile === 'sqlite' ? sqlitePath : jsonPath;
+  const otherPath = configuredFile === 'sqlite' ? jsonPath : sqlitePath;
+  const otherFile = configuredFile === 'sqlite' ? 'json' : 'sqlite';
+
+  if (jsonExists && sqliteExists) {
+    // Both files exist - potential split database
+    console.log(`\n${c.yellow}!${c.reset} Multiple data files detected:`);
+    if (jsonCounts) {
+      const marker = configuredFile === 'json' ? ` ${c.green}(configured)${c.reset}` : '';
+      console.log(`  data.json:   ${jsonCounts.projects} projects, ${jsonCounts.epics} epics, ${jsonCounts.tasks} tasks${marker}`);
+    }
+    if (sqliteCounts) {
+      const marker = configuredFile === 'sqlite' ? ` ${c.green}(configured)${c.reset}` : '';
+      console.log(`  data.sqlite: ${sqliteCounts.projects} projects, ${sqliteCounts.epics} epics, ${sqliteCounts.tasks} tasks${marker}`);
+    }
+
+    if (jsonHasData && sqliteHasData) {
+      issues++;
+      console.log(`\n${c.yellow}WARNING:${c.reset} Both files contain data - possible split database issue.`);
+      console.log(`  This can happen if MCP/Server used a different file than CLI.`);
+
+      if (fix) {
+        // Initialize storage pointing to configured file before merge
+        const primaryAdapter = createAdapter(configuredPath);
+        setStorageAdapter(primaryAdapter);
+        initStore();
+        initClient();
+
+        // Merge other file into configured file
+        console.log(`\n${c.cyan}Merging ${otherFile} into ${configuredFile}...${c.reset}`);
+        const otherAdapter = createAdapter(otherPath);
+        otherAdapter.read(); // populates adapter.data
+        await importAll(otherAdapter.data, true); // merge mode
+
+        // Backup then remove the other file
+        const backupPath = `${otherPath}.backup-${Date.now()}`;
+        const { renameSync } = await import('fs');
+        renameSync(otherPath, backupPath);
+        console.log(`${c.green}OK${c.reset} Merged and backed up ${otherFile} file to ${backupPath}`);
+        fixed++;
+      } else {
+        console.log(`\n  To fix: ${c.cyan}flux doctor --fix${c.reset}`);
+        console.log(`  This will merge data.${otherFile} into data.${configuredFile} and remove the duplicate.`);
+      }
+    } else if (!jsonHasData && jsonExists) {
+      // Empty JSON file exists alongside SQLite
+      issues++;
+      console.log(`\n${c.dim}data.json is empty (likely created by old MCP/Server bug)${c.reset}`);
+      if (fix) {
+        const { unlinkSync } = await import('fs');
+        unlinkSync(jsonPath);
+        console.log(`${c.green}OK${c.reset} Removed empty data.json`);
+        fixed++;
+      } else {
+        console.log(`  To fix: ${c.cyan}flux doctor --fix${c.reset} (removes empty file)`);
+      }
+    } else if (!sqliteHasData && sqliteExists) {
+      // Empty SQLite file exists alongside JSON
+      issues++;
+      console.log(`\n${c.dim}data.sqlite is empty${c.reset}`);
+      if (fix) {
+        const { unlinkSync } = await import('fs');
+        unlinkSync(sqlitePath);
+        console.log(`${c.green}OK${c.reset} Removed empty data.sqlite`);
+        fixed++;
+      } else {
+        console.log(`  To fix: ${c.cyan}flux doctor --fix${c.reset} (removes empty file)`);
+      }
+    }
+  } else if (jsonExists || sqliteExists) {
+    const activePath = jsonExists ? jsonPath : sqlitePath;
+    const activeCounts = jsonExists ? jsonCounts : sqliteCounts;
+    const activeFile = jsonExists ? 'json' : 'sqlite';
+    if (activeCounts) {
+      console.log(`${c.green}OK${c.reset} data.${activeFile}: ${activeCounts.projects} projects, ${activeCounts.epics} epics, ${activeCounts.tasks} tasks`);
+    }
+  } else {
+    console.log(`${c.yellow}!${c.reset} No data file found`);
+  }
+
+  // Summary
+  console.log('');
+  if (issues === 0) {
+    console.log(`${c.green}All checks passed!${c.reset}`);
+  } else if (fix && fixed === issues) {
+    console.log(`${c.green}Fixed ${fixed} issue${fixed > 1 ? 's' : ''}!${c.reset}`);
+  } else if (fix && fixed < issues) {
+    console.log(`${c.yellow}Fixed ${fixed}/${issues} issues${c.reset}`);
+  } else {
+    console.log(`${c.yellow}Found ${issues} issue${issues > 1 ? 's' : ''}${c.reset} - run ${c.cyan}flux doctor --fix${c.reset} to repair`);
+  }
 }
 
 // Flags that can appear multiple times (collected into arrays)
@@ -579,6 +750,10 @@ async function main() {
       console.log(`${action} ${data.projects?.length || 0} projects, ${data.epics?.length || 0} epics, ${data.tasks?.length || 0} tasks`);
       break;
     }
+    case 'doctor': {
+      await doctorCommand(parsed.flags);
+      break;
+    }
     case 'help':
     default: {
       const showLogo = parsed.flags['no-logo'] !== true;
@@ -628,6 +803,7 @@ ${c.bold}Commands:${c.reset}
 ${c.bold}Data:${c.reset}
   ${c.cyan}flux export${c.reset} ${c.green}[-o file]${c.reset}              Export all data to JSON
   ${c.cyan}flux import${c.reset} ${c.yellow}<file>${c.reset} ${c.green}[--merge]${c.reset}      Import data from JSON (use - for stdin)
+  ${c.cyan}flux doctor${c.reset} ${c.green}[--fix]${c.reset}                Diagnose and fix common issues
 
 ${c.bold}Sync:${c.reset} ${c.dim}(git-based team sync via flux-data branch)${c.reset}
   ${c.cyan}flux pull${c.reset}                          Pull latest tasks from flux-data branch

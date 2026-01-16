@@ -8,7 +8,6 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { join } from 'path';
 
 // Parse CLI args for transport mode
 const args = process.argv.slice(2);
@@ -47,24 +46,30 @@ import {
   type WebhookEventType,
 } from '@flux/shared/client';
 import { setStorageAdapter, initStore, STATUSES, WEBHOOK_EVENT_TYPES, type Guardrail } from '@flux/shared';
+import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/shared/config';
 import { createAdapter } from '@flux/shared/adapters';
 
-// Initialize client - check for remote server mode first
-const FLUX_SERVER = process.env.FLUX_SERVER;
-const FLUX_API_KEY = process.env.FLUX_API_KEY;
+// Initialize storage - use same config resolution as CLI
+const fluxDir = findFluxDir();
+loadEnvLocal(fluxDir);
+const config = readConfig(fluxDir);
 
-if (FLUX_SERVER) {
+// Check for remote server mode (env var takes precedence, then config)
+const serverUrl = process.env.FLUX_SERVER || config.server;
+const apiKey = process.env.FLUX_API_KEY || config.apiKey;
+
+if (serverUrl) {
   // Remote server mode
-  initClient(FLUX_SERVER, FLUX_API_KEY);
-  console.error(`Flux MCP using remote server: ${FLUX_SERVER}`);
+  initClient(serverUrl, apiKey);
+  console.error(`Flux MCP using remote server: ${serverUrl}`);
 } else {
-  // Local storage mode
-  const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
-  const adapter = createAdapter(DATA_FILE);
+  // Local storage mode - respect config.dataFile (e.g., data.sqlite)
+  const dataPath = resolveDataPath(fluxDir, config);
+  const adapter = createAdapter(dataPath);
   setStorageAdapter(adapter);
   initStore();
   initClient(); // Local mode
-  console.error(`Flux MCP using local storage: ${DATA_FILE}`);
+  console.error(`Flux MCP using local storage: ${dataPath}`);
 }
 
 // Create MCP server

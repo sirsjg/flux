@@ -40,6 +40,7 @@ import {
   triggerWebhooks,
   type WebhookEventType,
 } from '@flux/shared';
+import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/shared/config';
 import { createAdapter } from '@flux/shared/adapters';
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
 import { authMiddleware } from './middleware/auth.js';
@@ -51,10 +52,12 @@ const buildInfo = {
   time: process.env.BUILD_TIME?.trim() || new Date().toISOString(),
 };
 
-// Data file path - configurable via FLUX_DATA env var
-const DATA_FILE = process.env.FLUX_DATA || join(process.cwd(), '.flux/data.json');
+// Initialize storage - use same config resolution as CLI
+const fluxDir = findFluxDir();
+loadEnvLocal(fluxDir);
+const config = readConfig(fluxDir);
+const DATA_FILE = resolveDataPath(fluxDir, config);
 
-// Initialize storage
 const adapter = createAdapter(DATA_FILE);
 setStorageAdapter(adapter);
 initStore();
