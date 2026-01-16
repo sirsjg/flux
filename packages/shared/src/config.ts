@@ -21,7 +21,7 @@ export function findFluxDir(): string {
   }
 
   let dir = process.cwd();
-  while (dir !== '/') {
+  while (dirname(dir) !== dir) {
     const fluxDir = resolve(dir, '.flux');
     if (existsSync(fluxDir)) {
       return fluxDir;
