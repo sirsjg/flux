@@ -267,6 +267,48 @@ async function main() {
       }
     }
 
+    // Check for existing config mismatch
+    if (existsSync(configPath)) {
+      try {
+        const existing = JSON.parse(readFileSync(configPath, 'utf-8'));
+        const warnings: string[] = [];
+
+        // Mode mismatch
+        if (existing.server && !serverUrl) {
+          warnings.push(`Repo uses server mode (${existing.server}), you're setting up git mode`);
+        }
+        if (!existing.server && serverUrl) {
+          warnings.push(`Repo uses git mode, you're setting up server mode (${serverUrl})`);
+        }
+
+        // Server URL mismatch
+        if (existing.server && serverUrl && existing.server !== serverUrl) {
+          warnings.push(`Repo uses different server: ${existing.server}`);
+        }
+
+        if (warnings.length > 0) {
+          console.log(c.yellow('\n⚠ Config mismatch detected:'));
+          warnings.forEach(w => console.log(`  ${c.yellow('•')} ${w}`));
+          console.log(c.dim('\nOther developers may not see your tasks if you proceed.'));
+
+          if (isInteractive()) {
+            const answer = await prompt('\nOverwrite existing config? [y/N]: ');
+            if (!answer.toLowerCase().startsWith('y')) {
+              console.log('Aborted. Use existing config or remove .flux/ to start fresh.');
+              process.exit(0);
+            }
+          } else {
+            if (parsed.flags.force !== true) {
+              console.error('Use --force to overwrite existing config in non-interactive mode.');
+              process.exit(1);
+            }
+          }
+        }
+      } catch {
+        // Ignore parse errors - will overwrite invalid config
+      }
+    }
+
     // Write config
     const config: FluxConfig = {};
     if (serverUrl) config.server = serverUrl;
@@ -541,7 +583,7 @@ ${c.cyan}╚═╝     ╚══════╝ ╚═════╝ ╚═╝ 
       console.log(`${c.cyan}${c.bold}flux${c.reset} ${c.dim}- CLI for Flux task management${c.reset}
 
 ${c.bold}Commands:${c.reset}
-  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--api-key KEY] [--sqlite] [--git]${c.reset}  Initialize .flux
+  ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--api-key KEY] [--sqlite] [--git] [--force]${c.reset}  Initialize .flux
   ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
   ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
   ${c.cyan}flux prime${c.reset} ${c.green}[--mcp] [--full]${c.reset}        Output workflow context for AI hooks
@@ -576,6 +618,7 @@ ${c.bold}Server:${c.reset}
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON
+  ${c.green}--force${c.reset}                            Overwrite config without prompting (init)
   ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
   ${c.green}-e, --epic${c.reset}                         Epic ID
   ${c.green}--blocked${c.reset}                          External blocker ("reason" or "clear")
