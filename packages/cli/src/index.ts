@@ -2,7 +2,7 @@
 
 import { resolve, dirname } from 'path';
 import { execSync } from 'child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { createInterface } from 'readline';
 import { setStorageAdapter, initStore } from '@flux/shared';
@@ -315,6 +315,16 @@ async function main() {
     if (apiKey) config.apiKey = apiKey;
     if (useSqlite) config.dataFile = 'data.sqlite';
     writeConfig(fluxDir, config);
+
+    // Add .flux/ to .gitignore if not already present
+    const gitignorePath = resolve(process.cwd(), '.gitignore');
+    const gitignoreEntry = '.flux/';
+    let gitignoreContent = existsSync(gitignorePath) ? readFileSync(gitignorePath, 'utf-8') : '';
+    if (!gitignoreContent.split('\n').some(line => line.trim() === gitignoreEntry)) {
+      const newline = gitignoreContent.length > 0 && !gitignoreContent.endsWith('\n') ? '\n' : '';
+      appendFileSync(gitignorePath, `${newline}${gitignoreEntry}\n`);
+      console.log('Added .flux/ to .gitignore');
+    }
 
     // Create data file for git mode (server mode doesn't need it)
     if (!serverUrl && !existsSync(dataPath)) {
