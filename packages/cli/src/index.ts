@@ -248,6 +248,57 @@ async function main() {
     let apiKey: string | undefined = parsed.flags['api-key'] as string | undefined;
     const useGit = parsed.flags.git === true;
 
+    // Check for existing config mismatch BEFORE interactive prompts
+    if (existsSync(configPath)) {
+      try {
+        const existing = JSON.parse(readFileSync(configPath, 'utf-8'));
+        const warnings: string[] = [];
+
+        // Mode mismatch (only check if user explicitly specified mode)
+        if (existing.server && (useGit || parsed.flags.sqlite)) {
+          warnings.push(`Repo uses server mode (${existing.server}), you're setting up git mode`);
+        }
+        if (!existing.server && serverUrl) {
+          warnings.push(`Repo uses git mode, you're setting up server mode (${serverUrl})`);
+        }
+
+        // Server URL mismatch
+        if (existing.server && serverUrl && existing.server !== serverUrl) {
+          warnings.push(`Repo uses different server: ${existing.server}`);
+        }
+
+        // Backend mismatch (only for git mode)
+        if (!existing.server && !serverUrl) {
+          const existingBackend = existing.dataFile?.endsWith('.sqlite') ? 'sqlite' : 'json';
+          const newBackend = useSqlite ? 'sqlite' : 'json';
+          if (existingBackend !== newBackend) {
+            warnings.push(`Repo uses ${existingBackend} backend, you're setting up ${newBackend}`);
+          }
+        }
+
+        if (warnings.length > 0) {
+          console.log(c.yellow('\n⚠ Config mismatch detected:'));
+          warnings.forEach(w => console.log(`  ${c.yellow('•')} ${w}`));
+          console.log(c.dim('\nOther developers may not see your tasks if you proceed.'));
+
+          if (parsed.flags.force === true) {
+            console.log(c.dim('Proceeding due to --force flag.\n'));
+          } else if (isInteractive()) {
+            const answer = await prompt('\nOverwrite existing config? [y/N]: ');
+            if (!answer.toLowerCase().startsWith('y')) {
+              console.log('Aborted. Use existing config or remove .flux/ to start fresh.');
+              process.exit(0);
+            }
+          } else {
+            console.error('Use --force to overwrite existing config in non-interactive mode.');
+            process.exit(1);
+          }
+        }
+      } catch {
+        // Ignore parse errors - will overwrite invalid config
+      }
+    }
+
     if (!serverUrl && !useGit && isNew && isInteractive()) {
       // Interactive mode for new init
       console.log(`${c.bold}Flux Setup${c.reset}\n`);
@@ -264,48 +315,6 @@ async function main() {
           process.exit(1);
         }
         apiKey = await prompt('API Key (or $ENV_VAR, blank for none): ');
-      }
-    }
-
-    // Check for existing config mismatch
-    if (existsSync(configPath)) {
-      try {
-        const existing = JSON.parse(readFileSync(configPath, 'utf-8'));
-        const warnings: string[] = [];
-
-        // Mode mismatch
-        if (existing.server && !serverUrl) {
-          warnings.push(`Repo uses server mode (${existing.server}), you're setting up git mode`);
-        }
-        if (!existing.server && serverUrl) {
-          warnings.push(`Repo uses git mode, you're setting up server mode (${serverUrl})`);
-        }
-
-        // Server URL mismatch
-        if (existing.server && serverUrl && existing.server !== serverUrl) {
-          warnings.push(`Repo uses different server: ${existing.server}`);
-        }
-
-        if (warnings.length > 0) {
-          console.log(c.yellow('\n⚠ Config mismatch detected:'));
-          warnings.forEach(w => console.log(`  ${c.yellow('•')} ${w}`));
-          console.log(c.dim('\nOther developers may not see your tasks if you proceed.'));
-
-          if (isInteractive()) {
-            const answer = await prompt('\nOverwrite existing config? [y/N]: ');
-            if (!answer.toLowerCase().startsWith('y')) {
-              console.log('Aborted. Use existing config or remove .flux/ to start fresh.');
-              process.exit(0);
-            }
-          } else {
-            if (parsed.flags.force !== true) {
-              console.error('Use --force to overwrite existing config in non-interactive mode.');
-              process.exit(1);
-            }
-          }
-        }
-      } catch {
-        // Ignore parse errors - will overwrite invalid config
       }
     }
 
