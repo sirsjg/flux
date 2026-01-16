@@ -507,6 +507,31 @@ async function main() {
     return;
   }
 
+  // Handle prime gracefully (before storage init - should never fail for hooks)
+  if (parsed.command === 'prime') {
+    const fluxDir = findFluxDir();
+    const configPath = resolve(fluxDir, 'config.json');
+
+    // If not initialized, exit cleanly (no flux context to prime)
+    if (!existsSync(configPath)) {
+      return;
+    }
+
+    // Otherwise proceed with normal prime
+    try {
+      const storage = initStorage();
+      await primeCommand(
+        parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args,
+        parsed.flags,
+        json,
+        storage.project
+      );
+    } catch {
+      // Swallow errors - prime should always succeed for hooks
+    }
+    return;
+  }
+
   // Initialize storage for other commands
   let defaultProject: string | undefined;
   try {
@@ -535,9 +560,6 @@ async function main() {
     case 'show':
       // show doesn't have a subcommand, so subcommand IS the task ID
       await showCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json);
-      break;
-    case 'prime':
-      await primeCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json, defaultProject);
       break;
     case 'export': {
       const data = await exportAll();
