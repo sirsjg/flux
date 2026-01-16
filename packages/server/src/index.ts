@@ -490,6 +490,10 @@ const webDistPath = join(__dirname, '../../web/dist');
 if (existsSync(webDistPath)) {
   const indexPath = join(webDistPath, 'index.html');
   const indexHtml = existsSync(indexPath) ? readFileSync(indexPath, 'utf-8') : null;
+  // Hoist serveStatic handler outside request loop for performance
+  const staticHandler = serveStatic({ root: webDistPath });
+  // Whitelist of known static file extensions (avoid false positives like /projects/v2.0)
+  const staticExtensions = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|json|webp|webm|mp4|mp3|pdf)$/i;
 
   // Custom SPA-aware static file serving
   // Check if file exists before serving, otherwise fall through to SPA handler
@@ -501,19 +505,21 @@ if (existsSync(webDistPath)) {
       return next();
     }
 
-    // Check if this is a request for a static file (has extension)
-    const hasExtension = /\.[a-zA-Z0-9]+$/.test(path);
-    if (hasExtension) {
+    // Check if this is a request for a static file (has known extension)
+    if (staticExtensions.test(path)) {
       const filePath = join(webDistPath, path);
+      // Security: prevent path traversal attacks
+      if (!filePath.startsWith(webDistPath + '/')) {
+        return c.notFound();
+      }
       if (existsSync(filePath) && statSync(filePath).isFile()) {
-        // Let serveStatic handle actual file serving
-        return serveStatic({ root: webDistPath })(c, next);
+        return staticHandler(c, next);
       }
       // File with extension not found - return 404
       return c.notFound();
     }
 
-    // No extension - this is a SPA route, serve index.html
+    // No static extension - this is a SPA route, serve index.html
     if (indexHtml) {
       return c.html(indexHtml);
     }
