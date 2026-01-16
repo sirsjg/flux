@@ -267,48 +267,6 @@ async function main() {
       }
     }
 
-    // Check for existing config mismatch
-    if (existsSync(configPath)) {
-      try {
-        const existing = JSON.parse(readFileSync(configPath, 'utf-8'));
-        const warnings: string[] = [];
-
-        // Mode mismatch
-        if (existing.server && !serverUrl) {
-          warnings.push(`Repo uses server mode (${existing.server}), you're setting up git mode`);
-        }
-        if (!existing.server && serverUrl) {
-          warnings.push(`Repo uses git mode, you're setting up server mode (${serverUrl})`);
-        }
-
-        // Server URL mismatch
-        if (existing.server && serverUrl && existing.server !== serverUrl) {
-          warnings.push(`Repo uses different server: ${existing.server}`);
-        }
-
-        if (warnings.length > 0) {
-          console.log(c.yellow('\n⚠ Config mismatch detected:'));
-          warnings.forEach(w => console.log(`  ${c.yellow('•')} ${w}`));
-          console.log(c.dim('\nOther developers may not see your tasks if you proceed.'));
-
-          if (isInteractive()) {
-            const answer = await prompt('\nOverwrite existing config? [y/N]: ');
-            if (!answer.toLowerCase().startsWith('y')) {
-              console.log('Aborted. Use existing config or remove .flux/ to start fresh.');
-              process.exit(0);
-            }
-          } else {
-            if (parsed.flags.force !== true) {
-              console.error('Use --force to overwrite existing config in non-interactive mode.');
-              process.exit(1);
-            }
-          }
-        }
-      } catch {
-        // Ignore parse errors - will overwrite invalid config
-      }
-    }
-
     // Write config
     const config: FluxConfig = {};
     if (serverUrl) config.server = serverUrl;
@@ -316,14 +274,15 @@ async function main() {
     if (useSqlite) config.dataFile = 'data.sqlite';
     writeConfig(fluxDir, config);
 
-    // Add .flux/ to .gitignore if not already present
-    const gitignorePath = resolve(process.cwd(), '.gitignore');
+    // Add .flux/ to .gitignore if not already present (at git root)
+    const gitRoot = findGitRoot();
+    const gitignorePath = gitRoot ? resolve(gitRoot, '.gitignore') : resolve(process.cwd(), '.gitignore');
     const gitignoreEntry = '.flux/';
     let gitignoreContent = existsSync(gitignorePath) ? readFileSync(gitignorePath, 'utf-8') : '';
     if (!gitignoreContent.split('\n').some(line => line.trim() === gitignoreEntry)) {
       const newline = gitignoreContent.length > 0 && !gitignoreContent.endsWith('\n') ? '\n' : '';
       appendFileSync(gitignorePath, `${newline}${gitignoreEntry}\n`);
-      console.log('Added .flux/ to .gitignore');
+      console.log(`Added .flux/ to ${gitRoot ? gitignorePath : '.gitignore'}`);
     }
 
     // Create data file for git mode (server mode doesn't need it)
