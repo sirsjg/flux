@@ -21,7 +21,7 @@
   "homepage": "https://github.com/sirsjg/flux",
   "dependencies": {},
   "devDependencies": {
-    "@flux/shared": "workspace:*",
+    "@flux/shared": "*",
     "@hono/node-server": "^1.13.7",
     "hono": "^4.6.12",
     "@types/node": "^22.10.5",
