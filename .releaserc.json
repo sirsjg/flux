@@ -11,7 +11,7 @@
         {"type": "docs", "release": false},
         {"type": "chore", "release": false},
         {"type": "refactor", "release": "patch"},
-        {"breaking": true, "release": "major"}
+        {"breaking": true, "release": "minor"}
       ]
     }],
     ["@semantic-release/release-notes-generator", {
