@@ -5,6 +5,9 @@ The Flux CLI provides full task management from the terminal, with MCP parity.
 ## Installation
 
 ```bash
+# npm (recommended)
+npm install -g flux-tasks
+
 # From source
 cd packages/cli && bun run build && bun link
 

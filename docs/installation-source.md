@@ -36,7 +36,10 @@ Web UI will be at http://localhost:5173 (proxies API to :3000)
 The CLI (`flux`) provides full task management from the terminal.
 
 ```bash
-# Build and link globally
+# Install from npm (recommended)
+npm install -g flux-tasks
+
+# Or build and link from source
 cd packages/cli && bun run build && bun link
 
 # Or run directly

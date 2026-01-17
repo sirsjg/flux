@@ -45,11 +45,12 @@ Flux isn't just another Kanban board – it's the open-source engine for the fut
 ## Quick Start: Up and Running in a Flux Second ⚡
 
 ```bash
-# macOS/Linux
-curl -fsSL https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.sh | bash
+# CLI only (npm)
+npm install -g flux-tasks
 
-## Windows (PowerShell)
-irm https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.ps1 | iex
+# Full stack with Web UI (Docker)
+curl -fsSL https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.sh | bash  # macOS/Linux
+irm https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.ps1 | iex         # Windows
 ```
 
 This will start both the web UI ([http://localhost:3000](http://localhost:3000)) and the MCP server. Press Ctrl+C to stop the MCP server when you're done.
