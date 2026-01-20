@@ -3,7 +3,8 @@ import { timingSafeEqual } from 'crypto';
 import { validateApiKey, hasApiKeys, getProject, getProjects } from '@flux/shared';
 import type { ApiKey, KeyScope } from '@flux/shared';
 
-const FLUX_API_KEY = process.env.FLUX_API_KEY;
+// Read env var dynamically to support testing
+const getEnvKey = () => process.env.FLUX_API_KEY;
 
 // Auth context attached to requests
 export type AuthContext = {
@@ -34,10 +35,10 @@ function safeCompare(a: string, b: string): boolean {
  */
 export const authMiddleware = createMiddleware<{ Variables: { auth: AuthContext } }>(async (c, next) => {
   const hasStoredKeys = hasApiKeys();
-  const hasEnvKey = !!FLUX_API_KEY;
+  const envKey = getEnvKey();
 
   // Dev mode: no keys configured at all
-  if (!hasStoredKeys && !hasEnvKey) {
+  if (!hasStoredKeys && !envKey) {
     c.set('auth', { keyType: 'anonymous' });
     return next();
   }
@@ -56,7 +57,7 @@ export const authMiddleware = createMiddleware<{ Variables: { auth: AuthContext 
   }
 
   // Check env key first (backwards compat)
-  if (hasEnvKey && safeCompare(token, FLUX_API_KEY!)) {
+  if (envKey && safeCompare(token, envKey)) {
     c.set('auth', { keyType: 'env' });
     return next();
   }
@@ -133,7 +134,7 @@ export function filterProjects(auth: AuthContext): ReturnType<typeof getProjects
  * Check if auth is required (any keys configured)
  */
 export function isAuthRequired(): boolean {
-  return !!FLUX_API_KEY || hasApiKeys();
+  return !!getEnvKey() || hasApiKeys();
 }
 
 /**
