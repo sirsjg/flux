@@ -9,8 +9,10 @@ import { z } from 'zod';
 // Task type schema
 export const TaskTypeSchema = z.enum(['task', 'bug', 'feature', 'refactor', 'docs', 'chore']);
 
-// Priority schema
-export const PrioritySchema = z.union([z.literal(0), z.literal(1), z.literal(2)]);
+// Priority schema - handles null from database and converts to undefined
+export const PrioritySchema = z.union([z.literal(0), z.literal(1), z.literal(2)])
+  .nullish()  // Accepts null | undefined
+  .transform(val => val ?? undefined);  // Convert null to undefined
 
 // Task status schema
 export const TaskStatusSchema = z.enum(['planning', 'todo', 'in_progress', 'done']);

@@ -532,6 +532,10 @@ if (existsSync(webDistPath)) {
         return c.notFound();
       }
       if (existsSync(filePath) && statSync(filePath).isFile()) {
+        // Add aggressive no-cache headers to force fresh loads
+        c.header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+        c.header('Pragma', 'no-cache');
+        c.header('Expires', '0');
         return staticHandler(c, next);
       }
       // File with extension not found - return 404
@@ -540,6 +544,10 @@ if (existsSync(webDistPath)) {
 
     // No static extension - this is a SPA route, serve index.html
     if (indexHtml) {
+      // Add no-cache headers for HTML to ensure latest bundle refs
+      c.header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+      c.header('Pragma', 'no-cache');
+      c.header('Expires', '0');
       return c.html(indexHtml);
     }
 

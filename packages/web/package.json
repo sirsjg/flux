@@ -10,7 +10,7 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && eslint src && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

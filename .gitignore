@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Vite temporary files
+*.timestamp-*.mjs
+vite.config.*.timestamp-*.mjs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -34,3 +38,4 @@ packages/data/flux.json
 .env.local
 .flux/
 file::memory:*
+
