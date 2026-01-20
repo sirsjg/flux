@@ -260,4 +260,249 @@ describe('store', () => {
 
     expect(updated?.guardrails).toHaveLength(0);
   });
+
+  describe('priority sorting', () => {
+    it('sorts ready tasks by priority: P0 > P1 > P2 > null', () => {
+      const project = createProject('Project');
+      const p2Task = createTask(project.id, 'P2 task', undefined, { priority: 2 });
+      const p0Task = createTask(project.id, 'P0 task', undefined, { priority: 0 });
+      const nullTask = createTask(project.id, 'No priority');
+      const p1Task = createTask(project.id, 'P1 task', undefined, { priority: 1 });
+
+      const ready = getReadyTasks(project.id);
+
+      expect(ready).toHaveLength(4);
+      expect(ready[0].id).toBe(p0Task.id); // P0 first
+      expect(ready[1].id).toBe(p1Task.id); // P1 second
+      // P2 and null both treated as priority 2
+      expect([p2Task.id, nullTask.id]).toContain(ready[2].id);
+      expect([p2Task.id, nullTask.id]).toContain(ready[3].id);
+    });
+
+    it('excludes blocked tasks from ready list regardless of priority', () => {
+      const project = createProject('Project');
+      const blocker = createTask(project.id, 'Blocker', undefined, { priority: 2 });
+      const p0Blocked = createTask(project.id, 'P0 but blocked', undefined, { priority: 0 });
+      const p1Ready = createTask(project.id, 'P1 ready', undefined, { priority: 1 });
+
+      addDependency(p0Blocked.id, blocker.id);
+
+      const ready = getReadyTasks(project.id);
+
+      expect(ready).toHaveLength(2); // blocker and p1Ready
+      expect(ready.find(t => t.id === p0Blocked.id)).toBeUndefined();
+    });
+
+    it('excludes done and archived tasks from ready list', () => {
+      const project = createProject('Project');
+      const doneTask = createTask(project.id, 'Done task', undefined, { priority: 0 });
+      const archivedTask = createTask(project.id, 'Archived task', undefined, { priority: 0 });
+      const readyTask = createTask(project.id, 'Ready task', undefined, { priority: 1 });
+
+      updateTask(doneTask.id, { status: 'done' });
+      updateTask(archivedTask.id, { archived: true });
+
+      const ready = getReadyTasks(project.id);
+
+      expect(ready).toHaveLength(1);
+      expect(ready[0].id).toBe(readyTask.id);
+    });
+
+    it('filters ready tasks by project when projectId provided', () => {
+      const project1 = createProject('Project 1');
+      const project2 = createProject('Project 2');
+      const task1 = createTask(project1.id, 'Task 1', undefined, { priority: 0 });
+      const task2 = createTask(project2.id, 'Task 2', undefined, { priority: 0 });
+
+      const ready = getReadyTasks(project1.id);
+
+      expect(ready).toHaveLength(1);
+      expect(ready[0].id).toBe(task1.id);
+    });
+
+    it('creates task with priority', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Urgent', undefined, { priority: 0 });
+
+      expect(task.priority).toBe(0);
+    });
+
+    it('updates task priority', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 2 });
+
+      const updated = updateTask(task.id, { priority: 0 });
+
+      expect(updated?.priority).toBe(0);
+    });
+
+    it('clears task priority by setting to undefined', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 0 });
+
+      const updated = updateTask(task.id, { priority: undefined });
+
+      expect(updated?.priority).toBeUndefined();
+    });
+
+    it('updateTask() changes priority from one value to another', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 2 });
+
+      expect(task.priority).toBe(2);
+
+      const updated = updateTask(task.id, { priority: 1 });
+      expect(updated?.priority).toBe(1);
+
+      const updatedAgain = updateTask(task.id, { priority: 0 });
+      expect(updatedAgain?.priority).toBe(0);
+    });
+
+    it('priority can be set to null', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 1 });
+
+      expect(task.priority).toBe(1);
+
+      const updated = updateTask(task.id, { priority: null as any });
+
+      expect(updated?.priority).toBeNull();
+    });
+
+    it('priority updates trigger data write', () => {
+      const adapter = createTestAdapter();
+      setStorageAdapter(adapter);
+      initStore();
+
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 2 });
+
+      // Reset write mock to count only the priority update write
+      adapter.write.mockClear();
+
+      updateTask(task.id, { priority: 0 });
+
+      expect(adapter.write).toHaveBeenCalledTimes(1);
+
+      // Reset and test clearing priority
+      adapter.write.mockClear();
+
+      updateTask(task.id, { priority: undefined });
+
+      expect(adapter.write).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('priority defaults and validation', () => {
+    it('null/undefined priority is treated as P2 (lowest priority) in sorting', () => {
+      const project = createProject('Project');
+      const nullTask = createTask(project.id, 'Null priority task'); // No priority specified
+      const p0Task = createTask(project.id, 'P0 task', undefined, { priority: 0 });
+      const p1Task = createTask(project.id, 'P1 task', undefined, { priority: 1 });
+      const p2Task = createTask(project.id, 'P2 task', undefined, { priority: 2 });
+
+      const ready = getReadyTasks(project.id);
+
+      // Verify null priority task is treated same as P2
+      expect(ready[0].id).toBe(p0Task.id); // P0 highest
+      expect(ready[1].id).toBe(p1Task.id); // P1 middle
+      // P2 and null both at end (order between them doesn't matter)
+      const lastTwo = [ready[2].id, ready[3].id];
+      expect(lastTwo).toContain(p2Task.id);
+      expect(lastTwo).toContain(nullTask.id);
+    });
+
+    it('rejects invalid priority values on create', () => {
+      const project = createProject('Project');
+
+      // Invalid priority values should throw errors
+      expect(() => createTask(project.id, 'Invalid priority', undefined, { priority: 3 as any })).toThrow('Invalid priority value: 3. Must be 0, 1, or 2.');
+      expect(() => createTask(project.id, 'Invalid priority', undefined, { priority: -1 as any })).toThrow('Invalid priority value: -1. Must be 0, 1, or 2.');
+      expect(() => createTask(project.id, 'Invalid priority', undefined, { priority: 'high' as any })).toThrow('Invalid priority value: high. Must be 0, 1, or 2.');
+      expect(() => createTask(project.id, 'Invalid priority', undefined, { priority: 99 as any })).toThrow('Invalid priority value: 99. Must be 0, 1, or 2.');
+    });
+
+    it('rejects invalid priority values on update', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 1 });
+
+      // Invalid priority values should throw errors
+      expect(() => updateTask(task.id, { priority: 3 as any })).toThrow('Invalid priority value: 3. Must be 0, 1, or 2.');
+      expect(() => updateTask(task.id, { priority: -1 as any })).toThrow('Invalid priority value: -1. Must be 0, 1, or 2.');
+      expect(() => updateTask(task.id, { priority: 'high' as any })).toThrow('Invalid priority value: high. Must be 0, 1, or 2.');
+      expect(() => updateTask(task.id, { priority: 5.5 as any })).toThrow('Invalid priority value: 5.5. Must be 0, 1, or 2.');
+    });
+
+    it('priority persists across multiple updates', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 0 });
+
+      // Update title - priority should persist
+      let updated = updateTask(task.id, { title: 'Updated title' });
+      expect(updated?.priority).toBe(0);
+
+      // Update status - priority should persist
+      updated = updateTask(task.id, { status: 'in_progress' });
+      expect(updated?.priority).toBe(0);
+
+      // Update epic - priority should persist
+      const epic = createEpic(project.id, 'Epic');
+      updated = updateTask(task.id, { epic_id: epic.id });
+      expect(updated?.priority).toBe(0);
+
+      // Change priority
+      updated = updateTask(task.id, { priority: 2 });
+      expect(updated?.priority).toBe(2);
+
+      // Update title again - new priority should persist
+      updated = updateTask(task.id, { title: 'Another update' });
+      expect(updated?.priority).toBe(2);
+    });
+
+    it('accepts all valid priority values (0, 1, 2)', () => {
+      const project = createProject('Project');
+
+      const p0Task = createTask(project.id, 'P0', undefined, { priority: 0 });
+      const p1Task = createTask(project.id, 'P1', undefined, { priority: 1 });
+      const p2Task = createTask(project.id, 'P2', undefined, { priority: 2 });
+
+      expect(p0Task.priority).toBe(0);
+      expect(p1Task.priority).toBe(1);
+      expect(p2Task.priority).toBe(2);
+    });
+
+    it('allows priority to be set to undefined (clearing priority)', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 0 });
+
+      expect(task.priority).toBe(0);
+
+      const updated = updateTask(task.id, { priority: undefined });
+      expect(updated?.priority).toBeUndefined();
+    });
+
+    it('allows priority to be set to null', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 1 });
+
+      expect(task.priority).toBe(1);
+
+      const updated = updateTask(task.id, { priority: null as any });
+
+      expect(updated?.priority).toBeNull();
+    });
+
+    it('validates priority when other fields are also updated', () => {
+      const project = createProject('Project');
+      const task = createTask(project.id, 'Task', undefined, { priority: 1 });
+
+      // Should reject invalid priority even when updating other fields
+      expect(() => updateTask(task.id, { title: 'New title', priority: 10 as any })).toThrow('Invalid priority value: 10. Must be 0, 1, or 2.');
+
+      // Task should remain unchanged after failed update
+      const unchanged = getTasks(project.id).find(t => t.id === task.id);
+      expect(unchanged?.title).toBe('Task');
+      expect(unchanged?.priority).toBe(1);
+    });
+  });
 });

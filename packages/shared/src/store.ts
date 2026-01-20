@@ -319,6 +319,8 @@ export function createTask(
 ): Task {
   const now = new Date().toISOString();
   const id = generateId();
+  // Validate priority
+  validatePriority(options?.priority);
   // Validate dependencies exist (can't have cycles for new task, but deps should exist)
   const depends_on = options?.depends_on ?? [];
   for (const depId of depends_on) {
@@ -348,6 +350,10 @@ export function createTask(
 export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task | undefined {
   const index = db.data.tasks.findIndex(t => t.id === id);
   if (index === -1) return undefined;
+  // Validate priority if being updated
+  if ('priority' in updates) {
+    validatePriority(updates.priority);
+  }
   // Validate dependencies
   if (updates.depends_on) {
     for (const depId of updates.depends_on) {
