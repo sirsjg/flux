@@ -316,4 +316,133 @@ describe('auth middleware', () => {
       });
     });
   });
+
+  describe('project-scoped key cross-project restrictions', () => {
+    let projectKey: string;
+    let serverKey: string;
+
+    beforeEach(() => {
+      const project = createApiKey('Project Key', {
+        type: 'project',
+        project_ids: ['proj-1'],
+      });
+      projectKey = project.rawKey;
+
+      const server = createApiKey('Server Key', { type: 'server' });
+      serverKey = server.rawKey;
+    });
+
+    function createTestApp() {
+      const app = new Hono<{ Variables: { auth: AuthContext } }>();
+      app.use('*', authMiddleware);
+
+      // Simulate routes with canWriteProject checks
+      app.post('/api/projects/:projectId/epics', (c) => {
+        const auth = c.get('auth');
+        const projectId = c.req.param('projectId');
+        if (!canWriteProject(auth, projectId)) {
+          return c.json({ error: 'Project not found' }, 404);
+        }
+        return c.json({ created: true, projectId });
+      });
+
+      app.post('/api/projects/:projectId/tasks', (c) => {
+        const auth = c.get('auth');
+        const projectId = c.req.param('projectId');
+        if (!canWriteProject(auth, projectId)) {
+          return c.json({ error: 'Project not found' }, 404);
+        }
+        return c.json({ created: true, projectId });
+      });
+
+      app.post('/api/projects/:projectId/cleanup', (c) => {
+        const auth = c.get('auth');
+        const projectId = c.req.param('projectId');
+        if (!canWriteProject(auth, projectId)) {
+          return c.json({ error: 'Project not found' }, 404);
+        }
+        return c.json({ cleaned: true, projectId });
+      });
+
+      return app;
+    }
+
+    it('allows project key to create epic in own project', async () => {
+      const app = createTestApp();
+      const res = await app.request('/api/projects/proj-1/epics', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.created).toBe(true);
+    });
+
+    it('blocks project key from creating epic in other project', async () => {
+      const app = createTestApp();
+      const res = await app.request('/api/projects/proj-2/epics', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('allows project key to create task in own project', async () => {
+      const app = createTestApp();
+      const res = await app.request('/api/projects/proj-1/tasks', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('blocks project key from creating task in other project', async () => {
+      const app = createTestApp();
+      const res = await app.request('/api/projects/proj-2/tasks', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('allows project key to cleanup own project', async () => {
+      const app = createTestApp();
+      const res = await app.request('/api/projects/proj-1/cleanup', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('blocks project key from cleaning up other project', async () => {
+      const app = createTestApp();
+      const res = await app.request('/api/projects/proj-2/cleanup', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('allows server key to access any project', async () => {
+      const app = createTestApp();
+
+      const res1 = await app.request('/api/projects/proj-1/epics', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${serverKey}` },
+      });
+      expect(res1.status).toBe(200);
+
+      const res2 = await app.request('/api/projects/proj-2/tasks', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${serverKey}` },
+      });
+      expect(res2.status).toBe(200);
+
+      const res3 = await app.request('/api/projects/any-project/cleanup', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${serverKey}` },
+      });
+      expect(res3.status).toBe(200);
+    });
+  });
 });

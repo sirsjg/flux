@@ -279,8 +279,12 @@ app.get('/api/epics/:id', (c) => {
 });
 
 app.post('/api/projects/:projectId/epics', async (c) => {
-  const body = await c.req.json();
+  const auth = c.get('auth');
   const projectId = c.req.param('projectId');
+  if (!canWriteProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const body = await c.req.json();
   const epic = createEpic(projectId, body.title, body.notes, body.auto);
   // Trigger webhook
   triggerWebhooks('epic.created', { epic }, projectId);
@@ -363,10 +367,14 @@ app.delete('/api/tasks/:id/comments/:commentId', (c) => {
 });
 
 app.post('/api/projects/:projectId/tasks', async (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('projectId');
+  if (!canWriteProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
   const body = await c.req.json();
   const validation = validateTaskFields(body);
   if (validation.error) return c.json({ error: validation.error }, 400);
-  const projectId = c.req.param('projectId');
   const task = createTask(projectId, body.title, body.epic_id, {
     priority: body.priority,
     depends_on: body.depends_on,
@@ -430,12 +438,13 @@ app.get('/api/tasks/ready', (c) => {
 
 // Cleanup project (archive done tasks and/or delete empty epics)
 app.post('/api/projects/:projectId/cleanup', async (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('projectId');
+  if (!canWriteProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
   const body = await c.req.json();
-  const result = cleanupProject(
-    c.req.param('projectId'),
-    body.archiveTasks ?? true,
-    body.archiveEpics ?? true
-  );
+  const result = cleanupProject(projectId, body.archiveTasks ?? true, body.archiveEpics ?? true);
   return c.json({ success: true, ...result });
 });
 
