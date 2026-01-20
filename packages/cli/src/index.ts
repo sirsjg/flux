@@ -850,7 +850,10 @@ ${c.bold}Flags:${c.reset}
   }
 }
 
-main().catch((e) => {
-  console.error(e.message);
-  process.exit(1);
-});
+// Only run main() if this file is being executed directly (not imported for tests)
+if (import.meta.main) {
+  main().catch((e) => {
+    console.error(e.message);
+    process.exit(1);
+  });
+}
