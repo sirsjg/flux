@@ -21,6 +21,20 @@ export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; a
   2: { label: 'P2', color: '#6b7280', ansi: '\x1b[90m' }, // gray - low
 };
 
+// Task types: task, bug, feature, refactor, docs, chore
+export type TaskType = 'task' | 'bug' | 'feature' | 'refactor' | 'docs' | 'chore';
+
+export const TASK_TYPES: TaskType[] = ['task', 'bug', 'feature', 'refactor', 'docs', 'chore'];
+
+export const TASK_TYPE_CONFIG: Record<TaskType, { label: string; color: string; symbol: string; icon: string }> = {
+  task: { label: 'Task', color: 'gray', symbol: '◆', icon: 'CheckCircleIcon' },
+  bug: { label: 'Bug', color: 'red', symbol: '⚠', icon: 'ExclamationTriangleIcon' },
+  feature: { label: 'Feature', color: 'purple', symbol: '★', icon: 'SparklesIcon' },
+  refactor: { label: 'Refactor', color: 'blue', symbol: '⟳', icon: 'ArrowPathIcon' },
+  docs: { label: 'Docs', color: 'green', symbol: '📄', icon: 'DocumentTextIcon' },
+  chore: { label: 'Chore', color: 'amber', symbol: '⚙', icon: 'WrenchScrewdriverIcon' },
+};
+
 export type CommentAuthor = 'user' | 'mcp';
 
 export type TaskComment = {
@@ -49,6 +63,7 @@ export type Task = {
   agent?: Agent; // Optional agent assignment
   archived?: boolean; // Whether the task is archived
   priority?: Priority; // P0 = urgent, P1 = normal, P2 = low
+  type?: TaskType; // Task type: task, bug, feature, refactor, docs, chore (defaults to 'task')
   blocked_reason?: string; // External blocker (meeting, approval, etc.)
   acceptance_criteria?: string[]; // Observable behavioral outcomes for verification
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)

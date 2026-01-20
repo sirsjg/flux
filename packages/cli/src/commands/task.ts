@@ -8,8 +8,11 @@ import {
   isTaskBlocked,
   PRIORITY_CONFIG,
   PRIORITIES,
+  TASK_TYPE_CONFIG,
+  TASK_TYPES,
   type Priority,
   type Guardrail,
+  type TaskType,
 } from '../client.js';
 
 const RESET = '\x1b[0m';
@@ -67,10 +70,12 @@ export async function taskCommand(
           for (const t of tasks) {
             const p = t.priority ?? 2;
             const { label, ansi } = PRIORITY_CONFIG[p as Priority];
+            const taskType = t.type || 'task';
+            const typeSymbol = TASK_TYPE_CONFIG[taskType as TaskType].symbol;
             const blockedInfo = t.blocked_reason
               ? ` [BLOCKED: ${t.blocked_reason}]`
               : t.blocked ? ' [BLOCKED]' : '';
-            console.log(`${t.id}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}${blockedInfo}`);
+            console.log(`${t.id}  ${typeSymbol}  ${ansi}${label}${RESET}  [${t.status}]  ${t.title}${blockedInfo}`);
           }
         }
       }
@@ -89,7 +94,7 @@ export async function taskCommand(
         title = args[1];
       }
       if (!projectId || !title) {
-        console.error('Usage: flux task create [project] <title> [-P priority] [-e epic] [-d|--depends id,...] [--note] [--ac ...] [--guardrail ...]');
+        console.error('Usage: flux task create [project] <title> [-P priority] [--type type] [-e epic] [-d|--depends id,...] [--note] [--ac ...] [--guardrail ...]');
         console.error('Tip: Set default project with: flux project use <id>');
         process.exit(1);
       }
@@ -98,6 +103,15 @@ export async function taskCommand(
       const priority = priorityStr !== undefined && PRIORITIES.includes(parseInt(priorityStr, 10) as Priority)
         ? parseInt(priorityStr, 10) as Priority
         : undefined;
+      const typeStr = flags.type as string | undefined;
+      let type: TaskType | undefined;
+      if (typeStr !== undefined) {
+        if (!TASK_TYPES.includes(typeStr as TaskType)) {
+          console.error(`Invalid type: ${typeStr}. Must be one of: ${TASK_TYPES.join(', ')}`);
+          process.exit(1);
+        }
+        type = typeStr as TaskType;
+      }
       const dependsStr = (flags.depends || flags.d) as string | undefined;
       const depends_on = dependsStr ? dependsStr.split(',').map(s => s.trim()).filter(Boolean) : undefined;
 
@@ -118,7 +132,7 @@ export async function taskCommand(
         if (guardrails.length === 0) guardrails = undefined;
       }
 
-      const task = await createTask(projectId, title, epicId, { priority, depends_on, acceptance_criteria, guardrails });
+      const task = await createTask(projectId, title, epicId, { priority, type, depends_on, acceptance_criteria, guardrails });
       // Add initial comment if --note provided
       if (flags.note) {
         await addTaskComment(task.id, flags.note as string, 'user');
@@ -130,7 +144,7 @@ export async function taskCommand(
     case 'update': {
       const id = args[0];
       if (!id) {
-        console.error('Usage: flux task update <id> [--title] [--status] [--note] [--epic] [-d|--depends id,...] [--blocked "reason"|clear] [--ac ...] [--guardrail ...] [--clear-ac] [--clear-guardrails]');
+        console.error('Usage: flux task update <id> [--title] [--status] [--note] [--epic] [--type type] [-d|--depends id,...] [--blocked "reason"|clear] [--ac ...] [--guardrail ...] [--clear-ac] [--clear-guardrails]');
         process.exit(1);
       }
 
@@ -141,19 +155,27 @@ export async function taskCommand(
           console.error(`Task not found: ${id}`);
           process.exit(1);
         }
-        if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority && flags.blocked === undefined && !flags.ac && !flags.guardrail && !flags['clear-ac'] && !flags['clear-guardrails']) {
+        if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority && !flags.type && flags.blocked === undefined && !flags.ac && !flags.guardrail && !flags['clear-ac'] && !flags['clear-guardrails']) {
           const task = await getTask(id);
           output(json ? task : `Added comment to task: ${id}`, json);
           return;
         }
       }
 
-      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority; blocked_reason?: string; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] } = {};
+      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority; type?: TaskType; blocked_reason?: string; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] } = {};
       if (flags.title) updates.title = flags.title as string;
       if (flags.status) updates.status = flags.status as string;
       if (flags.epic) updates.epic_id = flags.epic as string;
       if (flags.P || flags.priority) {
         updates.priority = parseInt((flags.P || flags.priority) as string, 10) as Priority;
+      }
+      if (flags.type) {
+        const typeStr = flags.type as string;
+        if (!TASK_TYPES.includes(typeStr as TaskType)) {
+          console.error(`Invalid type: ${typeStr}. Must be one of: ${TASK_TYPES.join(', ')}`);
+          process.exit(1);
+        }
+        updates.type = typeStr as TaskType;
       }
       if (flags.depends || flags.d) {
         const dependsStr = (flags.depends || flags.d) as string;

@@ -37,6 +37,11 @@ import {
   PRIORITIES,
 } from './index.js';
 
+import {
+  TASK_TYPE_CONFIG,
+  TASK_TYPES,
+} from './types.js';
+
 import type {
   Project,
   Epic,
@@ -48,11 +53,12 @@ import type {
   WebhookDelivery,
   WebhookEventType,
   Guardrail,
+  TaskType,
 } from './types.js';
 
 // Re-export types and constants
-export { PRIORITY_CONFIG, PRIORITIES };
-export type { Project, Epic, Task, TaskComment, Priority, Store, Webhook, WebhookDelivery, WebhookEventType, Guardrail };
+export { PRIORITY_CONFIG, PRIORITIES, TASK_TYPE_CONFIG, TASK_TYPES };
+export type { Project, Epic, Task, TaskComment, Priority, Store, Webhook, WebhookDelivery, WebhookEventType, Guardrail, TaskType };
 
 // Server response includes computed blocked field
 type TaskWithBlocked = Task & { blocked: boolean };
@@ -250,13 +256,14 @@ export async function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { priority?: Priority; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
+  options?: { priority?: Priority; type?: TaskType; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
 ): Promise<Task> {
   if (serverUrl) {
     return http('POST', `/api/projects/${projectId}/tasks`, {
       title,
       epic_id: epicId,
       priority: options?.priority,
+      type: options?.type,
       depends_on: options?.depends_on,
       acceptance_criteria: options?.acceptance_criteria,
       guardrails: options?.guardrails,

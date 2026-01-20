@@ -11,8 +11,8 @@ import {
   getTasks,
   type TaskWithBlocked,
 } from "../stores";
-import type { Task, Epic, Status, TaskComment, Guardrail } from "@flux/shared";
-import { STATUSES, STATUS_CONFIG, PRIORITIES, PRIORITY_CONFIG, type Priority } from "@flux/shared";
+import type { Task, Epic, Status, TaskComment, Guardrail, TaskType } from "@flux/shared";
+import { STATUSES, STATUS_CONFIG, PRIORITIES, PRIORITY_CONFIG, TASK_TYPES, TASK_TYPE_CONFIG, type Priority } from "@flux/shared";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -35,6 +35,7 @@ export function TaskForm({
   const [status, setStatus] = useState<string>("todo");
   const [epicId, setEpicId] = useState<string>("");
   const [priority, setPriority] = useState<Priority | undefined>(undefined);
+  const [type, setType] = useState<TaskType>("task");
   const [epics, setEpics] = useState<Epic[]>([]);
   const [dependsOn, setDependsOn] = useState<string[]>([]);
   const [availableTasks, setAvailableTasks] = useState<TaskWithBlocked[]>([]);
@@ -84,6 +85,7 @@ export function TaskForm({
       setStatus(task.status);
       setEpicId(task.epic_id || "");
       setPriority(task.priority);
+      setType(task.type || "task");
       setDependsOn([...task.depends_on]);
       setComments(task.comments ? [...task.comments] : []);
       setBlockedReason(task.blocked_reason || "");
@@ -94,6 +96,7 @@ export function TaskForm({
       setStatus("todo");
       setEpicId(defaultEpicId || "");
       setPriority(undefined);
+      setType("task");
       setDependsOn([]);
       setComments([]);
       setBlockedReason("");
@@ -114,6 +117,7 @@ export function TaskForm({
           status,
           epic_id: epicId || undefined,
           priority: priority,
+          type: type,
           depends_on: dependsOn,
           blocked_reason: blockedReason.trim() || undefined,
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
@@ -127,6 +131,7 @@ export function TaskForm({
         );
         const updates: Partial<Task> = {};
         if (priority !== undefined) updates.priority = priority;
+        updates.type = type; // Always set type (defaults to 'task')
         if (dependsOn.length > 0) updates.depends_on = dependsOn;
         if (acceptanceCriteria.length > 0) updates.acceptance_criteria = acceptanceCriteria;
         if (guardrails.length > 0) updates.guardrails = guardrails;
@@ -328,6 +333,23 @@ export function TaskForm({
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>
                     {PRIORITY_CONFIG[p].label} - {p === 0 ? 'Urgent' : p === 1 ? 'Normal' : 'Low'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div class="form-control mb-4">
+              <label class="label">
+                <span class="label-text">Type</span>
+              </label>
+              <select
+                class="select select-bordered w-full"
+                value={type}
+                onChange={(e) => setType((e.target as HTMLSelectElement).value as TaskType)}
+              >
+                {TASK_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TASK_TYPE_CONFIG[t].symbol} {TASK_TYPE_CONFIG[t].label}
                   </option>
                 ))}
               </select>

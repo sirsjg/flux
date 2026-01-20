@@ -1,5 +1,5 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail } from './types.js';
-import { PRIORITIES } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, TaskType } from './types.js';
+import { PRIORITIES, TASK_TYPES } from './types.js';
 
 // Storage adapter interface - can be localStorage or file-based
 export interface StorageAdapter {
@@ -29,6 +29,16 @@ function validatePriority(priority: any): void {
   }
   if (!PRIORITIES.includes(priority)) {
     throw new Error(`Invalid priority value: ${priority}. Must be 0, 1, or 2.`);
+  }
+}
+
+// Validate task type value
+function validateTaskType(type: any): void {
+  if (type === undefined || type === null) {
+    return; // null/undefined are allowed
+  }
+  if (!TASK_TYPES.includes(type)) {
+    throw new Error(`Invalid task type: ${type}. Must be one of: ${TASK_TYPES.join(', ')}.`);
   }
 }
 
@@ -317,12 +327,14 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { priority?: Priority; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
+  options?: { priority?: Priority; type?: TaskType; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
 ): Task {
   const now = new Date().toISOString();
   const id = generateId();
   // Validate priority
   validatePriority(options?.priority);
+  // Validate type
+  validateTaskType(options?.type);
   // Validate dependencies exist (can't have cycles for new task, but deps should exist)
   const depends_on = options?.depends_on ?? [];
   for (const depId of depends_on) {
@@ -339,6 +351,7 @@ export function createTask(
     epic_id: epicId,
     project_id: projectId,
     priority: options?.priority,
+    type: options?.type || 'task', // Default to 'task'
     acceptance_criteria: options?.acceptance_criteria,
     guardrails: ensureGuardrailIds(options?.guardrails),
     created_at: now,
@@ -355,6 +368,10 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task
   // Validate priority if being updated
   if ('priority' in updates) {
     validatePriority(updates.priority);
+  }
+  // Validate type if being updated
+  if ('type' in updates) {
+    validateTaskType(updates.type);
   }
   // Validate dependencies
   if (updates.depends_on) {

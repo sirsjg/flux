@@ -1,8 +1,8 @@
-import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon, ExclamationTriangleIcon, SparklesIcon, ArrowPathIcon, DocumentTextIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { TaskWithBlocked } from '../stores'
-import { PRIORITY_CONFIG, type Priority } from '@flux/shared'
+import { PRIORITY_CONFIG, TASK_TYPE_CONFIG, type Priority, type TaskType } from '@flux/shared'
 
 interface DraggableTaskCardProps {
   task: TaskWithBlocked
@@ -35,6 +35,35 @@ export function DraggableTaskCard({
     if (!isDragging && onClick) {
       onClick()
     }
+  }
+
+  // Icon mapping for task types
+  const TASK_TYPE_ICONS: Record<string, any> = {
+    CheckCircleIcon,
+    ExclamationTriangleIcon,
+    SparklesIcon,
+    ArrowPathIcon,
+    DocumentTextIcon,
+    WrenchScrewdriverIcon,
+  }
+
+  // Get icon component for task type
+  const getTypeIcon = (type: TaskType) => {
+    const config = TASK_TYPE_CONFIG[type]
+    return TASK_TYPE_ICONS[config.icon]
+  }
+
+  // Tailwind color mapping (using standard Tailwind colors)
+  const getTypeColor = (color: string) => {
+    const colorMap: Record<string, string> = {
+      gray: 'text-gray-600 bg-gray-100',
+      red: 'text-red-600 bg-red-100',
+      purple: 'text-purple-600 bg-purple-100',
+      blue: 'text-blue-600 bg-blue-100',
+      green: 'text-green-600 bg-green-100',
+      amber: 'text-amber-600 bg-amber-100',
+    }
+    return colorMap[color] || 'text-gray-600 bg-gray-100'
   }
 
   // Shared indicator badges for acceptance criteria and guardrails
@@ -78,6 +107,16 @@ export function DraggableTaskCard({
             style={{ backgroundColor: epicColor }}
           />
           <span class="font-medium text-sm truncate flex-1">{task.title}</span>
+          {(() => {
+            const taskType = task.type || 'task'
+            const TypeIcon = getTypeIcon(taskType as TaskType)
+            const typeConfig = TASK_TYPE_CONFIG[taskType as TaskType]
+            return (
+              <span class={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getTypeColor(typeConfig.color)}`} title={typeConfig.label}>
+                <TypeIcon className="h-3 w-3" />
+              </span>
+            )
+          })()}
           {task.priority !== undefined && (
             <span
               class="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0"
@@ -135,6 +174,17 @@ export function DraggableTaskCard({
           style={{ backgroundColor: epicColor }}
         />
         <span class="text-xs text-base-content/50 font-medium">{epicTitle}</span>
+        {(() => {
+          const taskType = task.type || 'task'
+          const TypeIcon = getTypeIcon(taskType as TaskType)
+          const typeConfig = TASK_TYPE_CONFIG[taskType as TaskType]
+          return (
+            <span class={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${getTypeColor(typeConfig.color)}`} title={typeConfig.label}>
+              <TypeIcon className="h-3 w-3" />
+              <span>{typeConfig.label}</span>
+            </span>
+          )
+        })()}
         {task.priority !== undefined && (
           <span
             class="text-xs px-1.5 py-0.5 rounded font-medium"
