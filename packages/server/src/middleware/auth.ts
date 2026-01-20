@@ -104,9 +104,10 @@ export function canReadProject(auth: AuthContext, projectId: string): boolean {
     if (auth.projectIds.includes(projectId)) return true;
   }
 
-  // Anonymous can read public projects
+  // Anyone can read public projects (but not non-existent ones)
   const project = getProject(projectId);
-  return project?.visibility !== 'private';
+  if (!project) return false;
+  return project.visibility !== 'private';
 }
 
 /**

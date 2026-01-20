@@ -273,8 +273,11 @@ app.get('/api/projects/:projectId/epics', (c) => {
 });
 
 app.get('/api/epics/:id', (c) => {
+  const auth = c.get('auth');
   const epic = getEpic(c.req.param('id'));
-  if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  if (!epic || !canReadProject(auth, epic.project_id)) {
+    return c.json({ error: 'Epic not found' }, 404);
+  }
   return c.json(epic);
 });
 
@@ -330,8 +333,11 @@ app.get('/api/projects/:projectId/tasks', (c) => {
 });
 
 app.get('/api/tasks/:id', (c) => {
+  const auth = c.get('auth');
   const task = getTask(c.req.param('id'));
-  if (!task) return c.json({ error: 'Task not found' }, 404);
+  if (!task || !canReadProject(auth, task.project_id)) {
+    return c.json({ error: 'Task not found' }, 404);
+  }
   return c.json({ ...task, blocked: isTaskBlocked(task.id) });
 });
 
@@ -431,8 +437,9 @@ app.delete('/api/tasks/:id', (c) => {
 
 // Ready tasks (unblocked, not done, sorted by priority)
 app.get('/api/tasks/ready', (c) => {
+  const auth = c.get('auth');
   const projectId = c.req.query('project_id');
-  const tasks = getReadyTasks(projectId);
+  const tasks = getReadyTasks(projectId).filter(t => canReadProject(auth, t.project_id));
   return c.json(tasks);
 });
 

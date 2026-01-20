@@ -445,4 +445,120 @@ describe('auth middleware', () => {
       expect(res3.status).toBe(200);
     });
   });
+
+  describe('project-scoped key read restrictions', () => {
+    let projectKey: string;
+    let serverKey: string;
+
+    // Mock data store for entities
+    const epics = [
+      { id: 'epic-1', project_id: 'proj-1', title: 'Epic 1' },
+      { id: 'epic-2', project_id: 'proj-2', title: 'Epic 2' },
+    ];
+    const tasks = [
+      { id: 'task-1', project_id: 'proj-1', title: 'Task 1' },
+      { id: 'task-2', project_id: 'proj-2', title: 'Task 2' },
+      { id: 'task-3', project_id: 'proj-1', title: 'Task 3' },
+    ];
+
+    beforeEach(() => {
+      const project = createApiKey('Project Key', {
+        type: 'project',
+        project_ids: ['proj-1'],
+      });
+      projectKey = project.rawKey;
+
+      const server = createApiKey('Server Key', { type: 'server' });
+      serverKey = server.rawKey;
+    });
+
+    function createReadTestApp() {
+      const app = new Hono<{ Variables: { auth: AuthContext } }>();
+      app.use('*', authMiddleware);
+
+      app.get('/api/epics/:id', (c) => {
+        const auth = c.get('auth');
+        const epic = epics.find(e => e.id === c.req.param('id'));
+        if (!epic || !canReadProject(auth, epic.project_id)) {
+          return c.json({ error: 'Epic not found' }, 404);
+        }
+        return c.json(epic);
+      });
+
+      // Must be before /api/tasks/:id to avoid "ready" matching as :id
+      app.get('/api/tasks/ready', (c) => {
+        const auth = c.get('auth');
+        const filtered = tasks.filter(t => canReadProject(auth, t.project_id));
+        return c.json(filtered);
+      });
+
+      app.get('/api/tasks/:id', (c) => {
+        const auth = c.get('auth');
+        const task = tasks.find(t => t.id === c.req.param('id'));
+        if (!task || !canReadProject(auth, task.project_id)) {
+          return c.json({ error: 'Task not found' }, 404);
+        }
+        return c.json(task);
+      });
+
+      return app;
+    }
+
+    it('allows project key to read epic in own project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/epics/epic-1', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.id).toBe('epic-1');
+    });
+
+    it('blocks project key from reading epic in other project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/epics/epic-2', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('allows project key to read task in own project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/tasks/task-1', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.id).toBe('task-1');
+    });
+
+    it('blocks project key from reading task in other project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/tasks/task-2', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('filters ready tasks by project access', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/tasks/ready', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.length).toBe(2); // Only proj-1 tasks
+      expect(body.every((t: any) => t.project_id === 'proj-1')).toBe(true);
+    });
+
+    it('allows server key to read all tasks', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/tasks/ready', {
+        headers: { Authorization: `Bearer ${serverKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.length).toBe(3); // All tasks
+    });
+  });
 });
