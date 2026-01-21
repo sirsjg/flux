@@ -20,8 +20,9 @@
     ["@semantic-release/changelog", {
       "changelogFile": "CHANGELOG.md"
     }],
-    ["@semantic-release/npm", {
-      "pkgRoot": "packages/cli"
+    ["@semantic-release/exec", {
+      "prepareCmd": "cd packages/cli && npm pkg set version=${nextRelease.version}",
+      "publishCmd": "cd packages/cli && bun publish --access public"
     }],
     ["@semantic-release/git", {
       "assets": ["CHANGELOG.md", "packages/cli/package.json"],
