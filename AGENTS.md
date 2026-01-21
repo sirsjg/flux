@@ -88,10 +88,15 @@ type Task = {
   title: string;
   status: 'planning' | 'todo' | 'in_progress' | 'done';
   depends_on: string[];
-  comments?: TaskComment[]; // Add with --note for agent memory
+  comments?: TaskComment[];      // Add with --note for agent memory
   epic_id?: string;
   project_id: string;
-  priority?: 0 | 1 | 2;    // P0=urgent, P1=normal, P2=low
+  priority?: 0 | 1 | 2;          // P0=urgent, P1=normal, P2=low
+  acceptance_criteria?: string[];// What "done" looks like
+  guardrails?: Guardrail[];      // Constraints/boundaries
+  requirement_ids?: string[];    // Links to PRD requirements (REQ-001)
+  phase_id?: string;             // Links to PRD phase (PHASE-01)
+  verify?: string;               // Command to verify completion
   created_at?: string;
   updated_at?: string;
 };
@@ -103,6 +108,17 @@ type Epic = {
   depends_on: string[];
   notes: string;
   project_id: string;
+  prd?: PRD;                     // Embedded Product Requirements Document
+};
+
+type PRD = {
+  problem: string;
+  goals: string[];
+  requirements: Requirement[];   // REQ-001, REQ-002, etc.
+  approach: string;
+  phases: Phase[];               // PHASE-01, PHASE-02, etc.
+  risks: string[];
+  outOfScope: string[];
 };
 
 type Project = {
@@ -140,6 +156,11 @@ You have access to Flux for task management via MCP or CLI.
 1. List projects (`flux project list`)
 2. Select or create ONE project
 3. Confirm active project_id before any work
+
+**Task Context:**
+Before starting a task, get full context including acceptance criteria, guardrails, and PRD:
+- CLI: `flux task context <id>`
+- MCP: `get_task_with_context(taskId)`
 
 **If context is lost:** Re-list projects/tasks. Ask user if ambiguous.
 <!-- FLUX:END -->

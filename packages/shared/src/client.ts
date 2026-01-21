@@ -36,6 +36,9 @@ import {
   addTaskComment as localAddTaskComment,
   deleteTaskComment as localDeleteTaskComment,
   getReadyTasks as localGetReadyTasks,
+  // Verification operations
+  setTaskVerify as localSetTaskVerify,
+  setTaskVerifyResult as localSetTaskVerifyResult,
   getStore as localGetStore,
   replaceStore as localReplaceStore,
   mergeStore as localMergeStore,
@@ -442,6 +445,37 @@ export async function deleteTaskComment(taskId: string, commentId: string): Prom
     }
   }
   return localDeleteTaskComment(taskId, commentId);
+}
+
+// Verification operations
+export async function setTaskVerify(taskId: string, command: string | undefined): Promise<Task | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('PATCH', `/api/tasks/${taskId}`, { verify: command });
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localSetTaskVerify(taskId, command);
+}
+
+export async function setTaskVerifyResult(
+  taskId: string,
+  passed: boolean,
+  output: string
+): Promise<Task | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('PATCH', `/api/tasks/${taskId}`, {
+        verifyResult: { passed, output, checkedAt: new Date().toISOString() }
+      });
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localSetTaskVerifyResult(taskId, passed, output);
 }
 
 // Ready tasks (unblocked, not done, sorted by priority)

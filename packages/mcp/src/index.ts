@@ -46,6 +46,8 @@ import {
   deleteTaskComment,
   isTaskBlocked,
   getReadyTasks,
+  setTaskVerify,
+  setTaskVerifyResult,
   getWebhooks,
   getWebhook,
   createWebhook,
@@ -463,6 +465,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             epic_id: { type: 'string', description: 'Epic ID' },
           },
           required: ['epic_id'],
+        },
+      },
+      {
+        name: 'set_task_verify',
+        description: 'Set or clear the verify command for a task. The verify command is a shell command that proves the task is complete (e.g., "npm test -- --grep auth").',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+            command: { type: 'string', description: 'Shell command to verify task completion. Omit to clear.' },
+          },
+          required: ['task_id'],
+        },
+      },
+      {
+        name: 'run_task_verify',
+        description: 'Run the verify command for a task and store the result. Returns pass/fail status and command output.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+          },
+          required: ['task_id'],
         },
       },
 
@@ -897,6 +922,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           text: `Epic: ${context.epic.title}\nNotes: ${context.epic.notes || '(none)'}\nTasks: ${context.tasks.length}\n\n${JSON.stringify(context, null, 2)}`
         }],
       };
+    }
+
+    case 'set_task_verify': {
+      const task = await setTaskVerify(
+        args?.task_id as string,
+        args?.command as string | undefined
+      );
+      if (!task) {
+        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: task.verify
+            ? `Set verify command for ${task.id}: ${task.verify}`
+            : `Cleared verify command for ${task.id}`
+        }],
+      };
+    }
+
+    case 'run_task_verify': {
+      const task = await getTask(args?.task_id as string);
+      if (!task) {
+        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      }
+      if (!task.verify) {
+        return {
+          content: [{ type: 'text', text: `No verify command set for task ${task.id}. Use set_task_verify to set one.` }],
+          isError: true
+        };
+      }
+
+      const { execSync } = await import('child_process');
+      try {
+        const output = execSync(task.verify, {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 60000,
+        });
+        await setTaskVerifyResult(task.id, true, output.trim());
+        return {
+          content: [{
+            type: 'text',
+            text: `✓ PASSED: ${task.id}\nCommand: ${task.verify}\nOutput: ${output.trim()}`
+          }],
+        };
+      } catch (err) {
+        const error = err as { stdout?: string; stderr?: string; message?: string };
+        const errorOutput = error.stderr || error.stdout || error.message || 'Command failed';
+        await setTaskVerifyResult(task.id, false, errorOutput.trim());
+        return {
+          content: [{
+            type: 'text',
+            text: `✗ FAILED: ${task.id}\nCommand: ${task.verify}\nOutput: ${errorOutput.trim()}`
+          }],
+          isError: true
+        };
+      }
     }
 
     // Task operations

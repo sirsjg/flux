@@ -6,11 +6,16 @@ import {
   deleteTask,
   addTaskComment,
   isTaskBlocked,
+  getTaskWithContext,
+  getEpic,
+  setTaskVerify,
+  setTaskVerifyResult,
   PRIORITY_CONFIG,
   PRIORITIES,
   type Priority,
   type Guardrail,
 } from '../client.js';
+import { execSync } from 'child_process';
 
 const RESET = '\x1b[0m';
 import { output } from '../index.js';
@@ -261,8 +266,186 @@ export async function taskCommand(
       break;
     }
 
+    case 'context': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux task context <id>');
+        process.exit(1);
+      }
+
+      const ctx = await getTaskWithContext(id);
+      if (!ctx) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+
+      if (json) {
+        output(ctx, true);
+        break;
+      }
+
+      // Format as markdown for agent consumption
+      const { task, linkedRequirements, phase, epicPrd } = ctx;
+      const lines: string[] = [];
+
+      lines.push(`# Task: ${task.id}`);
+      lines.push(`Title: ${task.title}`);
+      lines.push(`Status: ${task.status}`);
+      if (task.priority !== undefined) {
+        const { label } = PRIORITY_CONFIG[task.priority as Priority];
+        lines.push(`Priority: ${label}`);
+      }
+      lines.push('');
+
+      // Acceptance Criteria
+      if (task.acceptance_criteria?.length) {
+        lines.push('## Acceptance Criteria');
+        for (const ac of task.acceptance_criteria) {
+          lines.push(`- ${ac}`);
+        }
+        lines.push('');
+      }
+
+      // Guardrails
+      if (task.guardrails?.length) {
+        lines.push('## Guardrails');
+        for (const g of task.guardrails) {
+          lines.push(`- [${g.number}] ${g.text}`);
+        }
+        lines.push('');
+      }
+
+      // Epic context
+      if (task.epic_id) {
+        const epic = await getEpic(task.epic_id);
+        if (epic) {
+          lines.push(`## Epic: ${epic.title}`);
+          if (epic.notes) {
+            lines.push(epic.notes);
+          }
+          lines.push('');
+        }
+      }
+
+      // PRD context
+      if (epicPrd) {
+        lines.push('## PRD');
+        if (epicPrd.problem) {
+          lines.push(`**Problem:** ${epicPrd.problem}`);
+        }
+        if (epicPrd.goals?.length) {
+          lines.push(`**Goals:** ${epicPrd.goals.join('; ')}`);
+        }
+        if (epicPrd.approach) {
+          lines.push(`**Approach:** ${epicPrd.approach}`);
+        }
+        lines.push('');
+      }
+
+      // Phase and linked requirements
+      if (phase) {
+        lines.push(`## Phase: ${phase.id} (${phase.name})`);
+        if (linkedRequirements.length) {
+          lines.push('**Linked Requirements:**');
+          for (const req of linkedRequirements) {
+            lines.push(`- ${req.id}: ${req.description} (${req.priority})`);
+          }
+        }
+        lines.push('');
+      } else if (linkedRequirements.length) {
+        lines.push('## Linked Requirements');
+        for (const req of linkedRequirements) {
+          lines.push(`- ${req.id}: ${req.description} (${req.priority})`);
+        }
+        lines.push('');
+      }
+
+      // Comments/notes
+      if (task.comments?.length) {
+        lines.push('## Notes');
+        for (const c of task.comments) {
+          lines.push(`- ${c.text}`);
+        }
+        lines.push('');
+      }
+
+      console.log(lines.join('\n'));
+      break;
+    }
+
+    case 'verify': {
+      const id = args[0];
+      if (!id) {
+        console.error('Usage: flux task verify <id> [-s <command>] [--clear]');
+        process.exit(1);
+      }
+
+      const task = await getTask(id);
+      if (!task) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+
+      // Set/clear verify command
+      if (flags.s || flags.set || flags.clear) {
+        const command = flags.clear ? undefined : (flags.s || flags.set) as string;
+        const updated = await setTaskVerify(id, command);
+        if (json) {
+          output(updated, true);
+        } else if (command) {
+          console.log(`Set verify command for ${id}: ${command}`);
+        } else {
+          console.log(`Cleared verify command for ${id}`);
+        }
+        break;
+      }
+
+      // Run verification
+      if (!task.verify) {
+        console.error(`No verify command set for task ${id}`);
+        console.error('Set one with: flux task verify <id> -s "<command>"');
+        process.exit(1);
+      }
+
+      const GREEN = '\x1b[32m';
+      const RED = '\x1b[31m';
+
+      try {
+        const result = execSync(task.verify, {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          timeout: 60000,
+        });
+        await setTaskVerifyResult(id, true, result.trim());
+        if (json) {
+          output({ passed: true, output: result.trim(), command: task.verify }, true);
+        } else {
+          console.log(`${GREEN}✓${RESET} ${id}: ${task.title}`);
+          console.log(`  Command: ${task.verify}`);
+          console.log(`  Result: PASSED`);
+          if (result.trim()) {
+            console.log(`  Output: ${result.trim().split('\n')[0]}`);
+          }
+        }
+      } catch (err) {
+        const error = err as { stdout?: string; stderr?: string; message?: string };
+        const output_text = error.stderr || error.stdout || error.message || 'Command failed';
+        await setTaskVerifyResult(id, false, output_text.trim());
+        if (json) {
+          output({ passed: false, output: output_text.trim(), command: task.verify }, true);
+        } else {
+          console.log(`${RED}✗${RESET} ${id}: ${task.title}`);
+          console.log(`  Command: ${task.verify}`);
+          console.log(`  Result: FAILED`);
+          console.log(`  Output: ${output_text.trim().split('\n')[0]}`);
+        }
+        process.exit(1);
+      }
+      break;
+    }
+
     default:
-      console.error('Usage: flux task [list|create|update|delete|done|start]');
+      console.error('Usage: flux task [list|create|update|delete|done|start|context|verify]');
       process.exit(1);
   }
 }

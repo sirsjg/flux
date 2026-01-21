@@ -3,7 +3,8 @@ import { output } from '../index.js';
 
 // Minimal workflow reminder for MCP/hook context
 const MCP_REMINDER = `## Flux
-Track work as tasks. Close when done. Use \`flux ready\` to see unblocked tasks.`;
+Track work as tasks. Close when done. Use \`flux ready\` to see unblocked tasks.
+Tasks may have acceptance_criteria, guardrails, and epic/PRD context - use get_task_with_context MCP tool.`;
 
 // Full workflow instructions for CLI mode
 const FULL_INSTRUCTIONS = `## Flux Task Management
@@ -18,6 +19,11 @@ const FULL_INSTRUCTIONS = `## Flux Task Management
 - \`flux task create [project] <title> -P 0|1|2\` - Create task
 - \`flux task done <id>\` - Mark complete
 - \`flux task update <id> --note "..."\` - Add comment
+- \`flux task context <id>\` - Full context (acceptance criteria, guardrails, epic, PRD)
+
+**Task Context:**
+Tasks may have acceptance_criteria (what "done" looks like), guardrails (constraints), and be linked to an epic with a PRD.
+Before starting a task, run \`flux task context <id>\` or use MCP get_task_with_context for full details.
 
 **If context is lost:** Run \`flux ready\` to see current tasks.`;
 

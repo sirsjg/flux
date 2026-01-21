@@ -37,6 +37,13 @@ export type Guardrail = {
   text: string;
 };
 
+// Result of running a verify command
+export type VerifyResult = {
+  passed: boolean;
+  output: string;
+  checkedAt: string;
+};
+
 // Task represents a single work item.
 export type Task = {
   id: string;
@@ -55,6 +62,9 @@ export type Task = {
   // PRD linking fields
   requirement_ids?: string[]; // Links to PRD requirements (REQ-001, etc.)
   phase_id?: string;          // Links to PRD phase (PHASE-01, etc.)
+  // Verification
+  verify?: string;            // Command to prove task completion
+  verifyResult?: VerifyResult; // Result of last verification run
   created_at?: string;
   updated_at?: string;
 };

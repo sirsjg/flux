@@ -6,10 +6,13 @@ import {
   linkTaskToRequirements,
   linkTaskToPhase,
   getTask,
+  getTasks,
   getEpicForPRDGeneration,
+  setTaskVerifyResult,
 } from '../client.js';
 import { output } from '../index.js';
 import type { PRD, Requirement, Phase } from '@flux/shared';
+import { execSync } from 'child_process';
 
 // ANSI colors
 const c = {
@@ -439,6 +442,85 @@ export async function prdCommand(
       break;
     }
 
+    case 'verify': {
+      const epicId = args[0];
+      if (!epicId) {
+        console.error('Usage: flux prd verify <epic-id>');
+        process.exit(1);
+      }
+
+      const epic = await getEpic(epicId);
+      if (!epic) {
+        console.error(`Epic not found: ${epicId}`);
+        process.exit(1);
+      }
+
+      // Get all tasks in this epic
+      const allTasks = await getTasks(epic.project_id);
+      const epicTasks = allTasks.filter(t => t.epic_id === epicId && !t.archived);
+
+      if (epicTasks.length === 0) {
+        console.log('No tasks in this epic');
+        break;
+      }
+
+      const results: { id: string; title: string; passed: boolean | null; output?: string }[] = [];
+
+      for (const task of epicTasks) {
+        if (!task.verify) {
+          results.push({ id: task.id, title: task.title, passed: null });
+          continue;
+        }
+
+        try {
+          const cmdOutput = execSync(task.verify, {
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 60000,
+          });
+          await setTaskVerifyResult(task.id, true, cmdOutput.trim());
+          results.push({ id: task.id, title: task.title, passed: true, output: cmdOutput.trim() });
+        } catch (err) {
+          const error = err as { stdout?: string; stderr?: string; message?: string };
+          const errorOutput = error.stderr || error.stdout || error.message || 'Command failed';
+          await setTaskVerifyResult(task.id, false, errorOutput.trim());
+          results.push({ id: task.id, title: task.title, passed: false, output: errorOutput.trim() });
+        }
+      }
+
+      if (json) {
+        output(results, true);
+        break;
+      }
+
+      // Display results
+      const passCount = results.filter(r => r.passed === true).length;
+      const failCount = results.filter(r => r.passed === false).length;
+      const noVerify = results.filter(r => r.passed === null).length;
+
+      console.log(`${c.bold}Verification: ${epic.title}${c.reset}\n`);
+
+      for (const r of results) {
+        if (r.passed === true) {
+          console.log(`${c.green}✓${c.reset} ${r.id}: ${r.title}`);
+        } else if (r.passed === false) {
+          console.log(`${c.red}✗${c.reset} ${r.id}: ${r.title}`);
+          if (r.output) {
+            console.log(`  ${c.dim}${r.output.split('\n')[0]}${c.reset}`);
+          }
+        } else {
+          console.log(`${c.dim}○${c.reset} ${r.id}: ${r.title} ${c.dim}(no verify command)${c.reset}`);
+        }
+      }
+
+      console.log('');
+      console.log(`Coverage: ${passCount + failCount}/${epicTasks.length} tasks have verify commands`);
+      if (passCount + failCount > 0) {
+        console.log(`Results: ${passCount} passed, ${failCount} failed`);
+      }
+      break;
+    }
+
     default:
       console.error(`Usage: flux prd <command> [options]
 
@@ -448,6 +530,7 @@ Commands:
   show <epic-id>              Display the PRD
   export <epic-id> [-o file]  Export PRD as markdown
   coverage <epic-id>          Show requirement coverage by tasks
+  verify <epic-id>            Run verify commands for all tasks
   link <task-id> <req-ids...> Link a task to requirements
   phase <task-id> <phase-id>  Set task's phase (--clear to remove)
 `);

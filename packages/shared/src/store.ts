@@ -522,6 +522,34 @@ export function deleteTask(id: string): boolean {
   return true;
 }
 
+// ============ Verification Operations ============
+
+export function setTaskVerify(taskId: string, command: string | undefined): Task | undefined {
+  const index = db.data.tasks.findIndex(t => t.id === taskId);
+  if (index === -1) return undefined;
+  db.data.tasks[index].verify = command;
+  db.data.tasks[index].updated_at = new Date().toISOString();
+  db.write();
+  return db.data.tasks[index];
+}
+
+export function setTaskVerifyResult(
+  taskId: string,
+  passed: boolean,
+  output: string
+): Task | undefined {
+  const index = db.data.tasks.findIndex(t => t.id === taskId);
+  if (index === -1) return undefined;
+  db.data.tasks[index].verifyResult = {
+    passed,
+    output,
+    checkedAt: new Date().toISOString(),
+  };
+  db.data.tasks[index].updated_at = new Date().toISOString();
+  db.write();
+  return db.data.tasks[index];
+}
+
 // ============ Comment Operations ============
 
 export function addTaskComment(
