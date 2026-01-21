@@ -268,7 +268,12 @@ app.delete('/api/projects/:id', requireServerAccess, (c) => {
 
 // Epics
 app.get('/api/projects/:projectId/epics', (c) => {
-  const epics = getEpics(c.req.param('projectId'));
+  const auth = c.get('auth');
+  const projectId = c.req.param('projectId');
+  if (!canReadProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const epics = getEpics(projectId);
   return c.json(epics);
 });
 
@@ -325,7 +330,12 @@ app.delete('/api/epics/:id', (c) => {
 
 // Tasks
 app.get('/api/projects/:projectId/tasks', (c) => {
-  const tasks = getTasks(c.req.param('projectId')).map(t => ({
+  const auth = c.get('auth');
+  const projectId = c.req.param('projectId');
+  if (!canReadProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const tasks = getTasks(projectId).map(t => ({
     ...t,
     blocked: isTaskBlocked(t.id),
   }));

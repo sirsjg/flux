@@ -476,6 +476,25 @@ describe('auth middleware', () => {
       const app = new Hono<{ Variables: { auth: AuthContext } }>();
       app.use('*', authMiddleware);
 
+      // Nested routes for listing by project
+      app.get('/api/projects/:projectId/epics', (c) => {
+        const auth = c.get('auth');
+        const projectId = c.req.param('projectId');
+        if (!canReadProject(auth, projectId)) {
+          return c.json({ error: 'Project not found' }, 404);
+        }
+        return c.json(epics.filter(e => e.project_id === projectId));
+      });
+
+      app.get('/api/projects/:projectId/tasks', (c) => {
+        const auth = c.get('auth');
+        const projectId = c.req.param('projectId');
+        if (!canReadProject(auth, projectId)) {
+          return c.json({ error: 'Project not found' }, 404);
+        }
+        return c.json(tasks.filter(t => t.project_id === projectId));
+      });
+
       app.get('/api/epics/:id', (c) => {
         const auth = c.get('auth');
         const epic = epics.find(e => e.id === c.req.param('id'));
@@ -559,6 +578,43 @@ describe('auth middleware', () => {
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body.length).toBe(3); // All tasks
+    });
+
+    it('allows project key to list epics in own project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/projects/proj-1/epics', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.length).toBe(1);
+      expect(body[0].id).toBe('epic-1');
+    });
+
+    it('blocks project key from listing epics in other project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/projects/proj-2/epics', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it('allows project key to list tasks in own project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/projects/proj-1/tasks', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.length).toBe(2);
+    });
+
+    it('blocks project key from listing tasks in other project', async () => {
+      const app = createReadTestApp();
+      const res = await app.request('/api/projects/proj-2/tasks', {
+        headers: { Authorization: `Bearer ${projectKey}` },
+      });
+      expect(res.status).toBe(404);
     });
   });
 });
