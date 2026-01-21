@@ -1,143 +1,123 @@
-
 import { h } from 'preact';
-import { ProjectWithStats } from '../stores';
-
-export interface ProjectMeta {
-    aiStatus: 'Idle' | 'Running' | 'Blocked' | 'Failing';
-    risk: 'Green' | 'Amber' | 'Red';
-    lanes: {
-        shaping: number;
-        betting: number;
-        active: number;
-        shipped: number;
-    };
-    activeBets: number;
-    lastEvent: string;
-    thrash: {
-        cuts: number;
-        retries: number;
-    };
-    blockers: {
-        count: number;
-        reason?: string;
-    };
-}
-
-export type ProjectWithMeta = ProjectWithStats & { meta: ProjectMeta };
+import { route } from 'preact-router';
+import { ProjectWithMeta } from '../types';
 
 interface ProjectCardProps {
     project: ProjectWithMeta;
-    onClick: () => void;
 }
 
-export function ProjectCard({ project, onClick }: ProjectCardProps) {
+export function ProjectCard({ project }: ProjectCardProps) {
     const { meta } = project;
+    const aiStatus = meta?.aiStatus || 'Idle';
+    const risk = meta?.risk || 'Green';
 
-    const aiStatusColors = {
-        Idle: 'text-text-medium',
-        Running: 'text-brand-primary',
-        Blocked: 'text-orange-400',
-        Failing: 'text-red-500',
-    };
+    // Progress calculation helpers for "sparklines"
+    const lanes = meta?.lanes || { shaping: 0, betting: 0, active: 0, shipped: 0 };
+    const totalItems = (lanes.shaping + lanes.betting + lanes.active + lanes.shipped) || 1;
+    const getPercent = (val: number) => Math.max(5, Math.min(100, (val / totalItems) * 100));
 
-    const riskColors = {
-        Green: 'text-brand-primary',
-        Amber: 'text-orange-400',
-        Red: 'text-red-500',
-    };
+    const statusColor =
+        risk === 'Red' ? 'text-red-500' :
+            risk === 'Amber' ? 'text-amber-500' :
+                'text-[#3ecf8e]';
+
+    const glowClass =
+        risk === 'Red' ? 'shadow-[0_0_15px_-3px_rgba(239,68,68,0.3)] border-red-500/30' :
+            risk === 'Amber' ? 'shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)] border-amber-500/30' :
+                'hover:shadow-[0_0_20px_-5px_rgba(62,207,142,0.2)] hover:border-[#3ecf8e]/30';
 
     return (
         <div
-            onClick={onClick}
-            className="group flex flex-col bg-bg-surface border border-border-subtle rounded-lg p-5 hover:border-brand-primary/50 transition-all cursor-pointer shadow-sm hover:shadow-md h-full"
+            onClick={() => route(`/board/${project.id}`)}
+            className={`
+        group relative flex flex-col p-5 rounded-xl border border-border-subtle bg-[#1A1A1A] 
+        cursor-pointer transition-all duration-300 ${glowClass}
+      `}
         >
             {/* Header */}
-            <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-semibold text-text-high tracking-tight group-hover:text-brand-primary transition-colors">
-                    {project.name}
-                </h3>
-            </div>
-
-            {/* AI & Risk Status Row */}
-            <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                <div className="flex items-center gap-2">
-                    <span className="text-text-medium font-medium">AI:</span>
-                    <span className={`font-medium ${aiStatusColors[meta.aiStatus]}`}>
-                        {meta.aiStatus}
-                    </span>
+            <div className="flex items-start justify-between mb-6">
+                <div>
+                    <h3 className="text-base font-semibold text-white group-hover:text-[#3ecf8e] transition-colors tracking-tight">
+                        {project.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusColor === 'text-[#3ecf8e]' ? 'bg-[#3ecf8e]' : statusColor === 'text-red-500' ? 'bg-red-500' : 'bg-amber-500'}`}></span>
+                        <span className={`text-xs font-medium uppercase tracking-wider ${statusColor}`}>
+                            {risk} Risk
+                        </span>
+                        <span className="text-border-subtle">•</span>
+                        <span className="text-xs text-text-medium font-medium">
+                            {meta?.primaryPhase}
+                        </span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-text-medium font-medium">Risk:</span>
-                    <span className={`font-medium ${riskColors[meta.risk]}`}>
-                        {meta.risk}
-                    </span>
-                </div>
-            </div>
 
-            {/* Lanes Stats */}
-            <div className="bg-bg-base rounded border border-border-subtle p-3 mb-4">
-                <div className="flex justify-between items-center text-xs font-mono text-text-medium">
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] uppercase text-text-low">Shaping</span>
-                        <span className="text-text-high font-semibold text-sm">{meta.lanes.shaping}</span>
-                    </div>
-                    <div className="w-px h-6 bg-border-subtle"></div>
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] uppercase text-text-low">Betting</span>
-                        <span className="text-text-high font-semibold text-sm">{meta.lanes.betting}</span>
-                    </div>
-                    <div className="w-px h-6 bg-border-subtle"></div>
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] uppercase text-text-low">Active</span>
-                        <span className="text-text-high font-semibold text-sm">{meta.lanes.active}</span>
-                    </div>
-                    <div className="w-px h-6 bg-border-subtle"></div>
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] uppercase text-text-low">Shipped</span>
-                        <span className="text-text-high font-semibold text-sm">{meta.lanes.shipped}</span>
-                    </div>
+                {/* AI Status Badge */}
+                <div className={`
+          px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border
+          ${aiStatus === 'Running' ? 'bg-[#3ecf8e]/10 text-[#3ecf8e] border-[#3ecf8e]/20' :
+                        aiStatus === 'Failing' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                            aiStatus === 'Blocked' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                                'bg-bg-surface text-text-medium border-border-subtle'}
+        `}>
+                    {aiStatus}
                 </div>
             </div>
 
-            {/* Details List */}
-            <div className="space-y-2 mb-6 flex-1 text-sm">
-                <div className="flex justify-between items-center">
-                    <span className="text-text-medium">Active bets:</span>
-                    <span className="text-text-high font-medium">{meta.activeBets}</span>
+            {/* Metrics Grid (Sparklines) */}
+            <div className="space-y-3 mb-6">
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-medium w-16 font-medium">Shaping</span>
+                    <div className="flex-1 h-1.5 bg-bg-surface rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-text-medium/40 rounded-full"
+                            style={{ width: `${getPercent(lanes.shaping)}%` }}
+                        ></div>
+                    </div>
+                    <span className="text-xs text-text-high font-mono w-6 text-right">{lanes.shaping}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-text-medium">Last event:</span>
-                    <span className="text-text-high font-medium text-right truncate max-w-[140px]" title={meta.lastEvent}>
-                        {meta.lastEvent}
-                    </span>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-medium w-16 font-medium">Betting</span>
+                    <div className="flex-1 h-1.5 bg-bg-surface rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-amber-500/80 rounded-full"
+                            style={{ width: `${getPercent(lanes.betting)}%` }}
+                        ></div>
+                    </div>
+                    <span className="text-xs text-text-high font-mono w-6 text-right">{lanes.betting}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-text-medium">Thrash:</span>
-                    <span className="text-text-high font-medium">
-                        cuts {meta.thrash.cuts} <span className="text-text-low">|</span> retries {meta.thrash.retries}
-                    </span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-text-medium">Blockers:</span>
-                    <span className={`font-medium ${meta.blockers.count > 0 ? 'text-red-400' : 'text-text-high'}`}>
-                        {meta.blockers.count}
-                        {meta.blockers.reason && (
-                            <span className="text-text-low text-xs ml-1">({meta.blockers.reason})</span>
-                        )}
-                    </span>
+
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-text-medium w-16 font-medium">Building</span>
+                    <div className="flex-1 h-1.5 bg-bg-surface rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-[#3ecf8e] rounded-full shadow-[0_0_8px_rgba(62,207,142,0.4)]"
+                            style={{ width: `${getPercent(lanes.active)}%` }}
+                        ></div>
+                    </div>
+                    <span className="text-xs text-text-high font-mono w-6 text-right">{lanes.active}</span>
                 </div>
             </div>
 
-            {/* Footer Action */}
-            <button
-                className="w-full mt-auto py-2 px-4 rounded border border-border-default text-text-medium text-sm font-medium hover:border-text-high hover:text-text-high transition-colors bg-transparent"
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onClick();
-                }}
-            >
-                Open Project
-            </button>
+            {/* Footer: Team & Activity */}
+            <div className="mt-auto pt-4 border-t border-border-subtle/50 flex items-center justify-between">
+                {/* Team Avatars (Mock) */}
+                <div className="flex -space-x-2">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="w-6 h-6 rounded-full bg-border-subtle border border-[#1A1A1A] flex items-center justify-center text-[9px] text-text-high font-medium">
+                            U{i}
+                        </div>
+                    ))}
+                    <div className="w-6 h-6 rounded-full bg-bg-surface border border-[#1A1A1A] flex items-center justify-center text-[9px] text-text-medium">
+                        +2
+                    </div>
+                </div>
+
+                <span className="text-[11px] text-text-medium/70 truncate max-w-[120px]">
+                    {meta?.lastEvent || 'No recent activity'}
+                </span>
+            </div>
         </div>
     );
 }

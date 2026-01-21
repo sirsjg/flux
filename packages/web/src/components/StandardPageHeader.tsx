@@ -10,22 +10,25 @@ interface StandardPageHeaderProps {
 
 export function StandardPageHeader({ title, badge, subtitle, toolbar, className = '' }: StandardPageHeaderProps) {
     return (
-        <div className={`mt-8 mb-6 ${className}`}>
+        <div className={`mb-6 ${className}`}>
             {/* Title Row */}
-            <div className="flex items-center gap-3 mb-6">
-                <h2 className="text-2xl font-semibold text-text-high flex items-center gap-3 tracking-tight">
+            <div className="flex items-center gap-3 mb-4">
+                <h1 className="text-[24px] font-semibold text-text-high flex items-center gap-3 tracking-[-0.02em] mb-1">
                     {title}
                     {badge && (
                         <span className="text-xs bg-[#3ecf8e]/10 text-[#3ecf8e] px-2 py-1 rounded-xl font-semibold uppercase">
                             {badge}
                         </span>
                     )}
-                </h2>
+                </h1>
+            </div>
+            <div className="flex items-center gap-3 mb-4">
                 {subtitle && (
-                    <span className="text-text-medium text-sm ml-1 font-medium">
+                    <h2 className="text-text-medium text-sm ml-1 font-medium">
                         {subtitle}
-                    </span>
+                    </h2>
                 )}
+
             </div>
 
             {/* Toolbar Row */}

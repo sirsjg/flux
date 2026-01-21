@@ -3,35 +3,29 @@ import { useEffect, useState, useMemo } from "preact/hooks";
 import { route, RoutableProps } from "preact-router";
 import {
   ExclamationTriangleIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  ArrowsUpDownIcon
 } from "@heroicons/react/24/outline";
 import {
   getProjects,
   resetDatabase,
   updateProject,
-  type ProjectWithStats,
 } from "../stores";
 import {
   ConfirmModal,
   Modal,
   AppLayout,
   WebhooksPanel,
-  PageHeader,
   StandardPageHeader,
   StandardSearchBar,
   StandardViewToggle,
   StandardButton,
-  Spinner,
-  type ProjectWithMeta,
-  type ProjectMeta
+  ProjectCard,
 } from "../components";
+import type { ProjectWithMeta, ProjectMeta } from "../types";
 
 // Helper to generate consistent mock meta data based on project ID
-function generateMockMeta(project: ProjectWithStats): ProjectMeta {
+function generateMockMeta(project: any): ProjectMeta {
   // Simple hash function for consistency
-  const hash = project.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = (project.id || '').split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
 
   const aiStatuses: ProjectMeta['aiStatus'][] = ['Idle', 'Running', 'Blocked', 'Failing'];
   const risks: ProjectMeta['risk'][] = ['Green', 'Amber', 'Red'];
@@ -75,7 +69,7 @@ export function ProjectList(_props: RoutableProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Existing state
-  const [editingProject, setEditingProject] = useState<ProjectWithStats | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectWithMeta | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -108,12 +102,6 @@ export function ProjectList(_props: RoutableProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const openEditModal = (project: ProjectWithStats) => {
-    setEditingProject(project);
-    setEditName(project.name);
-    setEditDescription(project.description || "");
   };
 
   const closeEditModal = (force = false) => {
@@ -170,27 +158,6 @@ export function ProjectList(_props: RoutableProps) {
       p.description?.toLowerCase().includes(lowerQuery)
     );
   }, [projects, searchQuery]);
-
-  // Group projects by phase
-  const groupedProjects = useMemo(() => {
-    const groups: Record<string, ProjectWithMeta[]> = {
-      'Shaping': [],
-      'Betting': [],
-      'Active': [],
-      'Shipped': []
-    };
-
-    filteredProjects.forEach(p => {
-      const phase = (p.meta as any)?.primaryPhase || 'Shaping';
-      if (groups[phase]) {
-        groups[phase].push(p);
-      }
-    });
-
-    return groups;
-  }, [filteredProjects]);
-
-  const phases = ['Shaping', 'Betting', 'Active', 'Shipped'];
 
   // Status helpers from existing code
   const apiOrigin = typeof window === "undefined" ? "" : window.location.origin;
@@ -271,84 +238,41 @@ export function ProjectList(_props: RoutableProps) {
                   ]}
                 />
                 <StandardButton icon={
-                  <svg width='16' height='16' fill='none' stroke='currentColor' strokeWidth='2' viewBox='0 0 24 24'>
-                    <path d='M3 6h18M3 12h18M3 18h18' />
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M3 6h18M3 12h18M3 18h18"></path>
                   </svg>
                 }>
                   Filter
                 </StandardButton>
                 <StandardButton onClick={refreshProjects} icon={
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                    <path d="M21 3v5h-5" />
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                   </svg>
                 }>
-                  Sync
+                  Sync <span className="opacity-50 text-[11px] ml-1 font-normal">Just now</span>
                 </StandardButton>
-                <StandardButton variant="primary" onClick={() => route('/new')} icon={
-                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path d="M12 5v14M5 12h14" />
-                  </svg>
-                }>
+
+                <div className="w-px h-4 bg-border-subtle mx-1" />
+
+                <StandardButton
+                  variant="primary"
+                  onClick={() => route('/new')}
+                  icon={
+                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                  }
+                >
                   New Project
                 </StandardButton>
               </>
             }
           />
 
-          {/* Legend Section - Grouped using Gestalt Proximity */}
-          <div className="info-strip mb-6 py-3">
-            <div className="info-group">
-              <span className="info-label">AI State</span>
-              <div className="flex gap-4">
-                <span className="badge badge-gray">Idle</span>
-                <span className="badge badge-green">Running</span>
-                <span className="badge badge-yellow">Blocked</span>
-                <span className="badge badge-red">Failing</span>
-              </div>
-            </div>
 
-            <div className="info-separator h-6"></div>
-
-            <div className="info-group">
-              <span className="info-label">Risk Level</span>
-              <div className="flex gap-4">
-                <span className="flex items-center gap-2">
-                  <div className="status-dot status-dot-green"></div>
-                  <span className="info-value">Green</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <div className="status-dot status-dot-yellow"></div>
-                  <span className="info-value">Amber</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <div className="status-dot status-dot-red"></div>
-                  <span className="info-value">Red</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="info-separator h-6"></div>
-
-            <div className="info-group">
-              <span className="info-label">Progress</span>
-              <div className="flex items-center gap-4">
-                <div className="flex gap-[1px]">
-                  <div className="w-2 h-2 rounded-[1px] bg-[#3ecf8e]"></div>
-                  <div className="w-2 h-2 rounded-[1px] border border-text-low/30"></div>
-                  <div className="w-2 h-2 rounded-[1px] border border-text-low/30"></div>
-                </div>
-                <span className="info-value">Active Bets</span>
-              </div>
-            </div>
-
-            <div className="info-separator h-6"></div>
-
-            <div className="info-group">
-              <span className="info-label">Thrash</span>
-              <span className="info-value">Cuts / Retries</span>
-            </div>
-          </div>
 
           {/* Project Content Section */}
           <section className="mt-6">
@@ -364,142 +288,155 @@ export function ProjectList(_props: RoutableProps) {
               </div>
             </div>
 
-            <div className="min-w-[800px] overflow-x-auto">
-              {/* List Header */}
-              <div className="grid grid-cols-[200px_100px_100px_80px_180px_100px_100px] gap-4 px-4 py-2 text-[10px] font-bold text-text-low uppercase tracking-widest border-b border-border-default mb-4 bg-bg-base z-10">
-                <div>Name</div>
-                <div>AI State</div>
-                <div>Risk</div>
-                <div>Active</div>
-                <div>Last Event</div>
-                <div>Blockers</div>
-                <div>Thrash</div>
+            {/* List Header removed - Dashboard Grid */}
+
+            {filteredProjects.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-state-title">No projects found</div>
+                <div className="empty-state-description">
+                  {projects.length === 0
+                    ? 'Get started by creating your first project'
+                    : 'Try adjusting your search or filters'}
+                </div>
+                {projects.length === 0 && (
+                  <button className="btn mt-4" onClick={() => route('/new')}>Create First Project</button>
+                )}
               </div>
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+                {filteredProjects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
 
-              {filteredProjects.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-title">No projects found</div>
-                  <div className="empty-state-description">
-                    {projects.length === 0
-                      ? 'Get started by creating your first project'
-                      : 'Try adjusting your search or filters'}
-                  </div>
-                  {projects.length === 0 && (
-                    <button className="btn mt-4" onClick={() => route('/new')}>Create First Project</button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-8 pb-20">
-                  {phases.map(phase => {
-                    const phaseProjects = groupedProjects[phase];
-                    if (!phaseProjects || phaseProjects.length === 0) return null;
-
-                    return (
-                      <div key={phase} className="rounded-xl border border-border-subtle bg-bg-surface/30 overflow-hidden">
-                        {/* Phase Group Header */}
-                        <div className="flex items-center px-4 py-3 bg-bg-surface border-b border-border-subtle">
-                          <div className={`status-dot mr-3 ${phase === 'Shaping' ? 'status-dot-gray' :
-                            phase === 'Betting' ? 'status-dot-yellow' :
-                              phase === 'Active' ? 'status-dot-green' :
-                                'status-dot-purple'
-                            }`}></div>
-                          <h3 className="text-sm font-semibold text-text-high">{phase}</h3>
-                          <span className="text-text-medium text-xs ml-2">
-                            {phaseProjects.length}
-                          </span>
-                        </div>
-
-                        {/* Phase Projects */}
-                        <div className="divide-y divide-border-subtle/30">
-                          {phaseProjects.map((project) => (
-                            <div key={project.id} className="group hover:bg-bg-surface-hover/30 transition-colors">
-                              {/* Main Project Row */}
-                              <div className="grid grid-cols-[200px_100px_100px_80px_180px_100px_100px] gap-4 px-4 py-3 items-center">
-                                <div className="font-bold text-text-high cursor-pointer hover:text-[#3ecf8e] transition-colors" onClick={() => route(`/board/${project.id}`)}>
-                                  {project.name}
-                                </div>
-
-                                <div className={`text-xs font-bold uppercase tracking-wider ${project.meta?.aiStatus === 'Running' ? 'text-brand-primary' :
-                                  project.meta?.aiStatus === 'Blocked' ? 'text-amber-500' :
-                                    project.meta?.aiStatus === 'Failing' ? 'text-red-500' :
-                                      'text-text-medium'
-                                  }`}>
-                                  {project.meta?.aiStatus}
-                                </div>
-
-                                <div className={`text-xs font-bold uppercase tracking-wider ${project.meta?.risk === 'Green' ? 'text-[#3ecf8e]' :
-                                  project.meta?.risk === 'Amber' ? 'text-amber-500' :
-                                    'text-red-500'
-                                  }`}>
-                                  {project.meta?.risk}
-                                </div>
-
-                                <div className="text-sm font-mono text-text-high ml-4">
-                                  {project.meta?.activeBets}
-                                </div>
-
-                                <div className="text-xs text-text-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                                  {project.meta?.lastEvent}
-                                </div>
-
-                                <div className={`text-sm font-mono ml-6 ${project.meta?.blockers?.count ? 'text-red-500 font-bold' : 'text-text-medium'}`}>
-                                  {project.meta?.blockers?.count}
-                                </div>
-
-                                <div className="text-sm font-mono text-text-medium">
-                                  {project.meta?.thrash?.cuts} / {project.meta?.thrash?.retries}
-                                </div>
-                              </div>
-
-                              {/* Phases Sub-rows */}
-                              <div className="relative ml-8 pb-3 space-y-0.5">
-                                <div className="absolute left-[-12px] top-0 bottom-4 w-px bg-border-subtle/40"></div>
-                                {[
-                                  { label: 'Shaping', val: project.meta?.lanes?.shaping || 0 },
-                                  { label: 'Betting', val: project.meta?.lanes?.betting || 0 },
-                                  { label: 'Active', val: project.meta?.lanes?.active || 0 },
-                                  { label: 'Shipped', val: project.meta?.lanes?.shipped || 0 }
-                                ].map((p, i) => (
-                                  <div key={p.label} className="relative flex items-center gap-4 py-0.5 h-5">
-                                    <div className="absolute left-[-12px] w-3 h-px bg-border-subtle/40"></div>
-                                    <div className="w-[80px] text-[10px] text-text-medium/60 font-medium pl-1">
-                                      {p.label}
-                                    </div>
-                                    <div className="flex gap-[3px]">
-                                      {[1, 2, 3, 4, 5].map(k => (
-                                        <div key={k} className={`w-1.5 h-1.5 rounded-[1px] ${k <= p.val
-                                          ? (p.val >= 4 ? 'bg-[#3ecf8e]' : 'bg-text-high')
-                                          : 'bg-bg-surface-hover/50'
-                                          }`}></div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* New Project Button */}
-              <div className="mt-6 border-t border-dashed border-border-subtle pt-6 pb-20">
+                {/* Add New Project Card */}
                 <button
                   onClick={() => route('/new')}
-                  className="btn-dashed-add"
+                  className="group relative flex flex-col items-center justify-center p-5 rounded-xl border border-dashed border-border-subtle bg-[#1A1A1A]/50 hover:bg-[#1A1A1A] hover:border-[#3ecf8e]/50 cursor-pointer transition-all duration-300 min-h-[300px]"
                 >
-                  <span className="text-lg leading-none">+</span> New Project
+                  <div className="w-12 h-12 rounded-full bg-bg-surface flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-sm border border-border-subtle">
+                    <span className="text-2xl text-text-medium group-hover:text-[#3ecf8e] transition-colors">+</span>
+                  </div>
+                  <h3 className="text-base font-semibold text-text-high group-hover:text-[#3ecf8e] transition-colors">Create New Project</h3>
+                  <p className="text-xs text-text-medium mt-1">Start a new cycle stream</p>
                 </button>
               </div>
-            </div>
+            ) : (
+              // Compact Table View
+              <div className="flex flex-col pb-20">
+                <div className="border border-white/10 rounded-lg overflow-hidden bg-[#1A1A1A]">
+                  {/* Table Header */}
+                  <div className="grid grid-cols-[minmax(200px,2fr)_120px_100px_100px_1fr_48px] gap-4 px-6 py-3 border-b border-white/10 bg-[#1A1A1A] text-xs font-mono font-medium text-text-medium uppercase tracking-wider">
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-text-high">
+                      PROJECT
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50">
+                        <path d="M7 11l5-5 5 5M7 13l5 5 5-5" />
+                      </svg>
+                    </div>
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-text-high">
+                      PHASE
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-0 hover:opacity-50 group-hover:opacity-50">
+                        <path d="M7 11l5-5 5 5M7 13l5 5 5-5" />
+                      </svg>
+                    </div>
+                    <div className="cursor-pointer hover:text-text-high">RISK</div>
+                    <div className="cursor-pointer hover:text-text-high">AI STATUS</div>
+                    <div className="text-right cursor-pointer hover:text-text-high flex items-center justify-end gap-2">
+                      LAST ACTIVITY
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50">
+                        <path d="M7 13l5 5 5-5" />
+                      </svg>
+                    </div>
+                    <div></div>
+                  </div>
+
+                  <div className="bg-bg-surface">
+                    {filteredProjects.map((project, index) => {
+                      const { meta } = project;
+                      const aiStatus = meta?.aiStatus || 'Idle';
+                      const risk = meta?.risk || 'Green';
+
+                      const statusColor =
+                        risk === 'Red' ? 'text-red-500 bg-red-500/10 border-red-500/20' :
+                          risk === 'Amber' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' :
+                            'text-[#3ecf8e] bg-[#3ecf8e]/10 border-[#3ecf8e]/20';
+
+                      return (
+                        <div
+                          key={project.id}
+                          onClick={() => route(`/board/${project.id}`)}
+                          className={`grid grid-cols-[minmax(200px,2fr)_120px_100px_100px_1fr_48px] gap-4 px-6 py-4 hover:bg-bg-surface-hover cursor-pointer transition-colors items-center group border-l-2 border-transparent hover:border-primary ${index !== filteredProjects.length - 1 ? 'border-b border-white/5' : ''
+                            }`}
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-semibold text-text-high group-hover:text-primary transition-colors truncate">
+                              {project.name}
+                            </span>
+                            {project.description && (
+                              <span className="text-xs text-text-medium truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                {project.description}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-sm text-text-medium font-medium">
+                            {meta?.primaryPhase || 'Planning'}
+                          </div>
+
+                          <div>
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${statusColor}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full bg-current`}></span>
+                              {risk}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className={`
+                            text-[11px] font-mono px-1.5 py-0.5 rounded border
+                            ${aiStatus === 'Running' ? 'text-primary border-primary/20 bg-primary/5' :
+                                aiStatus === 'Failing' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
+                                  aiStatus === 'Blocked' ? 'text-amber-500 border-amber-500/20 bg-amber-500/5' :
+                                    'text-text-low border-border-subtle bg-bg-surface'}
+                          `}>
+                              {aiStatus}
+                            </span>
+                          </div>
+
+                          <div className="text-right text-xs text-text-medium font-mono">
+                            {meta?.lastEvent || '-'}
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingProject(project);
+                              }}
+                              className="w-7 h-7 flex items-center justify-center rounded-md border border-white/5 bg-white/5 hover:bg-white/10 text-text-medium transition-all"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M12 12h.01M12 6h.01M12 18h.01" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredProjects.length === 0 && (
+                      <div className="p-8 text-center text-text-medium text-sm">
+                        No projects found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+
           </section>
         </div>
       </AppLayout>
 
-      {/* Settings Modal (kept same as before) */}
+      {/* Settings Modal */}
       <Modal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -622,7 +559,7 @@ export function ProjectList(_props: RoutableProps) {
             )}
           </div>
         </div>
-      </Modal >
+      </Modal>
 
       <Modal
         isOpen={!!editingProject}

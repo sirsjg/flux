@@ -308,7 +308,7 @@ export function Board({ projectId }: BoardProps) {
         onDragEnd={handleDragEnd}
       >
         <div class="min-h-screen bg-base-200">
-          <div className="px-6">
+          <div className="px-6 pt-6">
             <StandardPageHeader
               title={projectName}
               subtitle={
