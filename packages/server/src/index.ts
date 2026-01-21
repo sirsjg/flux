@@ -223,19 +223,108 @@ app.get('/version', (c) => {
   return c.json(buildInfo);
 });
 
+// Helper: Compute project metadata (lanes, blockers, lastEvent)
+function computeProjectMeta(projectId: string) {
+  const epics = getEpics(projectId);
+  const tasks = getTasks(projectId);
+
+  // Compute lanes from epic statuses
+  const lanes = {
+    shaping: epics.filter(e => e.status === 'planning').length,
+    betting: epics.filter(e => e.status === 'todo').length,
+    active: epics.filter(e => e.status === 'in_progress').length,
+    shipped: epics.filter(e => e.status === 'done').length,
+  };
+
+  // Compute blockers
+  const blockedTasks = tasks.filter(t => t.blocked_reason);
+  const blockers = {
+    count: blockedTasks.length,
+    reason: blockedTasks[0]?.blocked_reason || undefined,
+  };
+
+  // Compute last event from task updates
+  const sortedTasks = tasks
+    .filter(t => t.updated_at)
+    .sort((a, b) => new Date(b.updated_at!).getTime() - new Date(a.updated_at!).getTime());
+
+  const lastEventTime = sortedTasks[0]?.updated_at;
+  const lastEvent = lastEventTime ? formatRelativeTime(lastEventTime) : 'No activity';
+
+  return { lanes, blockers, lastEvent };
+}
+
+// Helper: Format relative time (e.g., "2h ago")
+function formatRelativeTime(timestamp: string): string {
+  const now = Date.now();
+  const then = new Date(timestamp).getTime();
+  const diffMs = now - then;
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  return `${diffWeeks}w ago`;
+}
+
 // Projects
 app.get('/api/projects', (c) => {
-  const projects = getProjects().map(p => ({
-    ...p,
-    stats: getProjectStats(p.id),
-  }));
+  const projects = getProjects().map(p => {
+    const stats = getProjectStats(p.id);
+    const computed = computeProjectMeta(p.id);
+
+    return {
+      ...p,
+      stats,
+      meta: {
+        aiStatus: p.ai_status || 'Idle',
+        risk: p.risk_level || 'Green',
+        primaryPhase: p.primary_phase || 'Shaping',
+        lanes: computed.lanes,
+        activeBets: computed.lanes.active,
+        lastEvent: computed.lastEvent,
+        thrash: {
+          cuts: p.thrash_cuts || 0,
+          retries: p.thrash_retries || 0,
+        },
+        blockers: computed.blockers,
+      },
+    };
+  });
   return c.json(projects);
 });
 
 app.get('/api/projects/:id', (c) => {
   const project = getProject(c.req.param('id'));
   if (!project) return c.json({ error: 'Project not found' }, 404);
-  return c.json({ ...project, stats: getProjectStats(project.id) });
+
+  const stats = getProjectStats(project.id);
+  const computed = computeProjectMeta(project.id);
+
+  return c.json({
+    ...project,
+    stats,
+    meta: {
+      aiStatus: project.ai_status || 'Idle',
+      risk: project.risk_level || 'Green',
+      primaryPhase: project.primary_phase || 'Shaping',
+      lanes: computed.lanes,
+      activeBets: computed.lanes.active,
+      lastEvent: computed.lastEvent,
+      thrash: {
+        cuts: project.thrash_cuts || 0,
+        retries: project.thrash_retries || 0,
+      },
+      blockers: computed.blockers,
+    },
+  });
 });
 
 app.post('/api/projects', async (c) => {
@@ -248,6 +337,18 @@ app.post('/api/projects', async (c) => {
 
 app.patch('/api/projects/:id', async (c) => {
   const body = await c.req.json();
+
+  // Validate metadata enums if provided
+  if (body.ai_status && !['Idle', 'Running', 'Blocked', 'Failing'].includes(body.ai_status)) {
+    return c.json({ error: 'Invalid ai_status. Must be one of: Idle, Running, Blocked, Failing' }, 400);
+  }
+  if (body.risk_level && !['Green', 'Amber', 'Red'].includes(body.risk_level)) {
+    return c.json({ error: 'Invalid risk_level. Must be one of: Green, Amber, Red' }, 400);
+  }
+  if (body.primary_phase && !['Shaping', 'Betting', 'Active', 'Shipped'].includes(body.primary_phase)) {
+    return c.json({ error: 'Invalid primary_phase. Must be one of: Shaping, Betting, Active, Shipped' }, 400);
+  }
+
   const previous = getProject(c.req.param('id'));
   const project = await updateProject(c.req.param('id'), body);
   if (!project) return c.json({ error: 'Project not found' }, 404);

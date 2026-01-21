@@ -4,9 +4,33 @@ import { z } from 'zod';
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:3000/api' : '/api';
 
-// Project with stats from API
+// Project metadata computed by server
+export interface ProjectMeta {
+  aiStatus: 'Idle' | 'Running' | 'Blocked' | 'Failing';
+  risk: 'Green' | 'Amber' | 'Red';
+  primaryPhase: 'Shaping' | 'Betting' | 'Active' | 'Shipped';
+  lanes: {
+    shaping: number;
+    betting: number;
+    active: number;
+    shipped: number;
+  };
+  activeBets: number;
+  lastEvent: string;
+  thrash: {
+    cuts: number;
+    retries: number;
+  };
+  blockers: {
+    count: number;
+    reason?: string;
+  };
+}
+
+// Project with stats and computed metadata from API
 export interface ProjectWithStats extends Project {
   stats: { total: number; done: number };
+  meta: ProjectMeta;
 }
 
 // Task with blocked status from API
@@ -20,9 +44,32 @@ export async function getProjects(): Promise<ProjectWithStats[]> {
   const res = await fetch(`${API_BASE}/projects`);
   const data = await res.json();
 
-  // Validate with Zod schema
+  // Validate with Zod schema (including meta field from API)
+  const ProjectMetaSchema = z.object({
+    aiStatus: z.enum(['Idle', 'Running', 'Blocked', 'Failing']),
+    risk: z.enum(['Green', 'Amber', 'Red']),
+    primaryPhase: z.enum(['Shaping', 'Betting', 'Active', 'Shipped']),
+    lanes: z.object({
+      shaping: z.number(),
+      betting: z.number(),
+      active: z.number(),
+      shipped: z.number(),
+    }),
+    activeBets: z.number(),
+    lastEvent: z.string(),
+    thrash: z.object({
+      cuts: z.number(),
+      retries: z.number(),
+    }),
+    blockers: z.object({
+      count: z.number(),
+      reason: z.string().optional(),
+    }),
+  });
+
   const ProjectWithStatsSchema = ProjectSchema.extend({
-    stats: z.object({ total: z.number(), done: z.number() })
+    stats: z.object({ total: z.number(), done: z.number() }),
+    meta: ProjectMetaSchema,
   });
   return z.array(ProjectWithStatsSchema).parse(data);
 }

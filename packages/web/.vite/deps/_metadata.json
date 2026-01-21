@@ -7,67 +7,67 @@
     "preact": {
       "src": "../../../../node_modules/.bun/preact@10.28.2/node_modules/preact/dist/preact.module.js",
       "file": "preact.js",
-      "fileHash": "731fe7e3",
+      "fileHash": "c5654d73",
       "needsInterop": false
     },
     "preact/jsx-runtime": {
       "src": "../../../../node_modules/.bun/preact@10.28.2/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js",
       "file": "preact_jsx-runtime.js",
-      "fileHash": "b944e391",
+      "fileHash": "45e56735",
       "needsInterop": false
     },
     "preact/jsx-dev-runtime": {
       "src": "../../../../node_modules/.bun/preact@10.28.2/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js",
       "file": "preact_jsx-dev-runtime.js",
-      "fileHash": "593029e6",
+      "fileHash": "f2784dd2",
       "needsInterop": false
     },
     "preact/debug": {
       "src": "../../../../node_modules/.bun/preact@10.28.2/node_modules/preact/debug/dist/debug.module.js",
       "file": "preact_debug.js",
-      "fileHash": "d43d6dc0",
+      "fileHash": "7632360d",
       "needsInterop": false
     },
     "preact/devtools": {
       "src": "../../../../node_modules/.bun/preact@10.28.2/node_modules/preact/devtools/dist/devtools.module.js",
       "file": "preact_devtools.js",
-      "fileHash": "050b4381",
+      "fileHash": "9a264778",
       "needsInterop": false
     },
     "@dnd-kit/core": {
       "src": "../../../../node_modules/.bun/@dnd-kit+core@6.3.1+67f6792bdf102c28/node_modules/@dnd-kit/core/dist/core.esm.js",
       "file": "@dnd-kit_core.js",
-      "fileHash": "3c8cc663",
+      "fileHash": "18fd6c5c",
       "needsInterop": false
     },
     "@dnd-kit/utilities": {
       "src": "../../../../node_modules/.bun/@dnd-kit+utilities@3.2.2+83d5fd7b249dbeef/node_modules/@dnd-kit/utilities/dist/utilities.esm.js",
       "file": "@dnd-kit_utilities.js",
-      "fileHash": "17c1a8a1",
+      "fileHash": "551d4ae9",
       "needsInterop": false
     },
     "@heroicons/react/24/outline": {
       "src": "../../../../node_modules/.bun/@heroicons+react@2.2.0+83d5fd7b249dbeef/node_modules/@heroicons/react/24/outline/esm/index.js",
       "file": "@heroicons_react_24_outline.js",
-      "fileHash": "c11e5fa8",
+      "fileHash": "8aa6dcac",
       "needsInterop": false
     },
     "preact-router": {
       "src": "../../../../node_modules/.bun/preact-router@4.1.2+3da667bc1e948615/node_modules/preact-router/dist/preact-router.mjs",
       "file": "preact-router.js",
-      "fileHash": "403ceed3",
+      "fileHash": "e532c6cf",
       "needsInterop": false
     },
     "preact/hooks": {
       "src": "../../../../node_modules/.bun/preact@10.28.2/node_modules/preact/hooks/dist/hooks.module.js",
       "file": "preact_hooks.js",
-      "fileHash": "cf1b4c58",
+      "fileHash": "6b8b4e77",
       "needsInterop": false
     },
     "zod": {
       "src": "../../../../node_modules/.bun/zod@4.3.5/node_modules/zod/index.js",
       "file": "zod.js",
-      "fileHash": "f9c53517",
+      "fileHash": "06653ec7",
       "needsInterop": false
     }
   },

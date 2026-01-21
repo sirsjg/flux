@@ -1,12 +1,13 @@
 import { h } from 'preact';
 import { route } from 'preact-router';
-import { ProjectWithMeta } from '../types';
+import { ProjectWithStats } from '../stores';
 
 interface ProjectCardProps {
-    project: ProjectWithMeta;
+    project: ProjectWithStats;
+    onEdit?: (project: ProjectWithStats) => void;
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, onEdit }: ProjectCardProps) {
     const { meta } = project;
     const aiStatus = meta?.aiStatus || 'Idle';
     const risk = meta?.risk || 'Green';
@@ -64,6 +65,19 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 </div>
             </div>
 
+            {/* Blocker Warning */}
+            {meta?.blockers && meta.blockers.count > 0 && (
+                <div className="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">
+                    <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="text-xs text-red-400 font-medium">
+                        {meta.blockers.count} blocked task{meta.blockers.count > 1 ? 's' : ''}
+                        {meta.blockers.reason && `: ${meta.blockers.reason}`}
+                    </span>
+                </div>
+            )}
+
             {/* Metrics Grid (Sparklines) */}
             <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-3">
@@ -114,9 +128,26 @@ export function ProjectCard({ project }: ProjectCardProps) {
                     </div>
                 </div>
 
-                <span className="text-[11px] text-text-medium/70 truncate max-w-[120px]">
-                    {meta?.lastEvent || 'No recent activity'}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-text-medium/70 truncate max-w-[120px]">
+                        {meta?.lastEvent || 'No recent activity'}
+                    </span>
+                    {onEdit && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(project);
+                            }}
+                            className="p-2 border border-border-subtle bg-bg-surface rounded-md text-text-medium hover:text-text-high hover:border-text-medium/30 transition-colors"
+                            title="Edit project settings"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

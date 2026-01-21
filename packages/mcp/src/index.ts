@@ -232,13 +232,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'update_project',
-        description: 'Update an existing project',
+        description: 'Update an existing project (name, description, or metadata)',
         inputSchema: {
           type: 'object',
           properties: {
             project_id: { type: 'string', description: 'Project ID' },
             name: { type: 'string', description: 'New project name' },
             description: { type: 'string', description: 'New project description' },
+            ai_status: {
+              type: 'string',
+              enum: ['Idle', 'Running', 'Blocked', 'Failing'],
+              description: 'AI agent status for this project'
+            },
+            risk_level: {
+              type: 'string',
+              enum: ['Green', 'Amber', 'Red'],
+              description: 'Project risk level (Green=healthy, Amber=warning, Red=critical)'
+            },
+            primary_phase: {
+              type: 'string',
+              enum: ['Shaping', 'Betting', 'Active', 'Shipped'],
+              description: 'Current Shape-Up phase'
+            },
           },
           required: ['project_id'],
         },

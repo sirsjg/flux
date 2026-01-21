@@ -21,45 +21,10 @@ import {
     ProjectCard,
     ProjectTable,
     WebhooksPanel,
-    type ProjectWithMeta,
-    type ProjectMeta
 } from "../components";
 
-// Helper to generate consistent mock meta data based on project ID
-function generateMockMeta(project: ProjectWithStats): ProjectMeta {
-    // Simple hash function for consistency
-    const hash = project.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-    const aiStatuses: ProjectMeta['aiStatus'][] = ['Idle', 'Running', 'Blocked', 'Failing'];
-    const risks: ProjectMeta['risk'][] = ['Green', 'Amber', 'Red'];
-
-    const aiStatus = aiStatuses[hash % 4];
-    const risk = risks[hash % 3];
-
-    return {
-        aiStatus,
-        risk,
-        lanes: {
-            shaping: (hash * 3) % 5,
-            betting: (hash * 2) % 3,
-            active: (hash * 7) % 4,
-            shipped: (hash * 5) % 10,
-        },
-        activeBets: (hash * 2) % 3,
-        lastEvent: ['Scope cut 2h ago', 'Shipped 19 01 2026', '6 failures in 30m', 'Blocked 10m ago', 'Merged 3 PRs today'][hash % 5],
-        thrash: {
-            cuts: (hash * 4) % 4,
-            retries: (hash * 6) % 25,
-        },
-        blockers: {
-            count: aiStatus === 'Blocked' || aiStatus === 'Failing' ? 1 : 0,
-            reason: aiStatus === 'Blocked' ? 'missing fixture' : aiStatus === 'Failing' ? 'dependency' : undefined
-        }
-    };
-}
-
 export function ProjectList(_props: RoutableProps) {
-    const [projects, setProjects] = useState<ProjectWithMeta[]>([]);
+    const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
@@ -85,12 +50,8 @@ export function ProjectList(_props: RoutableProps) {
         setApiStatus("unknown");
         try {
             const allProjects = await getProjects();
-            // Enrich with mock meta
-            const enrichedProjects = allProjects.map(p => ({
-                ...p,
-                meta: generateMockMeta(p)
-            }));
-            setProjects(enrichedProjects);
+            // Projects now include meta field from API
+            setProjects(allProjects);
             setApiStatus("online");
         } catch {
             setProjects([]);

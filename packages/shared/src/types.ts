@@ -87,6 +87,16 @@ export type Project = {
   id: string;
   name: string;
   description?: string;
+
+  // Shape-Up metadata (matching UI exactly)
+  ai_status?: 'Idle' | 'Running' | 'Blocked' | 'Failing';
+  risk_level?: 'Green' | 'Amber' | 'Red';
+  primary_phase?: 'Shaping' | 'Betting' | 'Active' | 'Shipped';
+  thrash_cuts?: number;
+  thrash_retries?: number;
+
+  created_at?: string;
+  updated_at?: string;
 };
 
 // Store is the JSON document root.

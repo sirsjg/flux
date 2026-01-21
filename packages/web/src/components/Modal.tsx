@@ -38,7 +38,7 @@ export function Modal({ isOpen, onClose, title, children, boxClassName }: ModalP
       onClose={onClose}
     >
       <div class={`modal-box w-full max-w-xl ${boxClassName ?? ''}`}>
-        <h3 class="font-bold text-lg mb-4">{title}</h3>
+        {title && <h3 class="font-bold text-lg mb-4">{title}</h3>}
         {children}
       </div>
     </dialog>

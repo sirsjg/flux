@@ -8,6 +8,7 @@ import {
   getProjects,
   resetDatabase,
   updateProject,
+  ProjectWithStats,
 } from "../stores";
 import {
   ConfirmModal,
@@ -20,58 +21,27 @@ import {
   StandardButton,
   ProjectCard,
 } from "../components";
-import type { ProjectWithMeta, ProjectMeta } from "../types";
+import { ProjectMeta, AIStatus, RiskLevel, ProjectPhase } from "../types";
 
-// Helper to generate consistent mock meta data based on project ID
-function generateMockMeta(project: any): ProjectMeta {
-  // Simple hash function for consistency
-  const hash = (project.id || '').split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
-
-  const aiStatuses: ProjectMeta['aiStatus'][] = ['Idle', 'Running', 'Blocked', 'Failing'];
-  const risks: ProjectMeta['risk'][] = ['Green', 'Amber', 'Red'];
-  const phases: ('Shaping' | 'Betting' | 'Active' | 'Shipped')[] = ['Shaping', 'Betting', 'Active', 'Shipped'];
-
-  const aiStatus = aiStatuses[hash % 4];
-  const risk = risks[hash % 3];
-  const primaryPhase = phases[hash % 4];
-
-  return {
-    aiStatus,
-    risk,
-    primaryPhase,
-    lanes: {
-      shaping: (hash * 3) % 5,
-      betting: (hash * 2) % 3,
-      active: (hash * 7) % 4,
-      shipped: (hash * 5) % 10,
-    },
-    activeBets: (hash * 2) % 3,
-    lastEvent: ['Scope cut 2h ago', 'Shipped 19 01 2026', '6 failures in 30m', 'Blocked 10m ago', 'Merged 3 PRs today'][hash % 5],
-    thrash: {
-      cuts: (hash * 4) % 4,
-      retries: (hash * 6) % 25,
-    },
-    blockers: {
-      count: aiStatus === 'Blocked' || aiStatus === 'Failing' ? 1 : 0,
-      reason: aiStatus === 'Blocked' ? 'missing fixture' : aiStatus === 'Failing' ? 'dependency' : undefined
-    }
-  };
-}
+// Mock generator removed - using real data from API
 
 export function ProjectList(_props: RoutableProps) {
   // Add h usage to ensure import is used (though jsx uses it implicitly)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _jsx = h;
 
-  const [projects, setProjects] = useState<ProjectWithMeta[]>([]);
+  const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Existing state
-  const [editingProject, setEditingProject] = useState<ProjectWithMeta | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectWithStats | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editPhase, setEditPhase] = useState<ProjectPhase>("Shaping");
+  const [editRisk, setEditRisk] = useState<RiskLevel>("Green");
+  const [editAiStatus, setEditAiStatus] = useState<AIStatus>("Idle");
   const [saving, setSaving] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"configuration" | "webhooks" | "reset">("configuration");
@@ -89,12 +59,8 @@ export function ProjectList(_props: RoutableProps) {
     setApiStatus("unknown");
     try {
       const allProjects = await getProjects();
-      // Enrich with mock meta
-      const enrichedProjects = allProjects.map(p => ({
-        ...p,
-        meta: generateMockMeta(p)
-      }));
-      setProjects(enrichedProjects);
+      // Projects now include meta field from API
+      setProjects(allProjects);
       setApiStatus("online");
     } catch {
       setProjects([]);
@@ -109,6 +75,9 @@ export function ProjectList(_props: RoutableProps) {
     setEditingProject(null);
     setEditName("");
     setEditDescription("");
+    setEditPhase("Shaping");
+    setEditRisk("Green");
+    setEditAiStatus("Idle");
   };
 
   const openSettings = () => {
@@ -138,8 +107,14 @@ export function ProjectList(_props: RoutableProps) {
       await updateProject(editingProject.id, {
         name: editName.trim(),
         description: editDescription.trim() || undefined,
+        ai_status: editAiStatus,
+        risk_level: editRisk,
+        primary_phase: editPhase,
       });
+
+      // Refresh projects to get updated data from server
       await refreshProjects();
+
       didSave = true;
     } finally {
       setSaving(false);
@@ -147,6 +122,15 @@ export function ProjectList(_props: RoutableProps) {
         closeEditModal(true);
       }
     }
+  };
+
+  const openEditModal = (project: ProjectWithStats) => {
+    setEditingProject(project);
+    setEditName(project.name);
+    setEditDescription(project.description || "");
+    setEditPhase(project.meta.primaryPhase);
+    setEditRisk(project.meta.risk);
+    setEditAiStatus(project.meta.aiStatus);
   };
 
   // Filter projects
@@ -303,9 +287,9 @@ export function ProjectList(_props: RoutableProps) {
                 )}
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+              <div className="grid gap-6 pb-20" style={{ gridTemplateColumns: 'repeat(auto-fill, 340px)' }}>
                 {filteredProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                  <ProjectCard key={project.id} project={project} onEdit={openEditModal} />
                 ))}
 
                 {/* Add New Project Card */}
@@ -409,7 +393,7 @@ export function ProjectList(_props: RoutableProps) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingProject(project);
+                                openEditModal(project);
                               }}
                               className="w-7 h-7 flex items-center justify-center rounded-md border border-white/5 bg-white/5 hover:bg-white/10 text-text-medium transition-all"
                             >
@@ -564,54 +548,108 @@ export function ProjectList(_props: RoutableProps) {
       <Modal
         isOpen={!!editingProject}
         onClose={closeEditModal}
-        title="Edit Project"
+        title=""
+        boxClassName="bg-[#151515] border border-[#333] shadow-xl p-0 overflow-hidden w-full max-w-lg rounded-xl"
       >
         <form onSubmit={handleEditSubmit}>
-          <div className="form-control mb-4">
-            <label className="label">
-              <span className="label-text">Project Name *</span>
-            </label>
-            <input
-              type="text"
-              className="input input-bordered w-full"
-              value={editName}
-              onInput={(e) => setEditName((e.target as HTMLInputElement).value)}
-              required
-            />
+          <div className="p-8">
+            <h3 className="text-xl font-semibold text-white mb-6">Edit Project</h3>
+
+            <div className="space-y-6">
+              <div className="form-control">
+                <label className="label px-0 pt-0 mb-2">
+                  <span className="text-sm font-medium text-gray-400">Project Name *</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-[#1A1A1A] border border-[#333] rounded-md px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-[#3ECF8E] focus:outline-none transition-colors"
+                  value={editName}
+                  onInput={(e) => setEditName((e.target as HTMLInputElement).value)}
+                  required
+                  placeholder="Enter project name..."
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label px-0 pt-0 mb-2">
+                  <span className="text-sm font-medium text-gray-400">Description</span>
+                </label>
+                <textarea
+                  className="w-full bg-[#1A1A1A] border border-[#333] rounded-md px-3 py-2.5 text-sm text-white placeholder:text-gray-600 focus:border-[#3ECF8E] focus:outline-none transition-colors min-h-[100px] resize-y"
+                  rows={4}
+                  value={editDescription}
+                  onInput={(e) =>
+                    setEditDescription((e.target as HTMLTextAreaElement).value)
+                  }
+                  placeholder="Optional description..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-control">
+                  <label className="label px-0 pt-0 mb-2">
+                    <span className="text-sm font-medium text-gray-400">Phase</span>
+                  </label>
+                  <select
+                    className="w-full bg-[#1A1A1A] border border-[#333] rounded-md px-3 py-2.5 text-sm text-white focus:border-[#3ECF8E] focus:outline-none transition-colors appearance-none"
+                    value={editPhase}
+                    onChange={(e) => setEditPhase((e.target as HTMLSelectElement).value as ProjectPhase)}
+                  >
+                    <option value="Shaping">Shaping</option>
+                    <option value="Betting">Betting</option>
+                    <option value="Active">Active</option>
+                    <option value="Shipped">Shipped</option>
+                  </select>
+                </div>
+
+                <div className="form-control">
+                  <label className="label px-0 pt-0 mb-2">
+                    <span className="text-sm font-medium text-gray-400">Risk</span>
+                  </label>
+                  <select
+                    className="w-full bg-[#1A1A1A] border border-[#333] rounded-md px-3 py-2.5 text-sm text-white focus:border-[#3ECF8E] focus:outline-none transition-colors appearance-none"
+                    value={editRisk}
+                    onChange={(e) => setEditRisk((e.target as HTMLSelectElement).value as RiskLevel)}
+                  >
+                    <option value="Green">Green</option>
+                    <option value="Amber">Amber</option>
+                    <option value="Red">Red</option>
+                  </select>
+                </div>
+
+                <div className="form-control col-span-2">
+                  <label className="label px-0 pt-0 mb-2">
+                    <span className="text-sm font-medium text-gray-400">AI Status</span>
+                  </label>
+                  <select
+                    className="w-full bg-[#1A1A1A] border border-[#333] rounded-md px-3 py-2.5 text-sm text-white focus:border-[#3ECF8E] focus:outline-none transition-colors appearance-none"
+                    value={editAiStatus}
+                    onChange={(e) => setEditAiStatus((e.target as HTMLSelectElement).value as AIStatus)}
+                  >
+                    <option value="Idle">Idle</option>
+                    <option value="Running">Running</option>
+                    <option value="Blocked">Blocked</option>
+                    <option value="Failing">Failing</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="form-control mb-6">
-            <label className="label">
-              <span className="label-text">Description</span>
-            </label>
-            <textarea
-              className="textarea textarea-bordered w-full"
-              rows={3}
-              value={editDescription}
-              onInput={(e) =>
-                setEditDescription((e.target as HTMLTextAreaElement).value)
-              }
-            />
-          </div>
-
-          <div className="modal-action">
+          <div className="flex items-center justify-end gap-3 px-8 py-6">
             <button
               type="button"
-              className="btn btn-ghost"
+              className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
               onClick={() => closeEditModal()}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="px-4 py-2 text-sm font-medium text-[#1A1A1A] bg-[#3ECF8E] hover:bg-[#34b078] rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!editName.trim() || saving}
             >
-              {saving ? (
-                <span className="loading loading-spinner loading-sm"></span>
-              ) : (
-                "Save"
-              )}
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
