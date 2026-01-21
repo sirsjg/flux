@@ -1,4 +1,4 @@
-import { h } from 'preact';
+// import { h } removed from 'preact';
 
 type ViewMode = 'grid' | 'list';
 

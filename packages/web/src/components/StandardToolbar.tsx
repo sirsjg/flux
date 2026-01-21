@@ -1,4 +1,4 @@
-import { h, JSX, ComponentChildren, VNode } from 'preact';
+import { JSX, ComponentChildren, VNode } from 'preact';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 // --- Standard Search Bar ---

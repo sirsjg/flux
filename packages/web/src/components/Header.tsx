@@ -15,7 +15,7 @@ interface HeaderProps {
 
 export function Header({
   breadcrumbs = [{ label: 'Projects', active: true }],
-  userInitials = 'U',
+  userInitials: _userInitials = 'U',
   onFeedbackClick,
   onAvatarClick,
 }: HeaderProps) {

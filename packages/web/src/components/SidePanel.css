@@ -1,73 +1,69 @@
-/* Side Panel */
-.side-panel-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  z-index: 50;
-  animation: fade-in 0.2s ease;
-}
-
+/* Side Panel (matching mockup style) */
 .side-panel {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 64px; /* Header height */
+  right: -450px; /* Hidden by default */
   width: 450px;
+  height: calc(100vh - 64px);
   background: var(--bg-surface);
   border-left: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-lg);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  z-index: 51;
-  animation: slide-in-right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-@keyframes slide-in-right {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+.side-panel.open {
+  right: 0;
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.side-panel-overlay {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.side-panel-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .side-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-surface);
   flex-shrink: 0;
 }
 
 .side-panel-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-high);
   margin: 0;
 }
 
 .side-panel-close {
-  background: transparent;
+  background: none;
   border: none;
   color: var(--text-medium);
   cursor: pointer;
-  padding: 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  padding: 6px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .side-panel-close:hover {
@@ -83,7 +79,7 @@
 .side-panel-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
 }
 
 /* Scrollbar styling for side panel */

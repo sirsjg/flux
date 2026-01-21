@@ -314,7 +314,7 @@ export function Board({ projectId }: BoardProps) {
               subtitle={
                 <div className="flex gap-2 text-sm text-text-medium">
                   <span>•</span>
-                  <span>{breadcrumbs[0].label}</span>
+                  <span>{breadcrumbs[0]?.label || 'Projects'}</span>
                 </div>
               }
               toolbar={

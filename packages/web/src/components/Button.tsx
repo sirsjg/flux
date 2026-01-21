@@ -11,6 +11,7 @@ export interface ButtonProps {
   icon?: any
   iconPosition?: 'left' | 'right'
   className?: string
+  style?: any
 }
 
 export function Button({
@@ -23,6 +24,7 @@ export function Button({
   icon: Icon,
   iconPosition = 'left',
   className = '',
+  style,
 }: ButtonProps) {
   const buttonClass = [
     'button',
@@ -39,6 +41,7 @@ export function Button({
       className={buttonClass}
       onClick={onClick}
       disabled={disabled}
+      style={style}
     >
       {Icon && iconPosition === 'left' && <Icon className="button-icon" />}
       {children}

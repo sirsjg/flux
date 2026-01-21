@@ -1,9 +1,9 @@
-import { h, ComponentChildren, VNode } from 'preact';
+import { ComponentChildren } from 'preact';
 
 interface StandardPageHeaderProps {
     title: string;
     badge?: string; // e.g. "Active" badge next to title
-    subtitle?: string; // e.g. "Day 8 of 42" or breadcrumb-like info
+    subtitle?: ComponentChildren; // e.g. "Day 8 of 42" or breadcrumb-like info
     toolbar?: ComponentChildren;
     className?: string;
 }

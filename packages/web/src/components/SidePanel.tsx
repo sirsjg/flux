@@ -10,12 +10,10 @@ export interface SidePanelProps {
 }
 
 export function SidePanel({ isOpen, onClose, title, children }: SidePanelProps) {
-  if (!isOpen) return null
-
   return (
     <>
-      <div className="side-panel-overlay" onClick={onClose} />
-      <div className="side-panel">
+      <div className={`side-panel-overlay ${isOpen ? 'active' : ''}`} onClick={onClose} />
+      <div className={`side-panel ${isOpen ? 'open' : ''}`}>
         <div className="side-panel-header">
           <h2 className="side-panel-title">{title}</h2>
           <button

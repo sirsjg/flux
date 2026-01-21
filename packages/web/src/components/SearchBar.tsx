@@ -1,4 +1,4 @@
-import { h } from 'preact';
+// import { h } removed from 'preact';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 interface SearchBarProps {

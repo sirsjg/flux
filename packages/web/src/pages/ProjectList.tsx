@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { useEffect, useState, useMemo } from "preact/hooks";
 import { route, RoutableProps } from "preact-router";
 import {
@@ -20,16 +19,13 @@ import {
   StandardViewToggle,
   StandardButton,
   ProjectCard,
+  SidePanel,
 } from "../components";
-import { ProjectMeta, AIStatus, RiskLevel, ProjectPhase } from "../types";
+import { AIStatus, RiskLevel, ProjectPhase } from "../types";
 
 // Mock generator removed - using real data from API
 
 export function ProjectList(_props: RoutableProps) {
-  // Add h usage to ensure import is used (though jsx uses it implicitly)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _jsx = h;
-
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -46,7 +42,7 @@ export function ProjectList(_props: RoutableProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"configuration" | "webhooks" | "reset">("configuration");
   const [apiStatus, setApiStatus] = useState<"online" | "offline" | "unknown">("unknown");
-  const [sseStatus, setSseStatus] = useState<"online" | "offline" | "unknown">("unknown");
+  const [sseStatus, _setSseStatus] = useState<"online" | "offline" | "unknown">("unknown");
   const [resetting, setResetting] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -545,16 +541,12 @@ export function ProjectList(_props: RoutableProps) {
         </div>
       </Modal>
 
-      <Modal
+      <SidePanel
         isOpen={!!editingProject}
         onClose={closeEditModal}
-        title=""
-        boxClassName="bg-[#151515] border border-[#333] shadow-xl p-0 overflow-hidden w-full max-w-lg rounded-xl"
+        title="Edit Project"
       >
         <form onSubmit={handleEditSubmit}>
-          <div className="p-8">
-            <h3 className="text-xl font-semibold text-white mb-6">Edit Project</h3>
-
             <div className="space-y-6">
               <div className="form-control">
                 <label className="label px-0 pt-0 mb-2">
@@ -634,12 +626,11 @@ export function ProjectList(_props: RoutableProps) {
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-end gap-3 px-8 py-6">
+          <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-border-subtle">
             <button
               type="button"
-              className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+              className="px-4 py-2 text-sm font-medium text-text-medium hover:text-text-high transition-colors"
               onClick={() => closeEditModal()}
             >
               Cancel
@@ -653,7 +644,7 @@ export function ProjectList(_props: RoutableProps) {
             </button>
           </div>
         </form>
-      </Modal>
+      </SidePanel>
 
       <ConfirmModal
         isOpen={resetConfirmOpen}

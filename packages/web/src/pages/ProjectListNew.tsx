@@ -37,7 +37,7 @@ export function ProjectList(_props: RoutableProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsSection, setSettingsSection] = useState<"configuration" | "webhooks" | "reset">("configuration");
     const [apiStatus, setApiStatus] = useState<"online" | "offline" | "unknown">("unknown");
-    const [sseStatus, setSseStatus] = useState<"online" | "offline" | "unknown">("unknown");
+    const [sseStatus, _setSseStatus] = useState<"online" | "offline" | "unknown">("unknown");
     const [resetting, setResetting] = useState(false);
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -59,12 +59,6 @@ export function ProjectList(_props: RoutableProps) {
         } finally {
             setLoading(false);
         }
-    };
-
-    const openEditModal = (project: ProjectWithStats) => {
-        setEditingProject(project);
-        setEditName(project.name);
-        setEditDescription(project.description || "");
     };
 
     const closeEditModal = (force = false) => {
@@ -260,7 +254,6 @@ export function ProjectList(_props: RoutableProps) {
                                 <ProjectCard
                                     key={project.id}
                                     project={project}
-                                    onClick={() => route(`/board/${project.id}`)}
                                 />
                             ))}
                         </div>

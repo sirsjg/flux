@@ -1,4 +1,4 @@
-import { h } from 'preact';
+// import { h } removed from 'preact';
 import { route } from 'preact-router';
 import { ProjectWithStats } from '../stores';
 

@@ -1,9 +1,9 @@
 
-import { ProjectWithMeta } from './ProjectCard';
+import { ProjectWithStats } from '../stores';
 
 interface ProjectTableProps {
-    projects: ProjectWithMeta[];
-    onProjectClick: (project: ProjectWithMeta) => void;
+    projects: ProjectWithStats[];
+    onProjectClick: (project: ProjectWithStats) => void;
 }
 
 export function ProjectTable({ projects, onProjectClick }: ProjectTableProps) {

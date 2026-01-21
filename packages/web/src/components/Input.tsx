@@ -6,8 +6,10 @@ export interface InputProps {
   value?: string
   placeholder?: string
   disabled?: boolean
+  required?: boolean
   onChange?: (value: string) => void
   onInput?: (e: Event) => void
+  onKeyDown?: (e: KeyboardEvent) => void
   size?: 'standard' | 'small' | 'large'
   error?: boolean
   className?: string
@@ -18,8 +20,10 @@ export function Input({
   value,
   placeholder,
   disabled = false,
+  required = false,
   onChange,
   onInput,
+  onKeyDown,
   size = 'standard',
   error = false,
   className = '',
@@ -46,7 +50,9 @@ export function Input({
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      required={required}
       onInput={handleInput}
+      onKeyDown={onKeyDown}
     />
   )
 }
