@@ -62,7 +62,7 @@ export function ChipSelector({
         )
       })}
 
-      {onAdd && (
+      {onAdd !== undefined && (
         <button className="chip-add" onClick={onAdd}>
           <PlusIcon />
           {addLabel}

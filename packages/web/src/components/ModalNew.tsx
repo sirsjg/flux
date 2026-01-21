@@ -20,10 +20,10 @@ export function ModalNew({
   children,
   footer,
   showCloseButton = true,
-}: ModalNewProps) {
+}: ModalNewProps): preact.JSX.Element | null {
   if (!isOpen) return null
 
-  const handleOverlayClick = (e: MouseEvent) => {
+  const handleOverlayClick = (e: MouseEvent): void => {
     if (e.target === e.currentTarget) {
       onClose()
     }
@@ -34,9 +34,9 @@ export function ModalNew({
   return (
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className={containerClass}>
-        {(title || showCloseButton) && (
+        {(title !== undefined || showCloseButton) && (
           <div className="modal-header">
-            {title && <h2 className="modal-title">{title}</h2>}
+            {title !== undefined && title !== "" && <h2 className="modal-title">{title}</h2>}
             {showCloseButton && (
               <button
                 type="button"
@@ -50,7 +50,7 @@ export function ModalNew({
           </div>
         )}
         <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
+        {footer !== undefined && <div className="modal-footer">{footer}</div>}
       </div>
     </div>
   )

@@ -6,6 +6,12 @@ interface BoardPreferences {
   collapsedEpics: string[]
 }
 
+interface StoredPreferences {
+  viewMode?: unknown;
+  planningCollapsed?: unknown;
+  collapsedEpics?: unknown;
+}
+
 const STORAGE_KEY_PREFIX = 'flux-board-preferences'
 
 function getStorageKey(projectId: string): string {
@@ -23,12 +29,12 @@ function getInitialPreferences(projectId: string): BoardPreferences {
 
   try {
     const stored = localStorage.getItem(getStorageKey(projectId))
-    if (stored) {
-      const parsed = JSON.parse(stored)
+    if (stored !== null && stored !== '') {
+      const parsed = JSON.parse(stored) as StoredPreferences;
       return {
         viewMode: parsed.viewMode === 'condensed' ? 'condensed' : 'normal',
         planningCollapsed: Boolean(parsed.planningCollapsed),
-        collapsedEpics: Array.isArray(parsed.collapsedEpics) ? parsed.collapsedEpics : [],
+        collapsedEpics: Array.isArray(parsed.collapsedEpics) ? parsed.collapsedEpics as string[] : [],
       }
     }
   } catch {
@@ -42,7 +48,15 @@ function getInitialPreferences(projectId: string): BoardPreferences {
   }
 }
 
-export function useBoardPreferences(projectId: string) {
+export function useBoardPreferences(projectId: string): {
+  viewMode: 'normal' | 'condensed';
+  planningCollapsed: boolean;
+  collapsedEpics: Set<string>;
+  setViewMode: (viewMode: 'normal' | 'condensed') => void;
+  setPlanningCollapsed: (planningCollapsed: boolean) => void;
+  toggleEpicCollapse: (epicId: string) => void;
+  isEpicCollapsed: (epicId: string) => boolean;
+} {
   const [preferences, setPreferences] = useState<BoardPreferences>(() =>
     getInitialPreferences(projectId)
   )
@@ -58,15 +72,15 @@ export function useBoardPreferences(projectId: string) {
     localStorage.setItem(getStorageKey(projectId), JSON.stringify(preferences))
   }, [projectId, preferences])
 
-  const setViewMode = useCallback((viewMode: 'normal' | 'condensed') => {
+  const setViewMode = useCallback((viewMode: 'normal' | 'condensed'): void => {
     setPreferences(prev => ({ ...prev, viewMode }))
   }, [])
 
-  const setPlanningCollapsed = useCallback((planningCollapsed: boolean) => {
+  const setPlanningCollapsed = useCallback((planningCollapsed: boolean): void => {
     setPreferences(prev => ({ ...prev, planningCollapsed }))
   }, [])
 
-  const toggleEpicCollapse = useCallback((epicId: string) => {
+  const toggleEpicCollapse = useCallback((epicId: string): void => {
     setPreferences(prev => {
       const collapsedEpics = prev.collapsedEpics.includes(epicId)
         ? prev.collapsedEpics.filter(id => id !== epicId)
@@ -76,7 +90,7 @@ export function useBoardPreferences(projectId: string) {
   }, [])
 
   const isEpicCollapsed = useCallback(
-    (epicId: string) => preferences.collapsedEpics.includes(epicId),
+    (epicId: string): boolean => preferences.collapsedEpics.includes(epicId),
     [preferences.collapsedEpics]
   )
 

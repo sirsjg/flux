@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import './FormControls.css'
 
@@ -111,7 +112,7 @@ export function Select({ options, value, onChange, placeholder, className = '' }
         value={value}
         onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
       >
-        {placeholder && (
+        {placeholder !== undefined && placeholder !== "" && (
           <option value="" disabled>
             {placeholder}
           </option>
@@ -135,11 +136,11 @@ export interface FormLabelProps {
   className?: string
 }
 
-export function FormLabel({ label, htmlFor, required, className = '' }: FormLabelProps) {
+export function FormLabel({ label, htmlFor, required, className = '' }: FormLabelProps): JSX.Element {
   return (
     <label
       htmlFor={htmlFor}
-      className={`form-label ${required ? 'form-label-required' : ''} ${className}`}
+      className={`form-label ${required === true ? 'form-label-required' : ''} ${className}`}
     >
       {label}
     </label>

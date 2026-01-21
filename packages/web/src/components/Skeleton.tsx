@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import './Skeleton.css'
 
 export interface SkeletonProps {
@@ -7,10 +8,10 @@ export interface SkeletonProps {
   className?: string
 }
 
-export function Skeleton({ width, height, variant = 'text', className = '' }: SkeletonProps) {
-  const style: any = {}
-  if (width) style.width = typeof width === 'number' ? `${width}px` : width
-  if (height) style.height = typeof height === 'number' ? `${height}px` : height
+export function Skeleton({ width, height, variant = 'text', className = '' }: SkeletonProps): JSX.Element {
+  const style: Record<string, string> = {}
+  if (width !== undefined) style.width = typeof width === 'number' ? `${width}px` : width
+  if (height !== undefined) style.height = typeof height === 'number' ? `${height}px` : height
 
   return <div className={`skeleton skeleton-${variant} ${className}`} style={style} />
 }
@@ -20,25 +21,25 @@ export interface SpinnerProps {
   className?: string
 }
 
-export function Spinner({ size = 'md', className = '' }: SpinnerProps) {
+export function Spinner({ size = 'md', className = '' }: SpinnerProps): JSX.Element {
   const sizeClass = size === 'md' ? '' : `spinner-${size}`
   return <div className={`spinner ${sizeClass} ${className}`} />
 }
 
 export interface LoadingContainerProps {
   fullscreen?: boolean
-  children?: any
+  children?: JSX.Element
 }
 
-export function LoadingContainer({ fullscreen = false, children }: LoadingContainerProps) {
+export function LoadingContainer({ fullscreen = false, children }: LoadingContainerProps): JSX.Element {
   return (
     <div className={`loading-container ${fullscreen ? 'loading-container-fullscreen' : ''}`}>
-      {children || <Spinner size="lg" />}
+      {children ?? <Spinner size="lg" />}
     </div>
   )
 }
 
-export function SkeletonCard() {
+export function SkeletonCard(): JSX.Element {
   return (
     <div className="skeleton-card">
       <div className="skeleton-card-header">
@@ -59,7 +60,7 @@ export function SkeletonCard() {
   )
 }
 
-export function SkeletonBoard() {
+export function SkeletonBoard(): JSX.Element {
   return (
     <div className="skeleton-board">
       {[1, 2, 3, 4].map((col) => (

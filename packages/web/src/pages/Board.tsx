@@ -1,3 +1,4 @@
+import type { JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { route, RoutableProps } from "preact-router";
 import {
@@ -46,12 +47,12 @@ interface BoardProps extends RoutableProps {
 }
 
 // Get color for epic based on index
-const getEpicColor = (epicId: string, epics: Epic[]): string => {
+function getEpicColor(epicId: string, epics: Epic[]): string {
   const index = epics.findIndex((e) => e.id === epicId);
   return EPIC_COLORS[index % EPIC_COLORS.length] ?? EPIC_COLORS[0] ?? '#9ca3af';
-};
+}
 
-export function Board({ projectId }: BoardProps) {
+export function Board({ projectId }: BoardProps): JSX.Element {
   const [tasks, setTasks] = useState<TaskWithBlocked[]>([]);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [projectName, setProjectName] = useState("");
@@ -70,8 +71,8 @@ export function Board({ projectId }: BoardProps) {
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterEpicId, setFilterEpicId] = useState<string | "all">("all");
-  const [filterStatus, setFilterStatus] = useState<string | "all">("all");
+  const [filterEpicId, setFilterEpicId] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
 
   // Cleanup dialog state
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
@@ -98,31 +99,31 @@ export function Board({ projectId }: BoardProps) {
   );
 
   useEffect(() => {
-    if (!projectId) {
+    if (projectId === undefined) {
       route("/");
       return;
     }
-    loadProject();
+    void loadProject();
   }, [projectId]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (projectId === undefined) return;
     const eventsBase = import.meta.env.DEV ? "http://localhost:3000" : "";
     let source: EventSource | null = null;
     let refreshTimeout: number | null = null;
     let reconnectTimeout: number | null = null;
     let isMounted = true;
 
-    const scheduleRefresh = () => {
-      if (refreshTimeout) {
+    const scheduleRefresh = (): void => {
+      if (refreshTimeout !== null) {
         window.clearTimeout(refreshTimeout);
       }
       refreshTimeout = window.setTimeout(() => {
-        refreshData();
+        void refreshData();
       }, 100);
     };
 
-    const connect = () => {
+    const connect = (): void => {
       if (!isMounted) return;
 
       source = new EventSource(`${eventsBase}/api/events`);
@@ -147,21 +148,21 @@ export function Board({ projectId }: BoardProps) {
 
     return () => {
       isMounted = false;
-      if (refreshTimeout) {
+      if (refreshTimeout !== null) {
         window.clearTimeout(refreshTimeout);
       }
-      if (reconnectTimeout) {
+      if (reconnectTimeout !== null) {
         window.clearTimeout(reconnectTimeout);
       }
       source?.close();
     };
   }, [projectId]);
 
-  const loadProject = async () => {
-    if (!projectId) return;
+  const loadProject = async (): Promise<void> => {
+    if (projectId === undefined) return;
     setLoading(true);
     const project = await getProject(projectId);
-    if (!project) {
+    if (project === null) {
       route("/");
       return;
     }
@@ -170,8 +171,8 @@ export function Board({ projectId }: BoardProps) {
     setLoading(false);
   };
 
-  const refreshData = async () => {
-    if (!projectId) return;
+  const refreshData = async (): Promise<void> => {
+    if (projectId === undefined) return;
     const [tasksData, epicsData] = await Promise.all([
       getTasks(projectId),
       getEpics(projectId),
@@ -181,9 +182,9 @@ export function Board({ projectId }: BoardProps) {
   };
 
   // Handle drag end
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
     const { active, over } = event;
-    if (!over) return;
+    if (over === null) return;
 
     const taskId = active.id as string;
     const dropZoneId = over.id as string;
@@ -191,7 +192,7 @@ export function Board({ projectId }: BoardProps) {
     const newEpicId = epicPart === "unassigned" ? undefined : epicPart;
 
     const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+    if (task === undefined) return;
 
     if (task.status !== newStatus || task.epic_id !== newEpicId) {
       await updateTask(taskId, {
@@ -203,44 +204,44 @@ export function Board({ projectId }: BoardProps) {
   };
 
   // Task form handlers
-  const openNewTask = (epicId?: string) => {
+  const openNewTask = (epicId?: string): void => {
     setEditingTask(undefined);
     setDefaultEpicId(epicId);
     setTaskFormOpen(true);
   };
 
-  const toggleEpicAuto = async (epic: Epic, auto: boolean) => {
+  const toggleEpicAuto = async (epic: Epic, auto: boolean): Promise<void> => {
     const updated = await updateEpic(epic.id, { auto });
-    if (updated) {
+    if (updated !== null) {
       setEpics((prev) => prev.map((item) => (item.id === epic.id ? updated : item)));
     }
   };
 
-  const openEditTask = (task: TaskWithBlocked) => {
+  const openEditTask = (task: TaskWithBlocked): void => {
     setEditingTask(task);
     setTaskFormOpen(true);
   };
 
-  const closeTaskForm = () => {
+  const closeTaskForm = (): void => {
     setTaskFormOpen(false);
     setEditingTask(undefined);
     setDefaultEpicId(undefined);
   };
 
   // Epic form handlers
-  const openNewEpic = () => {
+  const openNewEpic = (): void => {
     setEditingEpic(undefined);
     setEpicFormOpen(true);
   };
 
-  const closeEpicForm = () => {
+  const closeEpicForm = (): void => {
     setEpicFormOpen(false);
     setEditingEpic(undefined);
   };
 
   // Cleanup handlers
-  const handleCleanup = async () => {
-    if (!projectId) return;
+  const handleCleanup = async (): Promise<void> => {
+    if (projectId === undefined) return;
     await cleanupProject(projectId, cleanupArchiveTasks, cleanupArchiveEpics);
     setCleanupDialogOpen(false);
     setCleanupArchiveTasks(true);
@@ -253,10 +254,10 @@ export function Board({ projectId }: BoardProps) {
 
   // Filter tasks
   const filterTask = (task: TaskWithBlocked): boolean => {
-    if (searchQuery) {
+    if (searchQuery !== "") {
       const query = searchQuery.toLowerCase();
       const matchesTitle = task.title.toLowerCase().includes(query);
-      const commentsText = task.comments?.map(c => c.body).join(" ") || "";
+      const commentsText = task.comments?.map(c => c.body).join(" ") ?? "";
       const matchesComments = commentsText.toLowerCase().includes(query);
       if (!matchesTitle && !matchesComments) return false;
     }
@@ -265,17 +266,17 @@ export function Board({ projectId }: BoardProps) {
   };
 
   // Get tasks for a specific column and epic
-  const getColumnTasks = (status: string, epicId: string | undefined) =>
+  const getColumnTasks = (status: string, epicId: string | undefined): TaskWithBlocked[] =>
     tasks
       .filter((t) => t.epic_id === epicId && t.status === status)
       .filter(filterTask);
 
   // Get task count for an epic
-  const getEpicTaskCount = (epicId: string | undefined) =>
+  const getEpicTaskCount = (epicId: string | undefined): number =>
     tasks.filter((t) => t.epic_id === epicId).filter(filterTask).length;
 
   // Generate drop zone ID
-  const getDropZoneId = (status: string, epicId: string | undefined) =>
+  const getDropZoneId = (status: string, epicId: string | undefined): string =>
     `${status}:${epicId ?? "unassigned"}`;
 
   if (loading) {
@@ -314,7 +315,7 @@ export function Board({ projectId }: BoardProps) {
               subtitle={
                 <div className="flex gap-2 text-sm text-text-medium">
                   <span>•</span>
-                  <span>{breadcrumbs[0]?.label || 'Projects'}</span>
+                  <span>{breadcrumbs[0]?.label ?? 'Projects'}</span>
                 </div>
               }
               toolbar={
@@ -372,7 +373,7 @@ export function Board({ projectId }: BoardProps) {
                     </div>
                   </div>
 
-                  {(searchQuery ||
+                  {(searchQuery !== "" ||
                     filterEpicId !== "all" ||
                     filterStatus !== "all") && (
                       <StandardButton
@@ -395,7 +396,7 @@ export function Board({ projectId }: BoardProps) {
                     Clean Up
                   </StandardButton>
 
-                  <StandardViewToggle
+                  <StandardViewToggle<"condensed" | "normal">
                     value={viewMode}
                     onChange={setViewMode}
                     options={[
@@ -491,7 +492,7 @@ export function Board({ projectId }: BoardProps) {
                               class="toggle toggle-xs"
                               checked={epic.auto}
                               onChange={(e) =>
-                                toggleEpicAuto(
+                                void toggleEpicAuto(
                                   epic,
                                   (e.target as HTMLInputElement).checked
                                 )
@@ -733,21 +734,25 @@ export function Board({ projectId }: BoardProps) {
           </div>
 
           {/* Modals */}
-          <TaskForm
-            isOpen={taskFormOpen}
-            onClose={closeTaskForm}
-            onSave={refreshData}
-            task={editingTask}
-            projectId={projectId!}
-            defaultEpicId={defaultEpicId}
-          />
-          <EpicForm
-            isOpen={epicFormOpen}
-            onClose={closeEpicForm}
-            onSave={refreshData}
-            epic={editingEpic}
-            projectId={projectId!}
-          />
+          {projectId !== undefined && (
+            <>
+              <TaskForm
+                isOpen={taskFormOpen}
+                onClose={closeTaskForm}
+                onSave={refreshData}
+                task={editingTask}
+                projectId={projectId}
+                defaultEpicId={defaultEpicId}
+              />
+              <EpicForm
+                isOpen={epicFormOpen}
+                onClose={closeEpicForm}
+                onSave={refreshData}
+                epic={editingEpic}
+                projectId={projectId}
+              />
+            </>
+          )}
 
           {/* Cleanup Dialog */}
           {cleanupDialogOpen && (
@@ -800,7 +805,7 @@ export function Board({ projectId }: BoardProps) {
                   </button>
                   <button
                     class="btn btn-primary"
-                    onClick={handleCleanup}
+                    onClick={() => void handleCleanup()}
                     disabled={!cleanupArchiveTasks && !cleanupArchiveEpics}
                   >
                     Clean

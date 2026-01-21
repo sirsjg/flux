@@ -1,5 +1,6 @@
+import type { JSX } from "preact";
 import { useEffect, useState, useMemo } from "preact/hooks";
-import { route, RoutableProps } from "preact-router";
+import { route, type RoutableProps } from "preact-router";
 import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
@@ -25,7 +26,8 @@ import { AIStatus, RiskLevel, ProjectPhase } from "../types";
 
 // Mock generator removed - using real data from API
 
-export function ProjectList(_props: RoutableProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function ProjectList(_props?: RoutableProps): JSX.Element {
   const [projects, setProjects] = useState<ProjectWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -42,15 +44,15 @@ export function ProjectList(_props: RoutableProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"configuration" | "webhooks" | "reset">("configuration");
   const [apiStatus, setApiStatus] = useState<"online" | "offline" | "unknown">("unknown");
-  const [sseStatus, _setSseStatus] = useState<"online" | "offline" | "unknown">("unknown");
+  const [sseStatus] = useState<"online" | "offline" | "unknown">("unknown");
   const [resetting, setResetting] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   useEffect(() => {
-    refreshProjects();
+    void refreshProjects();
   }, []);
 
-  const refreshProjects = async () => {
+  const refreshProjects = async (): Promise<void> => {
     setLoading(true);
     setApiStatus("unknown");
     try {
@@ -66,7 +68,7 @@ export function ProjectList(_props: RoutableProps) {
     }
   };
 
-  const closeEditModal = (force = false) => {
+  const closeEditModal = (force = false): void => {
     if (saving && !force) return;
     setEditingProject(null);
     setEditName("");
@@ -76,12 +78,12 @@ export function ProjectList(_props: RoutableProps) {
     setEditAiStatus("Idle");
   };
 
-  const openSettings = () => {
+  const openSettings = (): void => {
     setSettingsSection("configuration");
     setSettingsOpen(true);
   };
 
-  const handleReset = async () => {
+  const handleReset = async (): Promise<void> => {
     if (resetting) return;
     setResetting(true);
     try {
@@ -93,16 +95,16 @@ export function ProjectList(_props: RoutableProps) {
     }
   };
 
-  const handleEditSubmit = async (e: Event) => {
+  const handleEditSubmit = async (e: Event): Promise<void> => {
     e.preventDefault();
-    if (!editingProject || !editName.trim() || saving) return;
+    if (editingProject === null || editName.trim() === "" || saving) return;
 
     setSaving(true);
     let didSave = false;
     try {
       await updateProject(editingProject.id, {
         name: editName.trim(),
-        description: editDescription.trim() || undefined,
+        description: editDescription.trim() !== "" ? editDescription.trim() : undefined,
         ai_status: editAiStatus,
         risk_level: editRisk,
         primary_phase: editPhase,
@@ -120,10 +122,10 @@ export function ProjectList(_props: RoutableProps) {
     }
   };
 
-  const openEditModal = (project: ProjectWithStats) => {
+  const openEditModal = (project: ProjectWithStats): void => {
     setEditingProject(project);
     setEditName(project.name);
-    setEditDescription(project.description || "");
+    setEditDescription(project.description ?? "");
     setEditPhase(project.meta.primaryPhase);
     setEditRisk(project.meta.risk);
     setEditAiStatus(project.meta.aiStatus);
@@ -131,11 +133,11 @@ export function ProjectList(_props: RoutableProps) {
 
   // Filter projects
   const filteredProjects = useMemo(() => {
-    if (!searchQuery) return projects;
+    if (searchQuery === "") return projects;
     const lowerQuery = searchQuery.toLowerCase();
     return projects.filter(p =>
       p.name.toLowerCase().includes(lowerQuery) ||
-      p.description?.toLowerCase().includes(lowerQuery)
+      (p.description?.toLowerCase().includes(lowerQuery) ?? false)
     );
   }, [projects, searchQuery]);
 
@@ -143,12 +145,12 @@ export function ProjectList(_props: RoutableProps) {
   const apiOrigin = typeof window === "undefined" ? "" : window.location.origin;
   const apiLocation = import.meta.env.DEV ? "http://localhost:3000/api" : `${apiOrigin}/api`;
   const sseLocation = import.meta.env.DEV ? "http://localhost:3000/api/events" : `${apiOrigin}/api/events`;
-  const statusLabel = (status: "online" | "offline" | "unknown") => {
+  const statusLabel = (status: "online" | "offline" | "unknown"): string => {
     if (status === "online") return "Online";
     if (status === "offline") return "Offline";
     return "Checking";
   };
-  const statusDotClass = (status: "online" | "offline" | "unknown") => {
+  const statusDotClass = (status: "online" | "offline" | "unknown"): string => {
     if (status === "online") return "bg-success";
     if (status === "offline") return "bg-error";
     return "bg-base-content/30";
@@ -192,7 +194,7 @@ export function ProjectList(_props: RoutableProps) {
                   onChange={setSearchQuery}
                   placeholder="Search projects..."
                 />
-                <StandardViewToggle
+                <StandardViewToggle<'grid' | 'table'>
                   value={viewMode}
                   onChange={(mode) => setViewMode(mode)}
                   options={[
@@ -224,7 +226,7 @@ export function ProjectList(_props: RoutableProps) {
                 }>
                   Filter
                 </StandardButton>
-                <StandardButton onClick={refreshProjects} icon={
+                <StandardButton onClick={() => void refreshProjects()} icon={
                   <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M23 4v6h-6"></path>
                     <path d="M1 20v-6h6"></path>
@@ -332,8 +334,8 @@ export function ProjectList(_props: RoutableProps) {
                   <div className="bg-bg-surface">
                     {filteredProjects.map((project, index) => {
                       const { meta } = project;
-                      const aiStatus = meta?.aiStatus || 'Idle';
-                      const risk = meta?.risk || 'Green';
+                      const aiStatus = meta.aiStatus;
+                      const risk = meta.risk;
 
                       const statusColor =
                         risk === 'Red' ? 'text-red-500 bg-red-500/10 border-red-500/20' :
@@ -351,7 +353,7 @@ export function ProjectList(_props: RoutableProps) {
                             <span className="text-sm font-semibold text-text-high group-hover:text-primary transition-colors truncate">
                               {project.name}
                             </span>
-                            {project.description && (
+                            {project.description !== undefined && project.description !== "" && (
                               <span className="text-xs text-text-medium truncate opacity-0 group-hover:opacity-100 transition-opacity">
                                 {project.description}
                               </span>
@@ -359,7 +361,7 @@ export function ProjectList(_props: RoutableProps) {
                           </div>
 
                           <div className="text-sm text-text-medium font-medium">
-                            {meta?.primaryPhase || 'Planning'}
+                            {meta.primaryPhase}
                           </div>
 
                           <div>
@@ -382,7 +384,7 @@ export function ProjectList(_props: RoutableProps) {
                           </div>
 
                           <div className="text-right text-xs text-text-medium font-mono">
-                            {meta?.lastEvent || '-'}
+                            {meta.lastEvent}
                           </div>
 
                           <div className="flex justify-end">
@@ -542,11 +544,11 @@ export function ProjectList(_props: RoutableProps) {
       </Modal>
 
       <SidePanel
-        isOpen={!!editingProject}
+        isOpen={editingProject !== null}
         onClose={closeEditModal}
         title="Edit Project"
       >
-        <form onSubmit={handleEditSubmit}>
+        <form onSubmit={(e) => void handleEditSubmit(e)}>
             <div className="space-y-6">
               <div className="form-control">
                 <label className="label px-0 pt-0 mb-2">
@@ -638,7 +640,7 @@ export function ProjectList(_props: RoutableProps) {
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-[#1A1A1A] bg-[#3ECF8E] hover:bg-[#34b078] rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!editName.trim() || saving}
+              disabled={editName.trim() === '' || saving}
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -652,7 +654,7 @@ export function ProjectList(_props: RoutableProps) {
         description="This will wipe all projects, tasks, epics, and webhooks. This action cannot be undone."
         confirmLabel="Reset"
         confirmClassName="btn-error"
-        onConfirm={handleReset}
+        onConfirm={() => void handleReset()}
         onClose={() => {
           if (!resetting) setResetConfirmOpen(false);
         }}

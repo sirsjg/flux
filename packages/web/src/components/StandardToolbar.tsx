@@ -8,7 +8,7 @@ interface StandardSearchBarProps {
     placeholder?: string;
 }
 
-export function StandardSearchBar({ value, onChange, placeholder = 'Search...' }: StandardSearchBarProps) {
+export function StandardSearchBar({ value, onChange, placeholder = 'Search...' }: StandardSearchBarProps): JSX.Element {
     return (
         <div className="flex items-center gap-2">
             <input
@@ -26,13 +26,13 @@ export function StandardSearchBar({ value, onChange, placeholder = 'Search...' }
 }
 
 // --- Standard View Toggle ---
-interface StandardViewToggleProps {
-    value: 'grid' | 'table' | string;
-    onChange: (val: any) => void;
-    options: { value: string; icon: JSX.Element; label?: string }[];
+interface StandardViewToggleProps<T extends string = string> {
+    value: T;
+    onChange: (val: T) => void;
+    options: { value: T; icon: JSX.Element; label?: string }[];
 }
 
-export function StandardViewToggle({ value, onChange, options }: StandardViewToggleProps) {
+export function StandardViewToggle<T extends string = string>({ value, onChange, options }: StandardViewToggleProps<T>): JSX.Element {
     return (
         <div className="flex bg-bg-surface p-0.5 rounded-md border border-border-subtle">
             {options.map((opt) => {
@@ -45,7 +45,7 @@ export function StandardViewToggle({ value, onChange, options }: StandardViewTog
                             ? 'bg-bg-surface-hover text-text-high shadow-sm'
                             : 'bg-transparent text-text-medium hover:text-text-high'
                             }`}
-                        title={opt.label || opt.value}
+                        title={opt.label !== undefined && opt.label !== '' ? opt.label : opt.value}
                     >
                         {opt.icon}
                     </button>
@@ -63,16 +63,18 @@ interface StandardButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
     onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
 }
 
-export function StandardButton({ children, icon, variant = 'secondary', className = '', ...props }: StandardButtonProps) {
+export function StandardButton({ children, icon, variant = 'secondary', className = '', ...props }: StandardButtonProps): JSX.Element {
     const baseClasses = "flex items-center gap-1.5 h-9 px-3 rounded-md font-medium text-sm transition-colors";
     const variants = {
         secondary: "bg-bg-surface border border-border-subtle text-text-medium hover:text-text-high hover:border-text-medium/30",
         primary: "bg-brand-primary text-black border-none hover:opacity-90 px-4"
     };
 
+    const classNameStr = typeof className === 'string' ? className : '';
+
     return (
         <button
-            className={`${baseClasses} ${variants[variant]} ${className}`}
+            className={`${baseClasses} ${variants[variant]} ${classNameStr}`}
             {...props}
         >
             {icon}

@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { useState } from 'preact/hooks'
 import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { Button } from './Button'
@@ -22,10 +23,10 @@ export interface DiffFileProps {
   defaultCollapsed?: boolean
 }
 
-export function DiffFileBlock({ file, onDelete, defaultCollapsed = false }: DiffFileProps) {
+export function DiffFileBlock({ file, onDelete, defaultCollapsed = false }: DiffFileProps): JSX.Element {
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
 
-  const getLineClass = (type: DiffLineType) => {
+  const getLineClass = (type: DiffLineType): string => {
     const typeMap = {
       added: 'diff-line-added',
       removed: 'diff-line-removed',
@@ -47,7 +48,7 @@ export function DiffFileBlock({ file, onDelete, defaultCollapsed = false }: Diff
           </button>
           <span className="diff-file-name">{file.filename}</span>
         </div>
-        {onDelete && (
+        {onDelete !== undefined && (
           <div className="diff-file-actions">
             <button className="diff-delete-button" onClick={onDelete}>
               <TrashIcon style={{ width: '12px', height: '12px', display: 'inline-block', marginRight: '4px' }} />
@@ -59,7 +60,7 @@ export function DiffFileBlock({ file, onDelete, defaultCollapsed = false }: Diff
       <div className="diff-content">
         {file.lines.map((line, index) => (
           <div key={index} className={getLineClass(line.type)}>
-            <div className="diff-line-number">{line.lineNumber || ''}</div>
+            <div className="diff-line-number">{line.lineNumber ?? ''}</div>
             <div className="diff-line-content">{line.content}</div>
           </div>
         ))}
@@ -75,17 +76,17 @@ export interface DiffViewerProps {
   onCollapseAll?: () => void
 }
 
-export function DiffViewer({ files, onDeleteFile, onExpandAll, onCollapseAll }: DiffViewerProps) {
+export function DiffViewer({ files, onDeleteFile, onExpandAll, onCollapseAll }: DiffViewerProps): JSX.Element {
   const [collapsedStates, setCollapsedStates] = useState<boolean[]>(
     files.map(() => false)
   )
 
-  const handleExpandAll = () => {
+  const handleExpandAll = (): void => {
     setCollapsedStates(files.map(() => false))
     onExpandAll?.()
   }
 
-  const handleCollapseAll = () => {
+  const handleCollapseAll = (): void => {
     setCollapsedStates(files.map(() => true))
     onCollapseAll?.()
   }
@@ -110,8 +111,8 @@ export function DiffViewer({ files, onDeleteFile, onExpandAll, onCollapseAll }: 
         <DiffFileBlock
           key={index}
           file={file}
-          onDelete={onDeleteFile ? () => onDeleteFile(index) : undefined}
-          defaultCollapsed={collapsedStates[index]}
+          onDelete={onDeleteFile !== undefined ? () => onDeleteFile(index) : undefined}
+          defaultCollapsed={collapsedStates[index] ?? false}
         />
       ))}
     </div>

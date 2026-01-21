@@ -1,4 +1,5 @@
-import { createContext } from 'preact'
+import { createContext, type ComponentChildren } from 'preact'
+import type { JSX } from 'preact'
 import { useContext, useState, useCallback } from 'preact/hooks'
 import {
   CheckCircleIcon,
@@ -29,9 +30,9 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
-export function useToast() {
+export function useToast(): ToastContextValue {
   const context = useContext(ToastContext)
-  if (!context) {
+  if (context === null) {
     throw new Error('useToast must be used within ToastProvider')
   }
   return context
@@ -54,7 +55,7 @@ function Toast({ toast, onClose }: { toast: ToastMessage; onClose: () => void })
       </div>
       <div className="toast-content">
         <div className="toast-message">{toast.message}</div>
-        {toast.action && (
+        {toast.action !== undefined && (
           <div className="toast-actions">
             <button className="toast-action" onClick={toast.action.onClick}>
               {toast.action.label}
@@ -72,7 +73,7 @@ function Toast({ toast, onClose }: { toast: ToastMessage; onClose: () => void })
   )
 }
 
-export function ToastProvider({ children }: { children: any }) {
+export function ToastProvider({ children }: { children: ComponentChildren }): JSX.Element {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   const showToast = useCallback((toast: Omit<ToastMessage, 'id'>) => {

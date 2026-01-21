@@ -1,3 +1,4 @@
+import type { JSX } from 'preact';
 import { ComponentChildren } from 'preact';
 
 interface PageHeaderProps {
@@ -7,7 +8,7 @@ interface PageHeaderProps {
   toolbar?: ComponentChildren;
 }
 
-export function PageHeader({ title, description, actions, toolbar }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, toolbar }: PageHeaderProps): JSX.Element {
   return (
     <div className="page-header">
       {/* Title Row */}
@@ -17,17 +18,17 @@ export function PageHeader({ title, description, actions, toolbar }: PageHeaderP
       </div>
 
       {/* Description (optional) */}
-      {description && (
+      {description !== undefined && description !== "" && (
         <p className="text-text-medium" style={{ fontSize: '14px', lineHeight: '1.6', marginTop: '8px', marginBottom: '16px' }}>
           {description}
         </p>
       )}
 
       {/* Toolbar Row */}
-      {(toolbar || actions) && (
+      {(toolbar !== undefined || actions !== undefined) && (
         <div className="page-header-row">
-          {toolbar && <div className="toolbar">{toolbar}</div>}
-          {actions && <div style={{ marginLeft: 'auto' }}>{actions}</div>}
+          {toolbar !== undefined && <div className="toolbar">{toolbar}</div>}
+          {actions !== undefined && <div style={{ marginLeft: 'auto' }}>{actions}</div>}
         </div>
       )}
     </div>

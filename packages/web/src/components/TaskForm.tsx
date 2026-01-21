@@ -59,13 +59,13 @@ export function TaskForm({
   const [newGuardrailNumber, setNewGuardrailNumber] = useState("");
   const [newGuardrailText, setNewGuardrailText] = useState("");
 
-  const isEdit = !!task;
+  const isEdit = task !== undefined;
 
   useEffect(() => {
     if (isOpen) {
       setDeleteConfirmOpen(false);
       setDeleteCommentId(null);
-      loadFormData();
+      void loadFormData();
     } else {
       setDeleteConfirmOpen(false);
       setDeleteCommentId(null);
@@ -79,28 +79,28 @@ export function TaskForm({
     ]);
     setEpics(epicsData);
     setAvailableTasks(
-      task ? tasksData.filter((t) => t.id !== task.id) : tasksData
+      task !== undefined ? tasksData.filter((t) => t.id !== task.id) : tasksData
     );
 
     setDependencyFilter("");
     setNewCriterion("");
     setNewGuardrailNumber("");
     setNewGuardrailText("");
-    if (task) {
+    if (task !== undefined) {
       setTitle(task.title);
       setStatus(task.status);
-      setEpicId(task.epic_id || "");
+      setEpicId(task.epic_id ?? "");
       setPriority(task.priority);
-      setType(task.type || "task");
+      setType(task.type ?? "task");
       setDependsOn([...task.depends_on]);
-      setComments(task.comments ? [...task.comments] : []);
-      setBlockedReason(task.blocked_reason || "");
-      setAcceptanceCriteria(task.acceptance_criteria ? [...task.acceptance_criteria] : []);
-      setGuardrails(task.guardrails ? [...task.guardrails] : []);
+      setComments(task.comments !== undefined ? [...task.comments] : []);
+      setBlockedReason(task.blocked_reason ?? "");
+      setAcceptanceCriteria(task.acceptance_criteria !== undefined ? [...task.acceptance_criteria] : []);
+      setGuardrails(task.guardrails !== undefined ? [...task.guardrails] : []);
     } else {
       setTitle("");
       setStatus("todo");
-      setEpicId(defaultEpicId || "");
+      setEpicId(defaultEpicId ?? "");
       setPriority(undefined);
       setType("task");
       setDependsOn([]);
@@ -111,21 +111,21 @@ export function TaskForm({
     }
   };
 
-  const handleSubmit = async (e: Event) => {
+  const handleSubmit = async (e: Event): Promise<void> => {
     e.preventDefault();
-    if (!title.trim() || submitting) return;
+    if (title.trim() === "" || submitting) return;
 
     setSubmitting(true);
     try {
-      if (isEdit && task) {
+      if (task !== undefined) {
         await updateTask(task.id, {
           title: title.trim(),
           status,
-          epic_id: epicId || undefined,
+          epic_id: epicId !== "" ? epicId : undefined,
           priority: priority,
           type: type,
           depends_on: dependsOn,
-          blocked_reason: blockedReason.trim() || undefined,
+          blocked_reason: blockedReason.trim() !== "" ? blockedReason.trim() : undefined,
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
           guardrails: guardrails.length > 0 ? guardrails : undefined,
         });
@@ -133,7 +133,7 @@ export function TaskForm({
         const newTask = await createTask(
           projectId,
           title.trim(),
-          epicId || undefined
+          epicId !== "" ? epicId : undefined
         );
         const updates: Partial<Task> = {};
         if (priority !== undefined) updates.priority = priority;
@@ -152,14 +152,14 @@ export function TaskForm({
     }
   };
 
-  const handleDelete = () => {
-    if (task && !submitting) {
+  const handleDelete = (): void => {
+    if (task !== undefined && !submitting) {
       setDeleteConfirmOpen(true);
     }
   };
 
-  const handleDeleteConfirmed = async () => {
-    if (!task || submitting) return;
+  const handleDeleteConfirmed = async (): Promise<void> => {
+    if (task === undefined || submitting) return;
     setSubmitting(true);
     try {
       await deleteTask(task.id);
@@ -171,8 +171,8 @@ export function TaskForm({
     }
   };
 
-  const handleAddComment = async () => {
-    if (!task || !commentBody.trim() || commentSubmitting) return;
+  const handleAddComment = async (): Promise<void> => {
+    if (task === undefined || commentBody.trim() === "" || commentSubmitting) return;
     setCommentSubmitting(true);
     try {
       const comment = await addTaskComment(task.id, commentBody.trim(), "user");
@@ -184,13 +184,13 @@ export function TaskForm({
     }
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!task || commentSubmitting) return;
+  const handleDeleteComment = (commentId: string): void => {
+    if (task === undefined || commentSubmitting) return;
     setDeleteCommentId(commentId);
   };
 
-  const handleDeleteCommentConfirmed = async () => {
-    if (!task || commentSubmitting || !deleteCommentId) return;
+  const handleDeleteCommentConfirmed = async (): Promise<void> => {
+    if (task === undefined || commentSubmitting || deleteCommentId === null) return;
     setCommentSubmitting(true);
     try {
       const success = await deleteTaskComment(task.id, deleteCommentId);
@@ -206,7 +206,7 @@ export function TaskForm({
     }
   };
 
-  const toggleDependency = (taskId: string) => {
+  const toggleDependency = (taskId: string): void => {
     setDependsOn((prev) =>
       prev.includes(taskId)
         ? prev.filter((id) => id !== taskId)
@@ -214,25 +214,25 @@ export function TaskForm({
     );
   };
 
-  const addCriterion = () => {
-    if (!newCriterion.trim()) return;
+  const addCriterion = (): void => {
+    if (newCriterion.trim() === "") return;
     setAcceptanceCriteria((prev) => [...prev, newCriterion.trim()]);
     setNewCriterion("");
   };
 
-  const removeCriterion = (index: number) => {
+  const removeCriterion = (index: number): void => {
     setAcceptanceCriteria((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const addGuardrail = () => {
+  const addGuardrail = (): void => {
     const num = Math.floor(parseInt(newGuardrailNumber));
-    if (isNaN(num) || num <= 0 || !newGuardrailText.trim()) return;
+    if (isNaN(num) || num <= 0 || newGuardrailText.trim() === "") return;
     setGuardrails((prev) => [...prev, { id: crypto.randomUUID(), number: num, text: newGuardrailText.trim() }]);
     setNewGuardrailNumber("");
     setNewGuardrailText("");
   };
 
-  const removeGuardrail = (id: string) => {
+  const removeGuardrail = (id: string): void => {
     setGuardrails((prev) => prev.filter((g) => g.id !== id));
   };
 
@@ -244,7 +244,7 @@ export function TaskForm({
         title={isEdit ? "Edit Task" : "New Task"}
         boxClassName="!w-[70vw] !max-w-none"
       >
-        <form onSubmit={handleSubmit} className="task-form">
+        <form onSubmit={(e) => void handleSubmit(e)} className="task-form">
         <div className="task-form-grid">
           <div className="task-form-section">
             <div className="task-form-group">
@@ -275,7 +275,7 @@ export function TaskForm({
               <div className="task-form-group">
                 <label className="task-form-label">
                   <span>External Blocker</span>
-                  {blockedReason && <span className="task-form-badge-blocked">Blocked</span>}
+                  {blockedReason !== "" && <span className="task-form-badge-blocked">Blocked</span>}
                 </label>
                 <Input
                   type="text"
@@ -353,7 +353,7 @@ export function TaskForm({
                     {availableTasks
                       .filter(
                         (t) =>
-                          !dependencyFilter ||
+                          dependencyFilter === "" ||
                           t.title
                             .toLowerCase()
                             .includes(dependencyFilter.toLowerCase())
@@ -367,7 +367,7 @@ export function TaskForm({
                           />
                           <span className="task-form-dependency-title">{t.title}</span>
                           <span className="task-form-dependency-status">
-                            {STATUS_CONFIG[t.status as Status]?.label || t.status}
+                            {STATUS_CONFIG[t.status as Status].label}
                           </span>
                         </label>
                       ))}
@@ -414,7 +414,7 @@ export function TaskForm({
                     variant="secondary"
                     size="small"
                     onClick={addCriterion}
-                    disabled={!newCriterion.trim()}
+                    disabled={newCriterion.trim() === ""}
                   >
                     Add
                   </Button>
@@ -467,7 +467,7 @@ export function TaskForm({
                     variant="secondary"
                     size="small"
                     onClick={addGuardrail}
-                    disabled={!newGuardrailNumber || parseInt(newGuardrailNumber) <= 0 || !newGuardrailText.trim()}
+                    disabled={newGuardrailNumber === "" || parseInt(newGuardrailNumber) <= 0 || newGuardrailText.trim() === ""}
                   >
                     Add
                   </Button>
@@ -499,11 +499,9 @@ export function TaskForm({
                               >
                                 {comment.author === "mcp" ? "MCP" : "User"}
                               </span>
-                              {comment.created_at && (
-                                <span className="task-form-comment-date">
-                                  {new Date(comment.created_at).toLocaleString()}
-                                </span>
-                              )}
+                              <span className="task-form-comment-date">
+                                {new Date(comment.created_at).toLocaleString()}
+                              </span>
                             </div>
                             <Button
                               variant="ghost"
@@ -532,8 +530,8 @@ export function TaskForm({
                       <Button
                         variant="secondary"
                         size="small"
-                        onClick={handleAddComment}
-                        disabled={!commentBody.trim() || commentSubmitting}
+                        onClick={() => void handleAddComment()}
+                        disabled={commentBody.trim() === "" || commentSubmitting}
                       >
                         {commentSubmitting ? "..." : "Add Comment"}
                       </Button>
@@ -563,7 +561,7 @@ export function TaskForm({
           <Button
             variant="primary"
             type="submit"
-            disabled={!title.trim() || submitting}
+            disabled={title.trim() === "" || submitting}
           >
             {submitting ? "..." : isEdit ? "Save" : "Create"}
           </Button>
@@ -576,19 +574,19 @@ export function TaskForm({
         description="This action cannot be undone."
         confirmLabel="Delete"
         confirmClassName="btn-error"
-        onConfirm={handleDeleteConfirmed}
+        onConfirm={() => void handleDeleteConfirmed()}
         onClose={() => {
           if (!submitting) setDeleteConfirmOpen(false);
         }}
         isLoading={submitting}
       />
       <ConfirmModal
-        isOpen={!!deleteCommentId}
+        isOpen={deleteCommentId !== null}
         title="Delete Comment?"
         description="This action cannot be undone."
         confirmLabel="Delete"
         confirmClassName="btn-error"
-        onConfirm={handleDeleteCommentConfirmed}
+        onConfirm={() => void handleDeleteCommentConfirmed()}
         onClose={() => {
           if (!commentSubmitting) setDeleteCommentId(null);
         }}

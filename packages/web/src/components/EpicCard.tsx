@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import './EpicCard.css'
 
@@ -19,7 +20,7 @@ export function EpicCard({
   color = 'blue',
   onClick,
   className = '',
-}: EpicCardProps) {
+}: EpicCardProps): JSX.Element {
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
   const cardClass = [
@@ -37,7 +38,7 @@ export function EpicCard({
         <span className="epic-card-status-dot" style={{ background: getColorHex(color) }} />
       </div>
 
-      {description && (
+      {description !== undefined && description !== "" && (
         <p className="epic-card-description">{description}</p>
       )}
 
@@ -74,5 +75,5 @@ function getColorHex(color: string): string {
     orange: '#f59e0b',
     red: '#ef4444',
   }
-  return colorMap[color] || '#3b82f6'
+  return colorMap[color] ?? '#3b82f6'
 }

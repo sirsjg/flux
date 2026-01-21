@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ComponentChildren } from 'preact'
 import { useState } from 'preact/hooks'
 import {
@@ -24,19 +25,19 @@ export interface CommentProps {
   nested?: boolean
 }
 
-export function Comment({ comment, onReply, nested = false }: CommentProps) {
+export function Comment({ comment, onReply, nested = false }: CommentProps): JSX.Element {
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [replyContent, setReplyContent] = useState('')
 
-  const handleReply = () => {
-    if (replyContent.trim() && onReply) {
+  const handleReply = (): void => {
+    if (replyContent.trim() !== "" && onReply !== undefined) {
       onReply(comment.id, replyContent)
       setReplyContent('')
       setShowReplyInput(false)
     }
   }
 
-  const bubbleClass = comment.isCurrentUser
+  const bubbleClass = comment.isCurrentUser === true
     ? 'comment-bubble comment-bubble-user'
     : 'comment-bubble'
 
@@ -45,7 +46,7 @@ export function Comment({ comment, onReply, nested = false }: CommentProps) {
   return (
     <div className={itemClass}>
       <div className="comment-avatar">
-        {comment.avatar || comment.author.charAt(0).toUpperCase()}
+        {comment.avatar ?? comment.author.charAt(0).toUpperCase()}
       </div>
       <div className="comment-content">
         <div className="comment-header">
@@ -72,7 +73,7 @@ export function Comment({ comment, onReply, nested = false }: CommentProps) {
           />
         )}
 
-        {comment.replies && comment.replies.length > 0 && (
+        {comment.replies !== undefined && comment.replies.length > 0 && (
           <div className="comment-replies">
             {comment.replies.map((reply) => (
               <Comment key={reply.id} comment={reply} onReply={onReply} nested={true} />
@@ -98,7 +99,7 @@ export function CommentReplyInput({
   value,
   onChange,
   placeholder = 'Write a reply...',
-}: CommentReplyInputProps) {
+}: CommentReplyInputProps): JSX.Element {
   return (
     <div className="comment-reply-input">
       <div className="comment-input-wrapper">
@@ -118,7 +119,7 @@ export function CommentReplyInput({
             </button>
           </div>
           <div className="comment-input-actions">
-            {onCancel && (
+            {onCancel !== undefined && (
               <button
                 className="comment-reply-button"
                 onClick={onCancel}
@@ -144,7 +145,7 @@ export interface CommentThreadProps {
   children?: ComponentChildren
 }
 
-export function CommentThread({ comments, onReply, children }: CommentThreadProps) {
+export function CommentThread({ comments, onReply, children }: CommentThreadProps): JSX.Element {
   return (
     <div className="comment-thread">
       {comments.map((comment) => (

@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import './Header.css'
 
 interface BreadcrumbItem {
@@ -15,19 +16,18 @@ interface HeaderProps {
 
 export function Header({
   breadcrumbs = [{ label: 'Projects', active: true }],
-  userInitials: _userInitials = 'U',
   onFeedbackClick,
   onAvatarClick,
-}: HeaderProps) {
+}: HeaderProps): JSX.Element {
   return (
     <header className="header">
       <div className="header-breadcrumbs">
         {breadcrumbs.map((item, index) => (
           <div key={index} className="header-breadcrumb-item-wrapper">
             {index > 0 && <span className="header-breadcrumb-separator">/</span>}
-            <div className={`header-breadcrumb-item ${item.active ? 'active' : ''}`}>
+            <div className={`header-breadcrumb-item ${item.active === true ? 'active' : ''}`}>
               <span>{item.label}</span>
-              {item.badge && (
+              {item.badge !== undefined && item.badge !== "" && (
                 <span className="header-breadcrumb-badge">
                   <span>📎</span>
                   {item.badge}

@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import {
   CheckIcon,
   NoSymbolIcon,
@@ -21,7 +22,20 @@ import {
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
 
-export function WebhooksPanel() {
+interface TestResult {
+  loading?: boolean
+  success?: boolean
+  status_code?: number
+  error?: string
+  response?: string
+}
+
+interface TestResultState {
+  webhookId: string
+  result: TestResult
+}
+
+export function WebhooksPanel(): JSX.Element {
   const [webhooks, setWebhooks] = useState<Webhook[]>([])
   const [projects, setProjects] = useState<ProjectWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -29,7 +43,7 @@ export function WebhooksPanel() {
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null)
   const [showDeliveries, setShowDeliveries] = useState<string | null>(null)
   const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([])
-  const [testResult, setTestResult] = useState<{ webhookId: string; result: any } | null>(null)
+  const [testResult, setTestResult] = useState<TestResultState | null>(null)
   const [pendingDeleteWebhook, setPendingDeleteWebhook] = useState<Webhook | null>(null)
   const [deletingWebhookId, setDeletingWebhookId] = useState<string | null>(null)
 
@@ -42,10 +56,10 @@ export function WebhooksPanel() {
   const [formEnabled, setFormEnabled] = useState(true)
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [])
 
-  async function loadData() {
+  async function loadData(): Promise<void> {
     setLoading(true)
     const [webhooksData, projectsData] = await Promise.all([
       getWebhooks(),
@@ -56,7 +70,7 @@ export function WebhooksPanel() {
     setLoading(false)
   }
 
-  function openCreateForm() {
+  function openCreateForm(): void {
     setEditingWebhook(null)
     setFormName('')
     setFormUrl('')
@@ -67,76 +81,76 @@ export function WebhooksPanel() {
     setShowForm(true)
   }
 
-  function openEditForm(webhook: Webhook) {
+  function openEditForm(webhook: Webhook): void {
     setEditingWebhook(webhook)
     setFormName(webhook.name)
     setFormUrl(webhook.url)
     setFormEvents([...webhook.events])
-    setFormSecret(webhook.secret || '')
-    setFormProjectId(webhook.project_id || '')
+    setFormSecret(webhook.secret ?? '')
+    setFormProjectId(webhook.project_id ?? '')
     setFormEnabled(webhook.enabled)
     setShowForm(true)
   }
 
-  async function handleSubmit(e: Event) {
+  async function handleSubmit(e: Event): Promise<void> {
     e.preventDefault()
-    if (!formName || !formUrl || formEvents.length === 0) return
+    if (formName === '' || formUrl === '' || formEvents.length === 0) return
 
-    if (editingWebhook) {
+    if (editingWebhook !== null) {
       await updateWebhook(editingWebhook.id, {
         name: formName,
         url: formUrl,
         events: formEvents,
-        secret: formSecret || undefined,
-        project_id: formProjectId || undefined,
+        secret: formSecret !== '' ? formSecret : undefined,
+        project_id: formProjectId !== '' ? formProjectId : undefined,
         enabled: formEnabled,
       })
     } else {
       await createWebhook(formName, formUrl, formEvents, {
-        secret: formSecret || undefined,
-        project_id: formProjectId || undefined,
+        secret: formSecret !== '' ? formSecret : undefined,
+        project_id: formProjectId !== '' ? formProjectId : undefined,
         enabled: formEnabled,
       })
     }
 
     setShowForm(false)
-    loadData()
+    void loadData()
   }
 
-  function handleDelete(webhook: Webhook) {
+  function handleDelete(webhook: Webhook): void {
     setPendingDeleteWebhook(webhook)
   }
 
-  async function handleDeleteConfirmed() {
-    if (!pendingDeleteWebhook || deletingWebhookId) return
+  async function handleDeleteConfirmed(): Promise<void> {
+    if (pendingDeleteWebhook === null || deletingWebhookId !== null) return
     setDeletingWebhookId(pendingDeleteWebhook.id)
     try {
       await deleteWebhook(pendingDeleteWebhook.id)
-      loadData()
+      void loadData()
     } finally {
       setDeletingWebhookId(null)
       setPendingDeleteWebhook(null)
     }
   }
 
-  async function handleToggleEnabled(webhook: Webhook) {
+  async function handleToggleEnabled(webhook: Webhook): Promise<void> {
     await updateWebhook(webhook.id, { enabled: !webhook.enabled })
-    loadData()
+    void loadData()
   }
 
-  async function handleTest(webhook: Webhook) {
+  async function handleTest(webhook: Webhook): Promise<void> {
     setTestResult({ webhookId: webhook.id, result: { loading: true } })
-    const result = await testWebhook(webhook.id)
+    const result = await testWebhook(webhook.id) as TestResult
     setTestResult({ webhookId: webhook.id, result })
   }
 
-  async function handleShowDeliveries(webhookId: string) {
+  async function handleShowDeliveries(webhookId: string): Promise<void> {
     setShowDeliveries(webhookId)
     const data = await getWebhookDeliveries(webhookId, 20)
     setDeliveries(data)
   }
 
-  function toggleEvent(event: WebhookEventType) {
+  function toggleEvent(event: WebhookEventType): void {
     if (formEvents.includes(event)) {
       setFormEvents(formEvents.filter(e => e !== event))
     } else {
@@ -144,11 +158,11 @@ export function WebhooksPanel() {
     }
   }
 
-  function selectAllEvents() {
+  function selectAllEvents(): void {
     setFormEvents([...WEBHOOK_EVENT_TYPES])
   }
 
-  function clearAllEvents() {
+  function clearAllEvents(): void {
     setFormEvents([])
   }
 
@@ -198,11 +212,11 @@ export function WebhooksPanel() {
                       <span class={`badge ${webhook.enabled ? 'badge-success' : 'badge-ghost'}`}>
                         {webhook.enabled ? 'Enabled' : 'Disabled'}
                       </span>
-                      {webhook.project_id && (
+                      {webhook.project_id !== undefined && webhook.project_id !== '' ? (
                         <span class="badge badge-outline badge-sm">
-                          Project: {projects.find(p => p.id === webhook.project_id)?.name || webhook.project_id}
+                          Project: {projects.find(p => p.id === webhook.project_id)?.name ?? webhook.project_id}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <p class="text-sm text-base-content/60 font-mono break-all mb-2">{webhook.url}</p>
                     <div class="flex flex-wrap gap-1 mb-2">
@@ -214,7 +228,7 @@ export function WebhooksPanel() {
                     </div>
                     <p class="text-xs text-base-content/40">
                       Created: {new Date(webhook.created_at).toLocaleDateString()}
-                      {webhook.secret && ' | Secret configured'}
+                      {webhook.secret !== undefined ? ' | Secret configured' : ''}
                     </p>
                   </div>
                   <div class="flex flex-col gap-2">
@@ -228,7 +242,7 @@ export function WebhooksPanel() {
                       </button>
                       <button
                         class="btn btn-ghost btn-xs"
-                        onClick={() => handleToggleEnabled(webhook)}
+                        onClick={() => void handleToggleEnabled(webhook)}
                         title={webhook.enabled ? 'Disable' : 'Enable'}
                       >
                         {webhook.enabled ? (
@@ -247,10 +261,10 @@ export function WebhooksPanel() {
                     </div>
                     <button
                       class="btn btn-outline btn-xs"
-                      onClick={() => handleTest(webhook)}
-                      disabled={testResult?.webhookId === webhook.id && testResult?.result?.loading}
+                      onClick={() => void handleTest(webhook)}
+                      disabled={testResult?.webhookId === webhook.id && testResult.result.loading === true}
                     >
-                      {testResult?.webhookId === webhook.id && testResult?.result?.loading ? (
+                      {testResult?.webhookId === webhook.id && testResult.result.loading === true ? (
                         <span class="loading loading-spinner loading-xs"></span>
                       ) : (
                         'Test'
@@ -258,34 +272,34 @@ export function WebhooksPanel() {
                     </button>
                     <button
                       class="btn btn-outline btn-xs"
-                      onClick={() => handleShowDeliveries(webhook.id)}
+                      onClick={() => void handleShowDeliveries(webhook.id)}
                     >
                       Deliveries
                     </button>
                   </div>
                 </div>
 
-                {testResult?.webhookId === webhook.id && !testResult?.result?.loading && (
-                  <div class={`mt-3 p-3 rounded-lg ${testResult.result.success ? 'bg-success/10' : 'bg-error/10'}`}>
+                {testResult?.webhookId === webhook.id && testResult.result.loading !== true && (
+                  <div class={`mt-3 p-3 rounded-lg ${testResult.result.success === true ? 'bg-success/10' : 'bg-error/10'}`}>
                     <div class="flex items-center gap-2 mb-1">
-                      {testResult.result.success ? (
+                      {testResult.result.success === true ? (
                         <span class="text-success font-medium">Test Successful</span>
                       ) : (
                         <span class="text-error font-medium">Test Failed</span>
                       )}
-                      {testResult.result.status_code && (
+                      {testResult.result.status_code !== undefined ? (
                         <span class="badge badge-sm">HTTP {testResult.result.status_code}</span>
-                      )}
+                      ) : null}
                       <button class="btn btn-ghost btn-xs ml-auto" onClick={() => setTestResult(null)}>
                         <XMarkIcon className="h-4 w-4" />
                       </button>
                     </div>
-                    {testResult.result.error && (
+                    {testResult.result.error !== undefined ? (
                       <p class="text-sm text-error">{testResult.result.error}</p>
-                    )}
-                    {testResult.result.response && (
+                    ) : null}
+                    {testResult.result.response !== undefined ? (
                       <pre class="text-xs mt-1 overflow-auto max-h-24">{testResult.result.response}</pre>
-                    )}
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -294,8 +308,8 @@ export function WebhooksPanel() {
         </div>
       )}
 
-      <Modal isOpen={showForm} title={editingWebhook ? 'Edit Webhook' : 'Create Webhook'} onClose={() => setShowForm(false)}>
-        <form onSubmit={handleSubmit} class="space-y-4">
+      <Modal isOpen={showForm} title={editingWebhook !== null ? 'Edit Webhook' : 'Create Webhook'} onClose={() => setShowForm(false)}>
+        <form onSubmit={(e) => void handleSubmit(e)} class="space-y-4">
           <div class="form-control">
             <label class="label">
               <span class="label-text">Name</span>
@@ -399,14 +413,14 @@ export function WebhooksPanel() {
               Cancel
             </button>
             <button type="submit" class="btn btn-primary" disabled={formEvents.length === 0}>
-              {editingWebhook ? 'Save Changes' : 'Create Webhook'}
+              {editingWebhook !== null ? 'Save Changes' : 'Create Webhook'}
             </button>
           </div>
         </form>
       </Modal>
 
       <Modal
-        isOpen={!!showDeliveries}
+        isOpen={showDeliveries !== null}
         title="Recent Deliveries"
         onClose={() => setShowDeliveries(null)}
       >
@@ -439,12 +453,12 @@ export function WebhooksPanel() {
                 </div>
                 <div class="text-xs text-base-content/60">
                   <span>{new Date(delivery.created_at).toLocaleString()}</span>
-                  {delivery.response_code && <span> | HTTP {delivery.response_code}</span>}
-                  {delivery.attempts > 1 && <span> | {delivery.attempts} attempts</span>}
+                  {delivery.response_code !== undefined ? <span> | HTTP {delivery.response_code}</span> : null}
+                  {delivery.attempts > 1 ? <span> | {delivery.attempts} attempts</span> : null}
                 </div>
-                {delivery.error && (
+                {delivery.error !== undefined && delivery.error !== '' ? (
                   <p class="text-xs text-error mt-1">{delivery.error}</p>
-                )}
+                ) : null}
               </div>
             ))}
           </div>
@@ -452,20 +466,20 @@ export function WebhooksPanel() {
       </Modal>
 
       <ConfirmModal
-        isOpen={!!pendingDeleteWebhook}
+        isOpen={pendingDeleteWebhook !== null}
         title="Delete Webhook?"
         description={
-          pendingDeleteWebhook
+          pendingDeleteWebhook !== null
             ? `Delete webhook "${pendingDeleteWebhook.name}"? This action cannot be undone.`
             : undefined
         }
         confirmLabel="Delete"
         confirmClassName="btn-error"
-        onConfirm={handleDeleteConfirmed}
+        onConfirm={() => void handleDeleteConfirmed()}
         onClose={() => {
-          if (!deletingWebhookId) setPendingDeleteWebhook(null)
+          if (deletingWebhookId === null) setPendingDeleteWebhook(null)
         }}
-        isLoading={!!deletingWebhookId}
+        isLoading={deletingWebhookId !== null}
       />
     </div>
   )

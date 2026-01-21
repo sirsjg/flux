@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ComponentChildren } from 'preact'
 import {
   MagnifyingGlassIcon,
@@ -29,7 +30,7 @@ export interface LogItemProps {
   log: LogEntry
 }
 
-export function LogItem({ log }: LogItemProps) {
+export function LogItem({ log }: LogItemProps): JSX.Element {
   const iconMap = {
     analysis: MagnifyingGlassIcon,
     todo: SparklesIcon,
@@ -48,11 +49,11 @@ export function LogItem({ log }: LogItemProps) {
       </div>
       <div className="log-content">
         <div className="log-title">{log.title}</div>
-        {log.details && <div className="log-details">{log.details}</div>}
-        {log.filepath && <code className="log-filepath">{log.filepath}</code>}
-        {(log.timestamp || log.checkStatus || log.badge) && (
+        {log.details !== undefined && log.details !== "" && <div className="log-details">{log.details}</div>}
+        {log.filepath !== undefined && log.filepath !== "" && <code className="log-filepath">{log.filepath}</code>}
+        {(log.timestamp !== undefined || log.checkStatus !== undefined || log.badge !== undefined) && (
           <div className="log-meta">
-            {log.checkStatus && (
+            {log.checkStatus !== undefined && log.checkStatus !== null && (
               <span className={`log-check-icon log-check-${log.checkStatus}`}>
                 {log.checkStatus === 'viewing' ? (
                   <EyeIcon style={{ width: '100%', height: '100%' }} />
@@ -61,8 +62,8 @@ export function LogItem({ log }: LogItemProps) {
                 )}
               </span>
             )}
-            {log.timestamp && <span className="log-timestamp">{log.timestamp}</span>}
-            {log.badge && <span className="log-badge">{log.badge}</span>}
+            {log.timestamp !== undefined && log.timestamp !== "" && <span className="log-timestamp">{log.timestamp}</span>}
+            {log.badge !== undefined && log.badge !== "" && <span className="log-badge">{log.badge}</span>}
           </div>
         )}
         {log.children}
@@ -76,7 +77,7 @@ export interface LogViewerProps {
   className?: string
 }
 
-export function LogViewer({ logs, className = '' }: LogViewerProps) {
+export function LogViewer({ logs, className = '' }: LogViewerProps): JSX.Element {
   return (
     <div className={`log-viewer ${className}`}>
       {logs.map((log) => (

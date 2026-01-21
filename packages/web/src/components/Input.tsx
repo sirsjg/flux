@@ -92,7 +92,7 @@ export function SearchInput({
         placeholder={placeholder}
         onInput={handleInput}
       />
-      {value && (
+      {value !== "" && (
         <button
           type="button"
           className="search-input-clear"

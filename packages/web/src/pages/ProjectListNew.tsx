@@ -1,5 +1,6 @@
+import type { JSX } from "preact";
 import { useEffect, useState, useMemo } from "preact/hooks";
-import { route, RoutableProps } from "preact-router";
+import { route, type RoutableProps } from "preact-router";
 import {
     ExclamationTriangleIcon,
     Squares2X2Icon,
@@ -23,7 +24,8 @@ import {
     WebhooksPanel,
 } from "../components";
 
-export function ProjectList(_props: RoutableProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function ProjectList(_props?: RoutableProps): JSX.Element {
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -37,15 +39,15 @@ export function ProjectList(_props: RoutableProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsSection, setSettingsSection] = useState<"configuration" | "webhooks" | "reset">("configuration");
     const [apiStatus, setApiStatus] = useState<"online" | "offline" | "unknown">("unknown");
-    const [sseStatus, _setSseStatus] = useState<"online" | "offline" | "unknown">("unknown");
+    const [sseStatus] = useState<"online" | "offline" | "unknown">("unknown");
     const [resetting, setResetting] = useState(false);
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
     useEffect(() => {
-        refreshProjects();
+        void refreshProjects();
     }, []);
 
-    const refreshProjects = async () => {
+    const refreshProjects = async (): Promise<void> => {
         setLoading(true);
         setApiStatus("unknown");
         try {
@@ -61,19 +63,19 @@ export function ProjectList(_props: RoutableProps) {
         }
     };
 
-    const closeEditModal = (force = false) => {
+    const closeEditModal = (force = false): void => {
         if (saving && !force) return;
         setEditingProject(null);
         setEditName("");
         setEditDescription("");
     };
 
-    const openSettings = () => {
+    const openSettings = (): void => {
         setSettingsSection("configuration");
         setSettingsOpen(true);
     };
 
-    const handleReset = async () => {
+    const handleReset = async (): Promise<void> => {
         if (resetting) return;
         setResetting(true);
         try {
@@ -85,16 +87,16 @@ export function ProjectList(_props: RoutableProps) {
         }
     };
 
-    const handleEditSubmit = async (e: Event) => {
+    const handleEditSubmit = async (e: Event): Promise<void> => {
         e.preventDefault();
-        if (!editingProject || !editName.trim() || saving) return;
+        if (editingProject === null || editName.trim() === "" || saving) return;
 
         setSaving(true);
         let didSave = false;
         try {
             await updateProject(editingProject.id, {
                 name: editName.trim(),
-                description: editDescription.trim() || undefined,
+                description: editDescription.trim() !== "" ? editDescription.trim() : undefined,
             });
             await refreshProjects();
             didSave = true;
@@ -108,24 +110,25 @@ export function ProjectList(_props: RoutableProps) {
 
     // Filter projects
     const filteredProjects = useMemo(() => {
-        if (!searchQuery) return projects;
+        if (searchQuery === "") return projects;
         const lowerQuery = searchQuery.toLowerCase();
-        return projects.filter(p =>
-            p.name.toLowerCase().includes(lowerQuery) ||
-            p.description?.toLowerCase().includes(lowerQuery)
-        );
+        return projects.filter(p => {
+            const nameMatch = p.name.toLowerCase().includes(lowerQuery);
+            const descMatch = p.description?.toLowerCase().includes(lowerQuery) ?? false;
+            return nameMatch || descMatch;
+        });
     }, [projects, searchQuery]);
 
     // Status helpers from existing code
     const apiOrigin = typeof window === "undefined" ? "" : window.location.origin;
     const apiLocation = import.meta.env.DEV ? "http://localhost:3000/api" : `${apiOrigin}/api`;
     const sseLocation = import.meta.env.DEV ? "http://localhost:3000/api/events" : `${apiOrigin}/api/events`;
-    const statusLabel = (status: "online" | "offline" | "unknown") => {
+    const statusLabel = (status: "online" | "offline" | "unknown"): string => {
         if (status === "online") return "Online";
         if (status === "offline") return "Offline";
         return "Checking";
     };
-    const statusDotClass = (status: "online" | "offline" | "unknown") => {
+    const statusDotClass = (status: "online" | "offline" | "unknown"): string => {
         if (status === "online") return "bg-success";
         if (status === "offline") return "bg-error";
         return "bg-base-content/30";
@@ -393,11 +396,11 @@ export function ProjectList(_props: RoutableProps) {
             </Modal>
 
             <Modal
-                isOpen={!!editingProject}
+                isOpen={editingProject !== null}
                 onClose={closeEditModal}
                 title="Edit Project"
             >
-                <form onSubmit={handleEditSubmit}>
+                <form onSubmit={(e) => void handleEditSubmit(e)}>
                     <div className="form-control mb-4">
                         <label className="label">
                             <span className="label-text">Project Name *</span>
@@ -436,7 +439,7 @@ export function ProjectList(_props: RoutableProps) {
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={!editName.trim() || saving}
+                            disabled={editName.trim() === "" || saving}
                         >
                             {saving ? (
                                 <span className="loading loading-spinner loading-sm"></span>
@@ -454,7 +457,7 @@ export function ProjectList(_props: RoutableProps) {
                 description="This will wipe all projects, tasks, epics, and webhooks. This action cannot be undone."
                 confirmLabel="Reset"
                 confirmClassName="btn-error"
-                onConfirm={handleReset}
+                onConfirm={() => void handleReset()}
                 onClose={() => {
                     if (!resetting) setResetConfirmOpen(false);
                 }}

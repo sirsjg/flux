@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ComponentChildren } from 'preact'
 import { useEffect, useRef } from 'preact/hooks'
 
@@ -9,12 +10,12 @@ interface ModalProps {
   boxClassName?: string
 }
 
-export function Modal({ isOpen, onClose, title, children, boxClassName }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, boxClassName }: ModalProps): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
     const dialog = dialogRef.current
-    if (!dialog) return
+    if (dialog === null) return
 
     if (isOpen) {
       dialog.showModal()
@@ -23,7 +24,7 @@ export function Modal({ isOpen, onClose, title, children, boxClassName }: ModalP
     }
   }, [isOpen])
 
-  const handleBackdropClick = (e: MouseEvent) => {
+  const handleBackdropClick = (e: MouseEvent): void => {
     const dialog = dialogRef.current
     if (e.target === dialog) {
       onClose()
@@ -38,7 +39,7 @@ export function Modal({ isOpen, onClose, title, children, boxClassName }: ModalP
       onClose={onClose}
     >
       <div class={`modal-box w-full max-w-xl ${boxClassName ?? ''}`}>
-        {title && <h3 class="font-bold text-lg mb-4">{title}</h3>}
+        {title !== "" && <h3 class="font-bold text-lg mb-4">{title}</h3>}
         {children}
       </div>
     </dialog>

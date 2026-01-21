@@ -1,5 +1,10 @@
-import { ComponentChildren } from 'preact'
+import type { JSX } from 'preact'
+import { ComponentChildren, ComponentType } from 'preact'
 import './Button.css'
+
+interface IconProps {
+  className?: string
+}
 
 export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -8,10 +13,10 @@ export interface ButtonProps {
   onClick?: () => void
   type?: 'button' | 'submit' | 'reset'
   children: ComponentChildren
-  icon?: any
+  icon?: ComponentType<IconProps>
   iconPosition?: 'left' | 'right'
   className?: string
-  style?: any
+  style?: Record<string, string>
 }
 
 export function Button({
@@ -25,7 +30,7 @@ export function Button({
   iconPosition = 'left',
   className = '',
   style,
-}: ButtonProps) {
+}: ButtonProps): JSX.Element {
   const buttonClass = [
     'button',
     `button-${variant}`,
@@ -43,9 +48,9 @@ export function Button({
       disabled={disabled}
       style={style}
     >
-      {Icon && iconPosition === 'left' && <Icon className="button-icon" />}
+      {Icon !== undefined && iconPosition === 'left' && <Icon className="button-icon" />}
       {children}
-      {Icon && iconPosition === 'right' && <Icon className="button-icon" />}
+      {Icon !== undefined && iconPosition === 'right' && <Icon className="button-icon" />}
     </button>
   )
 }

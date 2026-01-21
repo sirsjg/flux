@@ -3,13 +3,25 @@
  * Makes all errors surface immediately with full context
  */
 
+interface ErrorWithStack {
+  message?: string;
+  stack?: string;
+}
+
+function isErrorWithStack(value: unknown): value is ErrorWithStack {
+  return typeof value === 'object' && value !== null;
+}
+
 if (import.meta.env.DEV) {
   // Catch unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
+    const reason: unknown = event.reason;
+    const reasonStack = isErrorWithStack(reason) ? reason.stack : undefined;
+
     console.error('🚨 Unhandled Promise Rejection:', {
-      reason: event.reason,
+      reason,
       promise: event.promise,
-      stack: event.reason?.stack,
+      stack: reasonStack,
       timestamp: new Date().toISOString(),
     });
 
@@ -27,7 +39,15 @@ if (import.meta.env.DEV) {
       font-family: monospace;
       white-space: pre-wrap;
     `;
-    overlay.textContent = `🚨 Unhandled Promise Rejection\n${event.reason?.message || event.reason}\n\n${event.reason?.stack || ''}`;
+
+    const reasonMessage = isErrorWithStack(reason) && typeof reason.message === 'string'
+      ? reason.message
+      : String(reason);
+    const reasonStackStr = isErrorWithStack(reason) && typeof reason.stack === 'string'
+      ? reason.stack
+      : '';
+
+    overlay.textContent = `🚨 Unhandled Promise Rejection\n${reasonMessage}\n\n${reasonStackStr}`;
 
     const closeBtn = document.createElement('button');
     closeBtn.textContent = 'Close';
@@ -40,13 +60,16 @@ if (import.meta.env.DEV) {
 
   // Catch regular errors
   window.addEventListener('error', (event) => {
+    const error: unknown = event.error;
+    const errorStack = isErrorWithStack(error) ? error.stack : undefined;
+
     console.error('🚨 Unhandled Error:', {
       message: event.message,
       filename: event.filename,
       lineno: event.lineno,
       colno: event.colno,
-      error: event.error,
-      stack: event.error?.stack,
+      error,
+      stack: errorStack,
       timestamp: new Date().toISOString(),
     });
   });

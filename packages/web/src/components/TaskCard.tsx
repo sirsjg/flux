@@ -4,7 +4,8 @@ import { TASK_TYPE_CONFIG, type TaskType } from '@flux/shared'
 import './TaskCard.css'
 
 // Icon mapping for task types
-const TASK_TYPE_ICONS: Record<string, any> = {
+type IconComponent = typeof CheckCircleIcon
+const TASK_TYPE_ICONS: Record<string, IconComponent> = {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   SparklesIcon,
@@ -14,13 +15,13 @@ const TASK_TYPE_ICONS: Record<string, any> = {
 }
 
 // Get icon component for task type
-const getTypeIcon = (type: TaskType) => {
+const getTypeIcon = (type: TaskType): IconComponent => {
   const config = TASK_TYPE_CONFIG[type]
-  return TASK_TYPE_ICONS[config.icon]
+  return TASK_TYPE_ICONS[config.icon] ?? CheckCircleIcon
 }
 
 // CSS class mapping for task type colors
-const getTypeBadgeClass = (color: string) => {
+const getTypeBadgeClass = (color: string): string => {
   const classMap: Record<string, string> = {
     gray: 'task-card-type-badge-gray',
     red: 'task-card-type-badge-red',
@@ -29,7 +30,7 @@ const getTypeBadgeClass = (color: string) => {
     green: 'task-card-type-badge-green',
     amber: 'task-card-type-badge-amber',
   }
-  return classMap[color] || 'task-card-type-badge-gray'
+  return classMap[color] ?? 'task-card-type-badge-gray'
 }
 
 interface TaskCardProps {
@@ -39,29 +40,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onClick, compact = false }: TaskCardProps) {
-  const taskType = task.type || 'task'
-  const typeConfig = TASK_TYPE_CONFIG?.[taskType]
-
-  if (!typeConfig) {
-    console.error('TASK_TYPE_CONFIG is undefined or missing type:', taskType, 'Available config:', TASK_TYPE_CONFIG)
-    // Render without type badge if config is missing
-    const cardClass = compact ? 'task-card task-card-compact' : 'task-card'
-    return (
-      <div className={cardClass} onClick={onClick}>
-        <div className="task-card-header">
-          <div className="task-card-title-row">
-            <h4 className="task-card-title">{task.title}</h4>
-          </div>
-          {task.blocked && (
-            <span className="task-card-blocked-badge" title={task.blocked_reason || undefined}>
-              {task.blocked_reason ? 'Waiting' : 'Blocked'}
-            </span>
-          )}
-        </div>
-      </div>
-    )
-  }
-
+  const taskType = task.type ?? 'task'
+  const typeConfig = TASK_TYPE_CONFIG[taskType]
   const TypeIcon = getTypeIcon(taskType)
   const badgeClass = `task-card-type-badge ${getTypeBadgeClass(typeConfig.color)}`
   const cardClass = compact ? 'task-card task-card-compact' : 'task-card'
@@ -76,22 +56,22 @@ export function TaskCard({ task, onClick, compact = false }: TaskCardProps) {
           </span>
         </div>
         {task.blocked && (
-          <span className="task-card-blocked-badge" title={task.blocked_reason || undefined}>
-            {task.blocked_reason ? 'Waiting' : 'Blocked'}
+          <span className="task-card-blocked-badge" title={task.blocked_reason ?? undefined}>
+            {task.blocked_reason !== undefined && task.blocked_reason !== "" ? 'Waiting' : 'Blocked'}
           </span>
         )}
       </div>
-      {task.blocked_reason && (
+      {task.blocked_reason !== undefined && task.blocked_reason !== "" && (
         <div className="task-card-blocked-reason">
           ⏳ {task.blocked_reason}
         </div>
       )}
-      {task.comments && task.comments.length > 0 && !task.blocked_reason && (
+      {task.comments !== undefined && task.comments !== null && task.comments.length > 0 && (task.blocked_reason === undefined || task.blocked_reason === "") && (
         <p className="task-card-comment">
           {task.comments[task.comments.length - 1]?.body}
         </p>
       )}
-      {task.blocked && !task.blocked_reason && task.depends_on.length > 0 && (
+      {task.blocked && (task.blocked_reason === undefined || task.blocked_reason === "") && task.depends_on.length > 0 && (
         <div className="task-card-deps-message task-card-deps-message-incomplete">
           {task.depends_on.length} incomplete dep{task.depends_on.length > 1 ? 's' : ''}
         </div>

@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ComponentChildren } from 'preact'
 import { Modal } from './Modal'
 
@@ -25,10 +26,10 @@ export function ConfirmModal({
   isLoading = false,
   onConfirm,
   onClose,
-}: ConfirmModalProps) {
+}: ConfirmModalProps): JSX.Element {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      {description && (
+      {description !== undefined && (
         <p class="text-sm text-base-content/70">{description}</p>
       )}
       <div class="modal-action">

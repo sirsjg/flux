@@ -1,11 +1,12 @@
-import { ComponentChildren } from 'preact'
+import type { JSX } from 'preact'
+import { ComponentChildren, FunctionComponent } from 'preact'
 import { useState } from 'preact/hooks'
 import './Tabs.css'
 
 export interface TabItem {
   id: string
   label: string
-  icon?: any
+  icon?: FunctionComponent<{ style?: Record<string, string> }>
   badge?: string | number
   content: ComponentChildren
 }
@@ -17,10 +18,12 @@ export interface TabsProps {
   className?: string
 }
 
-export function Tabs({ tabs, defaultTab, onTabChange, className = '' }: TabsProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id || '')
+export function Tabs({ tabs, defaultTab, onTabChange, className = '' }: TabsProps): JSX.Element {
+  const firstTabId = tabs[0]?.id ?? ''
+  const initialTab = defaultTab !== undefined && defaultTab !== '' ? defaultTab : firstTabId
+  const [activeTab, setActiveTab] = useState(initialTab)
 
-  const handleTabClick = (tabId: string) => {
+  const handleTabClick = (tabId: string): void => {
     setActiveTab(tabId)
     onTabChange?.(tabId)
   }
@@ -38,13 +41,13 @@ export function Tabs({ tabs, defaultTab, onTabChange, className = '' }: TabsProp
               className={`tab-button ${isActive ? 'active' : ''}`}
               onClick={() => handleTabClick(tab.id)}
             >
-              {Icon && (
+              {Icon !== undefined && (
                 <span className="tab-icon">
                   <Icon style={{ width: '100%', height: '100%' }} />
                 </span>
               )}
               {tab.label}
-              {tab.badge !== undefined && tab.badge !== null && (
+              {tab.badge !== undefined && (
                 <span className="tab-badge">{tab.badge}</span>
               )}
             </button>

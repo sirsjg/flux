@@ -9,12 +9,12 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onEdit }: ProjectCardProps) {
     const { meta } = project;
-    const aiStatus = meta?.aiStatus || 'Idle';
-    const risk = meta?.risk || 'Green';
+    const aiStatus = meta.aiStatus;
+    const risk = meta.risk;
 
     // Progress calculation helpers for "sparklines"
-    const lanes = meta?.lanes || { shaping: 0, betting: 0, active: 0, shipped: 0 };
-    const totalItems = (lanes.shaping + lanes.betting + lanes.active + lanes.shipped) || 1;
+    const lanes = meta.lanes;
+    const totalItems = (lanes.shaping + lanes.betting + lanes.active + lanes.shipped) !== 0 ? (lanes.shaping + lanes.betting + lanes.active + lanes.shipped) : 1;
     const getPercent = (val: number) => Math.max(5, Math.min(100, (val / totalItems) * 100));
 
     const statusColor =
@@ -48,7 +48,7 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
                         </span>
                         <span className="text-border-subtle">•</span>
                         <span className="text-xs text-text-medium font-medium">
-                            {meta?.primaryPhase}
+                            {meta.primaryPhase}
                         </span>
                     </div>
                 </div>
@@ -66,14 +66,14 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
             </div>
 
             {/* Blocker Warning */}
-            {meta?.blockers && meta.blockers.count > 0 && (
+            {meta.blockers.count > 0 && (
                 <div className="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2">
                     <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <span className="text-xs text-red-400 font-medium">
                         {meta.blockers.count} blocked task{meta.blockers.count > 1 ? 's' : ''}
-                        {meta.blockers.reason && `: ${meta.blockers.reason}`}
+                        {meta.blockers.reason !== undefined && meta.blockers.reason !== "" && `: ${meta.blockers.reason}`}
                     </span>
                 </div>
             )}
@@ -130,9 +130,9 @@ export function ProjectCard({ project, onEdit }: ProjectCardProps) {
 
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] text-text-medium/70 truncate max-w-[120px]">
-                        {meta?.lastEvent || 'No recent activity'}
+                        {meta.lastEvent !== "" ? meta.lastEvent : 'No recent activity'}
                     </span>
-                    {onEdit && (
+                    {onEdit !== undefined && (
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();

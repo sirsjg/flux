@@ -22,20 +22,20 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
   const [submitting, setSubmitting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
 
-  const isEdit = !!epic
+  const isEdit = epic !== undefined
 
   useEffect(() => {
     if (isOpen) {
-      loadFormData()
+      void loadFormData()
     } else {
       setDeleteConfirmOpen(false)
     }
   }, [isOpen, epic, projectId])
 
-  const loadFormData = async () => {
+  const loadFormData = async (): Promise<void> => {
     const allEpics = await getEpics(projectId)
-    setAvailableEpics(epic ? allEpics.filter(e => e.id !== epic.id) : allEpics)
-    if (epic) {
+    setAvailableEpics(epic !== undefined ? allEpics.filter(e => e.id !== epic.id) : allEpics)
+    if (epic !== undefined) {
       setTitle(epic.title)
       setNotes(epic.notes)
       setStatus(epic.status)
@@ -48,13 +48,13 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
     }
   }
 
-  const handleSubmit = async (e: Event) => {
+  const handleSubmit = async (e: Event): Promise<void> => {
     e.preventDefault()
-    if (!title.trim() || submitting) return
+    if (title.trim() === "" || submitting) return
 
     setSubmitting(true)
     try {
-      if (isEdit && epic) {
+      if (epic !== undefined) {
         await updateEpic(epic.id, {
           title: title.trim(),
           notes: notes.trim(),
@@ -74,14 +74,14 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
     }
   }
 
-  const handleDelete = () => {
-    if (epic && !submitting) {
+  const handleDelete = (): void => {
+    if (epic !== undefined && !submitting) {
       setDeleteConfirmOpen(true)
     }
   }
 
-  const handleDeleteConfirmed = async () => {
-    if (!epic || submitting) return
+  const handleDeleteConfirmed = async (): Promise<void> => {
+    if (epic === undefined || submitting) return
     setSubmitting(true)
     try {
       await deleteEpic(epic.id)
@@ -93,7 +93,7 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
     }
   }
 
-  const toggleDependency = (epicId: string) => {
+  const toggleDependency = (epicId: string): void => {
     setDependsOn(prev =>
       prev.includes(epicId)
         ? prev.filter(id => id !== epicId)
@@ -104,7 +104,7 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Epic' : 'New Epic'}>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => void handleSubmit(e)}>
         <div class="form-control mb-4">
           <label class="label">
             <span class="label-text">Title *</span>
@@ -167,7 +167,7 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
                     onChange={() => toggleDependency(e.id)}
                   />
                   <span class="text-sm truncate flex-1">{e.title}</span>
-                  <span class="badge badge-ghost badge-xs">{STATUS_CONFIG[e.status as Status]?.label || e.status}</span>
+                  <span class="badge badge-ghost badge-xs">{STATUS_CONFIG[e.status as Status].label}</span>
                 </label>
               ))}
             </div>
@@ -183,7 +183,7 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
           <button type="button" class="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" class="btn btn-primary" disabled={!title.trim() || submitting}>
+          <button type="submit" class="btn btn-primary" disabled={title.trim() === "" || submitting}>
             {submitting ? <span class="loading loading-spinner loading-sm"></span> : (isEdit ? 'Save' : 'Create')}
           </button>
         </div>
@@ -195,7 +195,7 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
         description="Tasks in this epic will be moved to Unassigned."
         confirmLabel="Delete"
         confirmClassName="btn-error"
-        onConfirm={handleDeleteConfirmed}
+        onConfirm={() => void handleDeleteConfirmed()}
         onClose={() => {
           if (!submitting) setDeleteConfirmOpen(false)
         }}

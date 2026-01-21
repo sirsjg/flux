@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon, ExclamationTriangleIcon, SparklesIcon, ArrowPathIcon, DocumentTextIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -26,19 +27,24 @@ export function DraggableTaskCard({
     data: { task },
   })
 
+  // Extract attributes without role to avoid type conflict
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { role, ...restAttributes } = attributes
+
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const handleClick = () => {
-    if (!isDragging && onClick) {
+  const handleClick = (): void => {
+    if (!isDragging && onClick !== undefined) {
       onClick()
     }
   }
 
   // Icon mapping for task types
-  const TASK_TYPE_ICONS: Record<string, any> = {
+  type IconComponent = typeof CheckCircleIcon
+  const TASK_TYPE_ICONS: Record<string, IconComponent> = {
     CheckCircleIcon,
     ExclamationTriangleIcon,
     SparklesIcon,
@@ -48,13 +54,13 @@ export function DraggableTaskCard({
   }
 
   // Get icon component for task type
-  const getTypeIcon = (type: TaskType) => {
+  const getTypeIcon = (type: TaskType): IconComponent => {
     const config = TASK_TYPE_CONFIG[type]
-    return TASK_TYPE_ICONS[config.icon]
+    return TASK_TYPE_ICONS[config.icon] ?? CheckCircleIcon
   }
 
   // Tailwind color mapping (using standard Tailwind colors)
-  const getTypeColor = (color: string) => {
+  const getTypeColor = (color: string): string => {
     const colorMap: Record<string, string> = {
       gray: 'text-gray-600 bg-gray-100',
       red: 'text-red-600 bg-red-100',
@@ -63,19 +69,19 @@ export function DraggableTaskCard({
       green: 'text-green-600 bg-green-100',
       amber: 'text-amber-600 bg-amber-100',
     }
-    return colorMap[color] || 'text-gray-600 bg-gray-100'
+    return colorMap[color] ?? 'text-gray-600 bg-gray-100'
   }
 
   // Shared indicator badges for acceptance criteria and guardrails
-  const renderMetaIndicators = (compact = false) => (
+  const renderMetaIndicators = (compact = false): JSX.Element => (
     <>
-      {task.acceptance_criteria && task.acceptance_criteria.length > 0 && (
+      {task.acceptance_criteria !== undefined && task.acceptance_criteria !== null && task.acceptance_criteria.length > 0 && (
         <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-success/70`} title="Acceptance criteria">
           <CheckCircleIcon className="h-3.5 w-3.5" />
           <span>{task.acceptance_criteria.length}</span>
         </div>
       )}
-      {task.guardrails && task.guardrails.length > 0 && (
+      {task.guardrails !== undefined && task.guardrails !== null && task.guardrails.length > 0 && (
         <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-info/70`} title="Guardrails">
           <ShieldCheckIcon className="h-3.5 w-3.5" />
           <span>{task.guardrails.length}</span>
@@ -94,12 +100,8 @@ export function DraggableTaskCard({
           task.blocked ? 'ring-2 ring-warning/50' : ''
         }`}
         onClick={handleClick}
-        {...(listeners as any)}
-        role={attributes.role}
-        tabIndex={attributes.tabIndex}
-        aria-pressed={attributes['aria-pressed']}
-        aria-roledescription={attributes['aria-roledescription']}
-        aria-describedby={attributes['aria-describedby']}
+        {...listeners}
+        {...restAttributes}
       >
         <div class="flex items-center gap-2">
           <span
@@ -108,12 +110,8 @@ export function DraggableTaskCard({
           />
           <span class="font-medium text-sm truncate flex-1">{task.title}</span>
           {(() => {
-            const taskType = task.type || 'task'
-            const typeConfig = TASK_TYPE_CONFIG?.[taskType]
-            if (!typeConfig) {
-              console.error('TASK_TYPE_CONFIG is undefined or missing type:', taskType, 'Available config:', TASK_TYPE_CONFIG)
-              return null
-            }
+            const taskType = task.type ?? 'task'
+            const typeConfig = TASK_TYPE_CONFIG[taskType]
             const TypeIcon = getTypeIcon(taskType)
             return (
               <span class={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${getTypeColor(typeConfig.color)}`} title={typeConfig.label}>
@@ -121,7 +119,7 @@ export function DraggableTaskCard({
               </span>
             )
           })()}
-          {task.priority !== undefined && task.priority !== null && (
+          {task.priority !== undefined && (
             <span
               class="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0"
               style={{
@@ -164,12 +162,8 @@ export function DraggableTaskCard({
         task.blocked ? 'ring-2 ring-warning/50' : ''
       }`}
       onClick={handleClick}
-      {...(listeners as any)}
-      role={attributes.role}
-      tabIndex={attributes.tabIndex}
-      aria-pressed={attributes['aria-pressed']}
-      aria-roledescription={attributes['aria-roledescription']}
-      aria-describedby={attributes['aria-describedby']}
+      {...listeners}
+      {...restAttributes}
     >
       {/* Epic Label */}
       <div class="flex items-center gap-1.5 mb-2">
@@ -179,12 +173,8 @@ export function DraggableTaskCard({
         />
         <span class="text-xs text-base-content/50 font-medium">{epicTitle}</span>
         {(() => {
-          const taskType = task.type || 'task'
-          const typeConfig = TASK_TYPE_CONFIG?.[taskType]
-          if (!typeConfig) {
-            console.error('TASK_TYPE_CONFIG is undefined or missing type:', taskType, 'Available config:', TASK_TYPE_CONFIG)
-            return null
-          }
+          const taskType = task.type ?? 'task'
+          const typeConfig = TASK_TYPE_CONFIG[taskType]
           const TypeIcon = getTypeIcon(taskType)
           return (
             <span class={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${getTypeColor(typeConfig.color)}`} title={typeConfig.label}>
@@ -193,7 +183,7 @@ export function DraggableTaskCard({
             </span>
           )
         })()}
-        {task.priority !== undefined && task.priority !== null && (
+        {task.priority !== undefined && (
           <span
             class="text-xs px-1.5 py-0.5 rounded font-medium"
             style={{
@@ -215,7 +205,7 @@ export function DraggableTaskCard({
       <h4 class="font-semibold text-sm mb-1">{task.title}</h4>
 
       {/* Latest comment preview */}
-      {task.comments && task.comments.length > 0 && (
+      {task.comments !== undefined && task.comments !== null && task.comments.length > 0 && (
         <p class="text-xs text-base-content/50 mb-3 line-clamp-2">
           {task.comments[task.comments.length - 1]?.body}
         </p>
@@ -258,7 +248,7 @@ export function DraggableTaskCard({
         </div>
 
         {/* Task Number */}
-        {taskNumber && (
+        {taskNumber !== undefined && (
           <span class="text-xs text-base-content/40">#{taskNumber}</span>
         )}
       </div>

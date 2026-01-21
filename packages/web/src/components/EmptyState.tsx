@@ -8,8 +8,10 @@ import {
 import { Button } from './Button'
 import './EmptyState.css'
 
+type IconComponent = typeof InboxIcon
+
 export interface EmptyStateProps {
-  icon?: any
+  icon?: IconComponent
   iconSize?: 'sm' | 'md' | 'lg'
   title?: string
   message: string
@@ -40,16 +42,16 @@ export function EmptyState({
       <div className={`empty-state-icon empty-state-icon-${iconSize}`}>
         <Icon />
       </div>
-      {title && <h3 className="empty-state-title">{title}</h3>}
+      {title !== undefined && title !== "" && <h3 className="empty-state-title">{title}</h3>}
       <p className="empty-state-message">{message}</p>
-      {(action || secondaryAction || children) && (
+      {(action !== undefined || secondaryAction !== undefined || children !== undefined) && (
         <div className="empty-state-actions">
-          {action && (
+          {action !== undefined && (
             <Button variant="primary" onClick={action.onClick}>
               {action.label}
             </Button>
           )}
-          {secondaryAction && (
+          {secondaryAction !== undefined && (
             <Button variant="secondary" onClick={secondaryAction.onClick}>
               {secondaryAction.label}
             </Button>
@@ -69,12 +71,12 @@ export interface EmptyColumnProps {
 
 export function EmptyColumn({ message, hint, onClick }: EmptyColumnProps) {
   return (
-    <div className="empty-column" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+    <div className="empty-column" onClick={onClick} style={{ cursor: onClick !== undefined ? 'pointer' : 'default' }}>
       <div className="empty-column-icon">
         <PlusCircleIcon />
       </div>
       <div className="empty-column-message">{message}</div>
-      {hint && <div className="empty-column-hint">{hint}</div>}
+      {hint !== undefined && hint !== "" && <div className="empty-column-hint">{hint}</div>}
     </div>
   )
 }
@@ -100,13 +102,13 @@ export function EmptyBoard({
       <h2 className="empty-board-title">{title}</h2>
       <p className="empty-board-message">{message}</p>
       <div className="empty-state-actions">
-        {onCreateTask && (
+        {onCreateTask !== undefined && (
           <Button variant="primary" onClick={onCreateTask}>
             <PlusCircleIcon style={{ width: '16px', height: '16px' }} />
             Create your first task
           </Button>
         )}
-        {onCreateEpic && (
+        {onCreateEpic !== undefined && (
           <Button variant="secondary" onClick={onCreateEpic}>
             Create an epic
           </Button>
@@ -132,7 +134,7 @@ export function EmptySearch({ query, suggestions, onClear }: EmptySearchProps) {
       <p className="empty-search-message">
         We couldn't find any tasks matching your search.
       </p>
-      {suggestions && suggestions.length > 0 && (
+      {suggestions !== undefined && suggestions.length > 0 && (
         <div className="empty-search-suggestions">
           <strong style={{ fontSize: '13px', color: 'var(--text-high)', marginBottom: '8px', display: 'block' }}>
             Try:
@@ -144,7 +146,7 @@ export function EmptySearch({ query, suggestions, onClear }: EmptySearchProps) {
           </ul>
         </div>
       )}
-      {onClear && (
+      {onClear !== undefined && (
         <div style={{ marginTop: '24px' }}>
           <Button variant="secondary" onClick={onClear}>
             Clear search

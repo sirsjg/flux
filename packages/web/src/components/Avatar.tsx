@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ComponentChildren } from 'preact'
 import './Avatar.css'
 
@@ -17,11 +18,11 @@ export function Avatar({
   size = 'medium',
   status,
   className = '',
-}: AvatarProps) {
+}: AvatarProps): JSX.Element {
   const avatarClass = [
     'avatar',
     `avatar-${size}`,
-    status ? 'avatar-with-status' : '',
+    status !== undefined ? 'avatar-with-status' : '',
     className,
   ]
     .filter(Boolean)
@@ -29,12 +30,12 @@ export function Avatar({
 
   return (
     <div className={avatarClass}>
-      {src ? (
+      {src !== undefined && src !== "" ? (
         <img src={src} alt={alt} className="avatar-image" />
       ) : (
-        <span>{initials || alt.charAt(0).toUpperCase()}</span>
+        <span>{initials ?? alt.charAt(0).toUpperCase()}</span>
       )}
-      {status && <span className={`avatar-status avatar-status-${status}`} />}
+      {status !== undefined && <span className={`avatar-status avatar-status-${status}`} />}
     </div>
   )
 }
@@ -47,6 +48,6 @@ export interface AvatarGroupProps {
 export function AvatarGroup({
   children,
   className = '',
-}: AvatarGroupProps) {
+}: AvatarGroupProps): JSX.Element {
   return <div className={`avatar-group ${className}`}>{children}</div>
 }

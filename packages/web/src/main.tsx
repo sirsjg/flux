@@ -9,5 +9,8 @@ import './index.css'
 import './dev-error-handlers' // Install global error handlers in dev mode
 import { App } from './app.tsx'
 
-render(<App />, document.getElementById('app')!)
+const appElement = document.getElementById('app')
+if (appElement !== null) {
+  render(<App />, appElement)
+}
 // Force Rebuild

@@ -1,17 +1,18 @@
 import { useState } from 'preact/hooks'
-import { route, RoutableProps } from 'preact-router'
+import { route, type RoutableProps } from 'preact-router'
 import { createProject } from '../stores'
 
-export function ProjectCreate(_props: RoutableProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function ProjectCreate(_props?: RoutableProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault()
-    if (!name.trim() || submitting) return
+    if (name.trim() === '' || submitting) return
     setSubmitting(true)
-    const project = await createProject(name.trim(), description.trim() || undefined)
+    const project = await createProject(name.trim(), description.trim() !== '' ? description.trim() : undefined)
     route(`/board/${project.id}`)
   }
 
@@ -20,7 +21,7 @@ export function ProjectCreate(_props: RoutableProps) {
       <div class="card w-96 bg-base-100 shadow-xl">
         <div class="card-body">
           <h2 class="card-title text-2xl mb-4">Create Project</h2>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={(e) => void handleSubmit(e)}>
             <div class="form-control mb-4">
               <label class="label">
                 <span class="label-text">Project Name *</span>
@@ -49,7 +50,7 @@ export function ProjectCreate(_props: RoutableProps) {
               <button type="button" class="btn btn-ghost" onClick={() => route('/')}>
                 Cancel
               </button>
-              <button type="submit" class="btn btn-primary" disabled={!name.trim() || submitting}>
+              <button type="submit" class="btn btn-primary" disabled={name.trim() === '' || submitting}>
                 {submitting ? <span class="loading loading-spinner loading-sm"></span> : 'Create Project'}
               </button>
             </div>

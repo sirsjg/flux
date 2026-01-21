@@ -1,9 +1,11 @@
+import type { JSX } from 'preact'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import { route, RoutableProps } from 'preact-router'
+import { route, type RoutableProps } from 'preact-router'
 import { ThemeToggle } from '../components'
 import { WebhooksPanel } from '../components/WebhooksPanel'
 
-export default function Webhooks(_props: RoutableProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function Webhooks(_props?: RoutableProps): JSX.Element {
   return (
     <div class="min-h-screen bg-base-200">
       <div class="navbar bg-base-100 shadow-lg">

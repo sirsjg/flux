@@ -1,3 +1,4 @@
+import type { JSX } from 'preact'
 import { ComponentChildren } from 'preact'
 import './Timeline.css'
 
@@ -10,7 +11,7 @@ export interface TimelineItemProps {
   nodeType?: TimelineNodeType
   badge?: {
     label: string
-    icon?: any
+    icon?: ComponentChildren
   }
   avatar?: string
   children?: ComponentChildren
@@ -24,7 +25,7 @@ export function TimelineItem({
   badge,
   avatar,
   children,
-}: TimelineItemProps) {
+}: TimelineItemProps): JSX.Element {
   const nodeClass = nodeType === 'default' ? 'timeline-node' : `timeline-node timeline-node-${nodeType}`
 
   return (
@@ -33,16 +34,16 @@ export function TimelineItem({
       <div className="timeline-content">
         <div className="timeline-date">{date}</div>
         <div className="timeline-title">{title}</div>
-        {description && <div className="timeline-description">{description}</div>}
-        {(badge || avatar || children) && (
+        {description !== undefined && description !== "" && <div className="timeline-description">{description}</div>}
+        {(badge !== undefined || avatar !== undefined || children !== undefined) && (
           <div className="timeline-meta">
-            {badge && (
+            {badge !== undefined && (
               <div className="timeline-badge">
-                {badge.icon && <span className="timeline-badge-icon">{badge.icon}</span>}
+                {badge.icon !== undefined && <span className="timeline-badge-icon">{badge.icon}</span>}
                 {badge.label}
               </div>
             )}
-            {avatar && (
+            {avatar !== undefined && avatar !== "" && (
               <div className="timeline-avatar">
                 {avatar}
               </div>
@@ -60,6 +61,6 @@ export interface TimelineProps {
   className?: string
 }
 
-export function Timeline({ children, className = '' }: TimelineProps) {
+export function Timeline({ children, className = '' }: TimelineProps): JSX.Element {
   return <div className={`timeline ${className}`}>{children}</div>
 }
