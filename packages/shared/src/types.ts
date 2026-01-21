@@ -52,8 +52,48 @@ export type Task = {
   blocked_reason?: string; // External blocker (meeting, approval, etc.)
   acceptance_criteria?: string[]; // Observable behavioral outcomes for verification
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
+  // PRD linking fields
+  requirement_ids?: string[]; // Links to PRD requirements (REQ-001, etc.)
+  phase_id?: string;          // Links to PRD phase (PHASE-01, etc.)
   created_at?: string;
   updated_at?: string;
+};
+
+// ============ PRD Types ============
+
+// Requirement priority using MoSCoW method
+export type RequirementPriority = 'must' | 'should' | 'could';
+
+// Requirement type
+export type RequirementType = 'functional' | 'non-functional' | 'constraint';
+
+// Individual requirement in a PRD
+export type Requirement = {
+  id: string;                    // REQ-001
+  type: RequirementType;
+  description: string;
+  priority: RequirementPriority;
+  acceptance?: string;           // How to verify this requirement
+};
+
+// Phase groups requirements into implementation stages
+export type Phase = {
+  id: string;                    // PHASE-01
+  name: string;
+  requirements: string[];        // Requirement IDs in this phase
+};
+
+// PRD (Product Requirements Document) embedded in Epic
+export type PRD = {
+  problem: string;               // What problem are we solving?
+  goals: string[];               // Success criteria
+  requirements: Requirement[];   // All requirements
+  approach: string;              // Technical approach summary
+  phases: Phase[];               // Implementation phases
+  risks: string[];               // Known risks
+  outOfScope: string[];          // Explicitly out of scope
+  createdAt: string;
+  updatedAt: string;
 };
 
 // Epic represents a grouped set of tasks.
@@ -65,6 +105,7 @@ export type Epic = {
   notes: string;
   auto: boolean;
   project_id: string;
+  prd?: PRD;                     // Optional PRD for this epic
 };
 
 // Project visibility: public = anyone can read, private = key required

@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
+import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest, PRD, Requirement, Phase } from './types.js';
 
 // Auth functions injected at runtime (server-side only, uses Node crypto)
 type AuthFunctions = {
@@ -277,6 +277,117 @@ export function deleteEpic(id: string): boolean {
   });
   db.write();
   return true;
+}
+
+// ============ PRD Operations ============
+
+export function updateEpicPRD(epicId: string, prd: PRD): Epic | undefined {
+  const index = db.data.epics.findIndex(e => e.id === epicId);
+  if (index === -1) return undefined;
+  db.data.epics[index].prd = {
+    ...prd,
+    updatedAt: new Date().toISOString(),
+  };
+  db.write();
+  return db.data.epics[index];
+}
+
+export function getEpicPRD(epicId: string): PRD | undefined {
+  const epic = db.data.epics.find(e => e.id === epicId);
+  return epic?.prd;
+}
+
+export function deleteEpicPRD(epicId: string): boolean {
+  const index = db.data.epics.findIndex(e => e.id === epicId);
+  if (index === -1) return false;
+  delete db.data.epics[index].prd;
+  db.write();
+  return true;
+}
+
+// Get task with full PRD context (for agents)
+export type TaskWithContext = {
+  task: Task;
+  linkedRequirements: Requirement[];
+  phase: Phase | undefined;
+  epicPrd: PRD | undefined;
+};
+
+export function getTaskWithContext(taskId: string): TaskWithContext | undefined {
+  const task = db.data.tasks.find(t => t.id === taskId);
+  if (!task) return undefined;
+
+  let linkedRequirements: Requirement[] = [];
+  let phase: Phase | undefined;
+  let epicPrd: PRD | undefined;
+
+  if (task.epic_id) {
+    const epic = db.data.epics.find(e => e.id === task.epic_id);
+    if (epic?.prd) {
+      epicPrd = epic.prd;
+      // Get linked requirements
+      if (task.requirement_ids?.length) {
+        linkedRequirements = epic.prd.requirements.filter(r =>
+          task.requirement_ids!.includes(r.id)
+        );
+      }
+      // Get phase
+      if (task.phase_id) {
+        phase = epic.prd.phases.find(p => p.id === task.phase_id);
+      }
+    }
+  }
+
+  return { task, linkedRequirements, phase, epicPrd };
+}
+
+// PRD coverage: which requirements have tasks?
+export type RequirementCoverage = {
+  requirementId: string;
+  requirement: Requirement;
+  taskCount: number;
+  tasks: { id: string; title: string; status: string }[];
+  covered: boolean;
+};
+
+export function getPRDCoverage(epicId: string): RequirementCoverage[] {
+  const epic = db.data.epics.find(e => e.id === epicId);
+  if (!epic?.prd) return [];
+
+  const tasksInEpic = db.data.tasks.filter(t => t.epic_id === epicId && !t.archived);
+
+  return epic.prd.requirements.map(req => {
+    const linkedTasks = tasksInEpic.filter(t =>
+      t.requirement_ids?.includes(req.id)
+    );
+    return {
+      requirementId: req.id,
+      requirement: req,
+      taskCount: linkedTasks.length,
+      tasks: linkedTasks.map(t => ({ id: t.id, title: t.title, status: t.status })),
+      covered: linkedTasks.length > 0,
+    };
+  });
+}
+
+// Link task to requirements
+export function linkTaskToRequirements(taskId: string, requirementIds: string[]): Task | undefined {
+  const index = db.data.tasks.findIndex(t => t.id === taskId);
+  if (index === -1) return undefined;
+  db.data.tasks[index].requirement_ids = requirementIds;
+  db.data.tasks[index].updated_at = new Date().toISOString();
+  db.write();
+  return db.data.tasks[index];
+}
+
+// Link task to phase
+export function linkTaskToPhase(taskId: string, phaseId: string | undefined): Task | undefined {
+  const index = db.data.tasks.findIndex(t => t.id === taskId);
+  if (index === -1) return undefined;
+  db.data.tasks[index].phase_id = phaseId;
+  db.data.tasks[index].updated_at = new Date().toISOString();
+  db.write();
+  return db.data.tasks[index];
 }
 
 // ============ Task Operations ============

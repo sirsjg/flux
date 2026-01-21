@@ -28,6 +28,14 @@ import {
   createEpic,
   updateEpic,
   deleteEpic,
+  // PRD operations
+  getEpicPRD,
+  updateEpicPRD,
+  deleteEpicPRD,
+  getPRDCoverage,
+  getTaskWithContext,
+  linkTaskToRequirements,
+  linkTaskToPhase,
   getTasks,
   getTask,
   createTask,
@@ -44,6 +52,9 @@ import {
   deleteWebhook,
   getWebhookDeliveries,
   type WebhookEventType,
+  type PRD,
+  type Requirement,
+  type Phase,
 } from '@flux/shared/client';
 import { setStorageAdapter, initStore, STATUSES, WEBHOOK_EVENT_TYPES, type Guardrail } from '@flux/shared';
 import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/shared/config';
@@ -317,6 +328,129 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             epic_id: { type: 'string', description: 'Epic ID to delete' },
           },
           required: ['epic_id'],
+        },
+      },
+
+      // PRD tools
+      {
+        name: 'get_prd',
+        description: 'Get the PRD (Product Requirements Document) for an epic',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            epic_id: { type: 'string', description: 'Epic ID' },
+          },
+          required: ['epic_id'],
+        },
+      },
+      {
+        name: 'update_prd',
+        description: 'Create or update the PRD for an epic. Include all fields when updating.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            epic_id: { type: 'string', description: 'Epic ID' },
+            problem: { type: 'string', description: 'Problem statement - what problem are we solving?' },
+            goals: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Success criteria / goals',
+            },
+            requirements: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', description: 'Requirement ID (e.g., REQ-001)' },
+                  type: { type: 'string', enum: ['functional', 'non-functional', 'constraint'], description: 'Requirement type' },
+                  description: { type: 'string', description: 'Requirement description' },
+                  priority: { type: 'string', enum: ['must', 'should', 'could'], description: 'MoSCoW priority' },
+                  acceptance: { type: 'string', description: 'How to verify this requirement is met' },
+                },
+                required: ['id', 'type', 'description', 'priority'],
+              },
+              description: 'List of requirements',
+            },
+            approach: { type: 'string', description: 'Technical approach summary' },
+            phases: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', description: 'Phase ID (e.g., PHASE-01)' },
+                  name: { type: 'string', description: 'Phase name' },
+                  requirements: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Requirement IDs in this phase',
+                  },
+                },
+                required: ['id', 'name', 'requirements'],
+              },
+              description: 'Implementation phases',
+            },
+            risks: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Known risks',
+            },
+            outOfScope: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Items explicitly out of scope',
+            },
+          },
+          required: ['epic_id', 'problem', 'goals', 'requirements', 'approach', 'phases', 'risks', 'outOfScope'],
+        },
+      },
+      {
+        name: 'get_prd_coverage',
+        description: 'Get requirement coverage - which requirements have tasks linked to them',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            epic_id: { type: 'string', description: 'Epic ID' },
+          },
+          required: ['epic_id'],
+        },
+      },
+      {
+        name: 'get_task_with_context',
+        description: 'Get a task with full PRD context (linked requirements, phase, epic PRD). Use this when starting work on a task to understand the full context.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+          },
+          required: ['task_id'],
+        },
+      },
+      {
+        name: 'link_task_to_requirements',
+        description: 'Link a task to PRD requirements. This enables requirement coverage tracking.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+            requirement_ids: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Requirement IDs to link (e.g., ["REQ-001", "REQ-002"])',
+            },
+          },
+          required: ['task_id', 'requirement_ids'],
+        },
+      },
+      {
+        name: 'link_task_to_phase',
+        description: 'Link a task to a PRD phase',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID' },
+            phase_id: { type: 'string', description: 'Phase ID (e.g., PHASE-01). Omit or set null to clear.' },
+          },
+          required: ['task_id'],
         },
       },
 
@@ -645,6 +779,98 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       return {
         content: [{ type: 'text', text: `Deleted epic ${args?.epic_id}` }],
+      };
+    }
+
+    // PRD operations
+    case 'get_prd': {
+      const prd = await getEpicPRD(args?.epic_id as string);
+      if (!prd) {
+        return { content: [{ type: 'text', text: 'No PRD found for this epic' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(prd, null, 2) }],
+      };
+    }
+
+    case 'update_prd': {
+      const now = new Date().toISOString();
+      const prd: PRD = {
+        problem: args?.problem as string,
+        goals: args?.goals as string[],
+        requirements: args?.requirements as Requirement[],
+        approach: args?.approach as string,
+        phases: args?.phases as Phase[],
+        risks: args?.risks as string[],
+        outOfScope: args?.outOfScope as string[],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      // Preserve createdAt if updating existing PRD
+      const existing = await getEpicPRD(args?.epic_id as string);
+      if (existing) {
+        prd.createdAt = existing.createdAt;
+      }
+
+      const epic = await updateEpicPRD(args?.epic_id as string, prd);
+      if (!epic) {
+        return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: `Updated PRD for epic "${epic.title}"\n\n${JSON.stringify(epic.prd, null, 2)}` }],
+      };
+    }
+
+    case 'get_prd_coverage': {
+      const coverage = await getPRDCoverage(args?.epic_id as string);
+      if (coverage.length === 0) {
+        return { content: [{ type: 'text', text: 'No PRD found or no requirements defined' }] };
+      }
+
+      const covered = coverage.filter(c => c.covered).length;
+      const total = coverage.length;
+      const summary = `${covered}/${total} requirements covered (${Math.round((covered / total) * 100)}%)`;
+
+      return {
+        content: [{ type: 'text', text: `${summary}\n\n${JSON.stringify(coverage, null, 2)}` }],
+      };
+    }
+
+    case 'get_task_with_context': {
+      const context = await getTaskWithContext(args?.task_id as string);
+      if (!context) {
+        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(context, null, 2) }],
+      };
+    }
+
+    case 'link_task_to_requirements': {
+      const task = await linkTaskToRequirements(
+        args?.task_id as string,
+        args?.requirement_ids as string[]
+      );
+      if (!task) {
+        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: `Linked task "${task.title}" to requirements: ${(args?.requirement_ids as string[]).join(', ')}` }],
+      };
+    }
+
+    case 'link_task_to_phase': {
+      const phaseId = args?.phase_id as string | undefined;
+      const task = await linkTaskToPhase(args?.task_id as string, phaseId || undefined);
+      if (!task) {
+        return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
+      }
+      const msg = phaseId
+        ? `Set task "${task.title}" to phase ${phaseId}`
+        : `Cleared phase from task "${task.title}"`;
+      return {
+        content: [{ type: 'text', text: msg }],
       };
     }
 

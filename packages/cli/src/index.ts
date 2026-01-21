@@ -46,6 +46,7 @@ import { showCommand } from './commands/show.js';
 import { serveCommand } from './commands/serve.js';
 import { primeCommand } from './commands/prime.js';
 import { authCommand } from './commands/auth.js';
+import { prdCommand } from './commands/prd.js';
 import { initClient, exportAll, importAll, getProjects, createProject } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -722,6 +723,9 @@ async function main() {
     case 'epic':
       await epicCommand(parsed.subcommand, parsed.args, parsed.flags, json);
       break;
+    case 'prd':
+      await prdCommand(parsed.subcommand, parsed.args, parsed.flags, json);
+      break;
     case 'task':
       await taskCommand(parsed.subcommand, parsed.args, parsed.flags, json, defaultProject);
       break;
@@ -819,6 +823,13 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux epic create${c.reset} ${c.yellow}<project> <title>${c.reset} Create an epic
   ${c.cyan}flux epic update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note]${c.reset}
   ${c.cyan}flux epic delete${c.reset} ${c.yellow}<id>${c.reset}
+
+  ${c.cyan}flux prd init${c.reset} ${c.yellow}<epic-id>${c.reset}              Create PRD for an epic
+  ${c.cyan}flux prd show${c.reset} ${c.yellow}<epic-id>${c.reset}              Display PRD
+  ${c.cyan}flux prd export${c.reset} ${c.yellow}<epic-id>${c.reset} ${c.green}[-o file]${c.reset}  Export PRD as markdown
+  ${c.cyan}flux prd coverage${c.reset} ${c.yellow}<epic-id>${c.reset}          Show requirement coverage
+  ${c.cyan}flux prd link${c.reset} ${c.yellow}<task-id> <req-ids...>${c.reset} Link task to requirements
+  ${c.cyan}flux prd phase${c.reset} ${c.yellow}<task-id> <phase-id>${c.reset}  Set task's phase
 
   ${c.cyan}flux task list${c.reset} ${c.green}[project] [--json] [--epic] [--status]${c.reset}
   ${c.cyan}flux task create${c.reset} ${c.green}[project]${c.reset} ${c.yellow}<title>${c.reset} ${c.green}[-P 0|1|2] [-e epic] [--ac ...] [--guardrail ...]${c.reset}

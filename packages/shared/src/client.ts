@@ -15,6 +15,16 @@ import {
   createEpic as localCreateEpic,
   updateEpic as localUpdateEpic,
   deleteEpic as localDeleteEpic,
+  // PRD operations
+  updateEpicPRD as localUpdateEpicPRD,
+  getEpicPRD as localGetEpicPRD,
+  deleteEpicPRD as localDeleteEpicPRD,
+  getTaskWithContext as localGetTaskWithContext,
+  getPRDCoverage as localGetPRDCoverage,
+  linkTaskToRequirements as localLinkTaskToRequirements,
+  linkTaskToPhase as localLinkTaskToPhase,
+  type TaskWithContext,
+  type RequirementCoverage,
   getTasks as localGetTasks,
   getTask as localGetTask,
   createTask as localCreateTask,
@@ -50,11 +60,14 @@ import type {
   Guardrail,
   ApiKey,
   KeyScope,
+  PRD,
+  Requirement,
+  Phase,
 } from './types.js';
 
 // Re-export types and constants
 export { PRIORITY_CONFIG, PRIORITIES };
-export type { Project, Epic, Task, TaskComment, Priority, Store, Webhook, WebhookDelivery, WebhookEventType, Guardrail };
+export type { Project, Epic, Task, TaskComment, Priority, Store, Webhook, WebhookDelivery, WebhookEventType, Guardrail, PRD, Requirement, Phase, TaskWithContext, RequirementCoverage };
 
 // Server response includes computed blocked field
 type TaskWithBlocked = Task & { blocked: boolean };
@@ -226,6 +239,87 @@ export async function deleteEpic(id: string): Promise<boolean> {
     }
   }
   return localDeleteEpic(id);
+}
+
+// PRD Operations
+export async function getEpicPRD(epicId: string): Promise<PRD | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('GET', `/api/epics/${epicId}/prd`);
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localGetEpicPRD(epicId);
+}
+
+export async function updateEpicPRD(epicId: string, prd: PRD): Promise<Epic | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('PUT', `/api/epics/${epicId}/prd`, prd);
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localUpdateEpicPRD(epicId, prd);
+}
+
+export async function deleteEpicPRD(epicId: string): Promise<boolean> {
+  if (serverUrl) {
+    try {
+      await http('DELETE', `/api/epics/${epicId}/prd`);
+      return true;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
+    }
+  }
+  return localDeleteEpicPRD(epicId);
+}
+
+export async function getPRDCoverage(epicId: string): Promise<RequirementCoverage[]> {
+  if (serverUrl) {
+    return http('GET', `/api/epics/${epicId}/prd/coverage`);
+  }
+  return localGetPRDCoverage(epicId);
+}
+
+export async function getTaskWithContext(taskId: string): Promise<TaskWithContext | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('GET', `/api/tasks/${taskId}/context`);
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localGetTaskWithContext(taskId);
+}
+
+export async function linkTaskToRequirements(taskId: string, requirementIds: string[]): Promise<Task | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('PUT', `/api/tasks/${taskId}/requirements`, { requirement_ids: requirementIds });
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localLinkTaskToRequirements(taskId, requirementIds);
+}
+
+export async function linkTaskToPhase(taskId: string, phaseId: string | undefined): Promise<Task | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('PUT', `/api/tasks/${taskId}/phase`, { phase_id: phaseId });
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localLinkTaskToPhase(taskId, phaseId);
 }
 
 // Tasks
