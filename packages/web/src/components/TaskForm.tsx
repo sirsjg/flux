@@ -9,18 +9,23 @@ import {
   deleteTaskComment,
   getEpics,
   getTasks,
+  getEpicPRD,
+  linkTaskToRequirements,
+  linkTaskToPhase,
+  setTaskVerify,
+  runTaskVerify,
   type TaskWithBlocked,
 } from "../stores";
-import type { Task, Epic, Status, TaskComment, Guardrail } from "@flux/shared";
+import type { Task, Epic, Status, TaskComment, Guardrail, PRD, VerifyResult } from "@flux/shared";
 import { STATUSES, STATUS_CONFIG } from "@flux/shared";
 
 interface TaskFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => Promise<void>;
-  task?: Task; // If provided, edit mode; otherwise create mode
+  task?: Task;
   projectId: string;
-  defaultEpicId?: string; // Pre-select epic when creating new task
+  defaultEpicId?: string;
 }
 
 export function TaskForm({
@@ -51,6 +56,17 @@ export function TaskForm({
   const [newGuardrailNumber, setNewGuardrailNumber] = useState("");
   const [newGuardrailText, setNewGuardrailText] = useState("");
 
+  // PRD link state
+  const [epicPrd, setEpicPrd] = useState<PRD | null>(null);
+  const [prdLoading, setPrdLoading] = useState(false);
+  const [linkedRequirements, setLinkedRequirements] = useState<string[]>([]);
+  const [phaseId, setPhaseId] = useState<string>("");
+
+  // Verification state
+  const [verifyCommand, setVerifyCommand] = useState("");
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+  const [verifyRunning, setVerifyRunning] = useState(false);
+
   const isEdit = !!task;
 
   useEffect(() => {
@@ -63,6 +79,25 @@ export function TaskForm({
       setDeleteCommentId(null);
     }
   }, [isOpen, task, projectId, defaultEpicId]);
+
+  // Load PRD when epic changes
+  useEffect(() => {
+    if (epicId) {
+      loadEpicPrd(epicId);
+    } else {
+      setEpicPrd(null);
+    }
+  }, [epicId]);
+
+  const loadEpicPrd = async (eid: string) => {
+    setPrdLoading(true);
+    try {
+      const prd = await getEpicPRD(eid);
+      setEpicPrd(prd);
+    } finally {
+      setPrdLoading(false);
+    }
+  };
 
   const loadFormData = async () => {
     const [epicsData, tasksData] = await Promise.all([
@@ -87,6 +122,10 @@ export function TaskForm({
       setBlockedReason(task.blocked_reason || "");
       setAcceptanceCriteria(task.acceptance_criteria ? [...task.acceptance_criteria] : []);
       setGuardrails(task.guardrails ? [...task.guardrails] : []);
+      setLinkedRequirements(task.requirement_ids ? [...task.requirement_ids] : []);
+      setPhaseId(task.phase_id || "");
+      setVerifyCommand(task.verify || "");
+      setVerifyResult(task.verifyResult || null);
     } else {
       setTitle("");
       setStatus("todo");
@@ -96,6 +135,10 @@ export function TaskForm({
       setBlockedReason("");
       setAcceptanceCriteria([]);
       setGuardrails([]);
+      setLinkedRequirements([]);
+      setPhaseId("");
+      setVerifyCommand("");
+      setVerifyResult(null);
     }
   };
 
@@ -115,6 +158,11 @@ export function TaskForm({
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
           guardrails: guardrails.length > 0 ? guardrails : undefined,
         });
+        // Handle PRD links separately
+        if (epicPrd) {
+          await linkTaskToRequirements(task.id, linkedRequirements);
+          await linkTaskToPhase(task.id, phaseId || null);
+        }
       } else {
         const newTask = await createTask(
           projectId,
@@ -198,6 +246,14 @@ export function TaskForm({
     );
   };
 
+  const toggleRequirement = (reqId: string) => {
+    setLinkedRequirements((prev) =>
+      prev.includes(reqId)
+        ? prev.filter((id) => id !== reqId)
+        : [...prev, reqId]
+    );
+  };
+
   const addCriterion = () => {
     if (!newCriterion.trim()) return;
     setAcceptanceCriteria((prev) => [...prev, newCriterion.trim()]);
@@ -218,6 +274,38 @@ export function TaskForm({
 
   const removeGuardrail = (id: string) => {
     setGuardrails((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  const handleSetVerify = async () => {
+    if (!task) return;
+    setSubmitting(true);
+    try {
+      await setTaskVerify(task.id, verifyCommand.trim() || null);
+      await onSave();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRunVerify = async () => {
+    if (!task || !verifyCommand.trim() || verifyRunning) return;
+    setVerifyRunning(true);
+    try {
+      const result = await runTaskVerify(task.id);
+      setVerifyResult(result);
+      await onSave();
+    } finally {
+      setVerifyRunning(false);
+    }
+  };
+
+  const priorityBadge = (priority: string) => {
+    const colors: Record<string, string> = {
+      must: "badge-error",
+      should: "badge-warning",
+      could: "badge-info",
+    };
+    return colors[priority] || "badge-ghost";
   };
 
   return (
@@ -307,7 +395,7 @@ export function TaskForm({
               </select>
             </div>
 
-            <div class="form-control mb-6">
+            <div class="form-control mb-4">
               <label class="label">
                 <span class="label-text">Dependencies</span>
                 {dependsOn.length > 0 && (
@@ -366,6 +454,120 @@ export function TaskForm({
                 </div>
               )}
             </div>
+
+            {/* PRD Links - only show if epic has PRD */}
+            {isEdit && epicPrd && (
+              <div class="form-control mb-4">
+                <label class="label">
+                  <span class="label-text">PRD Links</span>
+                  {prdLoading && <span class="loading loading-spinner loading-xs"></span>}
+                </label>
+                <div class="border border-base-300 rounded-lg p-3 space-y-3">
+                  <div>
+                    <label class="label py-0">
+                      <span class="label-text text-xs">Phase</span>
+                    </label>
+                    <select
+                      class="select select-bordered select-sm w-full"
+                      value={phaseId}
+                      onChange={(e) => setPhaseId((e.target as HTMLSelectElement).value)}
+                    >
+                      <option value="">No phase</option>
+                      {epicPrd.phases.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name || p.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {epicPrd.requirements.length > 0 && (
+                    <div>
+                      <label class="label py-0">
+                        <span class="label-text text-xs">Requirements</span>
+                        {linkedRequirements.length > 0 && (
+                          <span class="text-xs text-base-content/50">{linkedRequirements.length} linked</span>
+                        )}
+                      </label>
+                      <div class="max-h-32 overflow-y-auto">
+                        {epicPrd.requirements.map((req) => (
+                          <label key={req.id} class="flex items-center gap-2 px-2 py-1 hover:bg-base-200 cursor-pointer rounded">
+                            <input
+                              type="checkbox"
+                              class="checkbox checkbox-xs"
+                              checked={linkedRequirements.includes(req.id)}
+                              onChange={() => toggleRequirement(req.id)}
+                            />
+                            <span class="font-mono text-xs text-base-content/60">{req.id}</span>
+                            <span class={`badge badge-xs ${priorityBadge(req.priority)}`}>{req.priority}</span>
+                            <span class="text-xs truncate flex-1">{req.description}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Verification - only show in edit mode */}
+            {isEdit && (
+              <div class="form-control mb-4">
+                <label class="label">
+                  <span class="label-text">Verification</span>
+                  {verifyResult && (
+                    <span class={`badge badge-sm ${verifyResult.passed ? 'badge-success' : 'badge-error'}`}>
+                      {verifyResult.passed ? 'Passed' : 'Failed'}
+                    </span>
+                  )}
+                </label>
+                <div class="border border-base-300 rounded-lg p-3 space-y-2">
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g., npm test -- --grep auth"
+                      class="input input-bordered input-sm flex-1"
+                      value={verifyCommand}
+                      onInput={(e) => setVerifyCommand((e.target as HTMLInputElement).value)}
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline"
+                      onClick={handleSetVerify}
+                      disabled={submitting}
+                    >
+                      Set
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-primary"
+                      onClick={handleRunVerify}
+                      disabled={!verifyCommand.trim() || verifyRunning}
+                    >
+                      {verifyRunning ? <span class="loading loading-spinner loading-xs"></span> : 'Run'}
+                    </button>
+                  </div>
+                  {verifyResult && (
+                    <div class={`text-xs p-2 rounded ${verifyResult.passed ? 'bg-success/10' : 'bg-error/10'}`}>
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class={verifyResult.passed ? 'text-success' : 'text-error'}>
+                          {verifyResult.passed ? '✓ Passed' : '✗ Failed'}
+                        </span>
+                        {verifyResult.checkedAt && (
+                          <span class="text-base-content/50">
+                            {new Date(verifyResult.checkedAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      {verifyResult.output && (
+                        <pre class="whitespace-pre-wrap font-mono text-xs max-h-24 overflow-y-auto">
+                          {verifyResult.output}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div class="max-h-[60vh] overflow-y-auto pr-1">

@@ -468,6 +468,9 @@ export function Board({ projectId }: BoardProps) {
                     <span class="text-base-content/40 text-sm bg-base-200 px-2 py-0.5 rounded">
                       {taskCount} task{taskCount !== 1 ? "s" : ""}
                     </span>
+                    {epic.prd && (
+                      <span class="badge badge-xs badge-primary">PRD</span>
+                    )}
                     <div class="ml-auto flex items-center gap-3">
                       <div
                         class="flex items-center gap-2"

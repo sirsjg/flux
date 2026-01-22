@@ -20,6 +20,10 @@ import {
   createEpic,
   updateEpic,
   deleteEpic,
+  getEpicPRD,
+  updateEpicPRD,
+  deleteEpicPRD,
+  getPRDCoverage,
   getTasks,
   getTask,
   getTaskWithContext,
@@ -30,6 +34,8 @@ import {
   deleteTaskComment,
   isTaskBlocked,
   getReadyTasks,
+  setTaskVerify,
+  setTaskVerifyResult,
   cleanupProject,
   getWebhooks,
   getWebhook,
@@ -329,6 +335,65 @@ app.delete('/api/epics/:id', (c) => {
   return c.json({ success: true });
 });
 
+// Epic PRD
+app.get('/api/epics/:id/prd', (c) => {
+  const auth = c.get('auth');
+  const epicId = c.req.param('id');
+  const epic = getEpic(epicId);
+  if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  if (!canReadProject(auth, epic.project_id)) {
+    return c.json({ error: 'Epic not found' }, 404);
+  }
+  const prd = getEpicPRD(epicId);
+  if (!prd) return c.json(null);
+  return c.json(prd);
+});
+
+app.put('/api/epics/:id/prd', async (c) => {
+  const auth = c.get('auth');
+  const epicId = c.req.param('id');
+  const epic = getEpic(epicId);
+  if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  if (!canWriteProject(auth, epic.project_id)) {
+    return c.json({ error: 'Epic not found' }, 404);
+  }
+  const prd = await c.req.json().catch(() => null);
+  if (!prd || typeof prd.problem !== 'string') {
+    return c.json({ error: 'Invalid PRD: problem field required' }, 400);
+  }
+  const updated = updateEpicPRD(epicId, prd);
+  if (!updated) return c.json({ error: 'Epic not found' }, 404);
+  triggerWebhooks('epic.updated', { epic: updated }, epic.project_id);
+  return c.json(updated);
+});
+
+app.delete('/api/epics/:id/prd', (c) => {
+  const auth = c.get('auth');
+  const epicId = c.req.param('id');
+  const epic = getEpic(epicId);
+  if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  if (!canWriteProject(auth, epic.project_id)) {
+    return c.json({ error: 'Epic not found' }, 404);
+  }
+  const success = deleteEpicPRD(epicId);
+  if (!success) return c.json({ error: 'PRD not found' }, 404);
+  const updated = getEpic(epicId);
+  if (updated) triggerWebhooks('epic.updated', { epic: updated }, epic.project_id);
+  return c.json({ success: true });
+});
+
+app.get('/api/epics/:id/prd/coverage', (c) => {
+  const auth = c.get('auth');
+  const epicId = c.req.param('id');
+  const epic = getEpic(epicId);
+  if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  if (!canReadProject(auth, epic.project_id)) {
+    return c.json({ error: 'Epic not found' }, 404);
+  }
+  const coverage = getPRDCoverage(epicId);
+  return c.json(coverage);
+});
+
 // Tasks
 app.get('/api/projects/:projectId/tasks', (c) => {
   const auth = c.get('auth');
@@ -364,6 +429,34 @@ app.get('/api/tasks/:id/context', (c) => {
     ...context,
     task: { ...context.task, blocked: isTaskBlocked(context.task.id) },
   });
+});
+
+// Run task verification command
+app.post('/api/tasks/:id/verify', async (c) => {
+  const auth = c.get('auth');
+  const taskId = c.req.param('id');
+  const task = getTask(taskId);
+  if (!task) return c.json({ error: 'Task not found' }, 404);
+  if (!canWriteProject(auth, task.project_id)) {
+    return c.json({ error: 'Task not found' }, 404);
+  }
+  if (!task.verify) {
+    return c.json({ error: 'No verification command set' }, 400);
+  }
+  // Execute the verify command
+  const { execSync } = await import('child_process');
+  let passed = false;
+  let output = '';
+  try {
+    output = execSync(task.verify, { encoding: 'utf-8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] });
+    passed = true;
+  } catch (err: any) {
+    output = err.stdout?.toString() || '' + (err.stderr?.toString() || '') || err.message;
+    passed = false;
+  }
+  setTaskVerifyResult(taskId, passed, output.slice(0, 5000));
+  const result = { passed, output: output.slice(0, 5000), checkedAt: new Date().toISOString() };
+  return c.json(result);
 });
 
 app.post('/api/tasks/:id/comments', async (c) => {

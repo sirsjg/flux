@@ -1,4 +1,4 @@
-import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon, DocumentCheckIcon, BeakerIcon } from '@heroicons/react/24/outline'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { TaskWithBlocked } from '../stores'
@@ -36,7 +36,7 @@ export function DraggableTaskCard({
     }
   }
 
-  // Shared indicator badges for acceptance criteria and guardrails
+  // Shared indicator badges for acceptance criteria, guardrails, and PRD links
   const renderMetaIndicators = (compact = false) => (
     <>
       {task.acceptance_criteria && task.acceptance_criteria.length > 0 && (
@@ -49,6 +49,23 @@ export function DraggableTaskCard({
         <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-info/70`} title="Guardrails">
           <ShieldCheckIcon className="h-3.5 w-3.5" />
           <span>{task.guardrails.length}</span>
+        </div>
+      )}
+      {task.requirement_ids && task.requirement_ids.length > 0 && (
+        <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-primary/70`} title="Linked requirements">
+          <DocumentCheckIcon className="h-3.5 w-3.5" />
+          <span>{task.requirement_ids.length}</span>
+        </div>
+      )}
+      {task.verify && (
+        <div
+          class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs ${
+            task.verifyResult?.passed ? 'text-success' : task.verifyResult?.passed === false ? 'text-error' : 'text-base-content/40'
+          }`}
+          title={task.verifyResult ? (task.verifyResult.passed ? 'Verification passed' : 'Verification failed') : 'Has verification command'}
+        >
+          <BeakerIcon className="h-3.5 w-3.5" />
+          {task.verifyResult && <span>{task.verifyResult.passed ? '✓' : '✗'}</span>}
         </div>
       )}
     </>

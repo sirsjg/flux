@@ -1,4 +1,7 @@
-import type { Task, Epic, Project, Webhook, WebhookDelivery, WebhookEventType, TaskComment, CommentAuthor, KeyScope } from '@flux/shared';
+import type {
+  Task, Epic, Project, Webhook, WebhookDelivery, WebhookEventType, TaskComment, CommentAuthor, KeyScope,
+  PRD, Requirement, Phase, VerifyResult
+} from '@flux/shared';
 import { getToken } from './auth';
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:3000/api' : '/api';
@@ -288,5 +291,89 @@ export async function completeCliAuth(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, name, project_ids: projectIds }),
   });
+  return res.json();
+}
+
+// ============ PRD Operations ============
+
+export interface TaskContext {
+  task: TaskWithBlocked;
+  linkedRequirements: Requirement[];
+  phase: Phase | null;
+  epicPrd: PRD | null;
+}
+
+export interface RequirementCoverage {
+  requirement: Requirement;
+  taskIds: string[];
+}
+
+export async function getEpicPRD(epicId: string): Promise<PRD | null> {
+  const res = await authFetch(`${API_BASE}/epics/${epicId}/prd`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function updateEpicPRD(epicId: string, prd: Partial<PRD>): Promise<Epic | null> {
+  const res = await authFetch(`${API_BASE}/epics/${epicId}/prd`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(prd),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function deleteEpicPRD(epicId: string): Promise<boolean> {
+  const res = await authFetch(`${API_BASE}/epics/${epicId}/prd`, { method: 'DELETE' });
+  return res.ok;
+}
+
+export async function getTaskContext(taskId: string): Promise<TaskContext | null> {
+  const res = await authFetch(`${API_BASE}/tasks/${taskId}/context`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function linkTaskToRequirements(taskId: string, requirementIds: string[]): Promise<TaskWithBlocked | null> {
+  const res = await authFetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requirement_ids: requirementIds }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function linkTaskToPhase(taskId: string, phaseId: string | null): Promise<TaskWithBlocked | null> {
+  const res = await authFetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phase_id: phaseId }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function getPRDCoverage(epicId: string): Promise<RequirementCoverage[]> {
+  const res = await authFetch(`${API_BASE}/epics/${epicId}/prd/coverage`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// ============ Verification Operations ============
+
+export async function setTaskVerify(taskId: string, command: string | null): Promise<TaskWithBlocked | null> {
+  const res = await authFetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ verify: command }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function runTaskVerify(taskId: string): Promise<VerifyResult> {
+  const res = await authFetch(`${API_BASE}/tasks/${taskId}/verify`, { method: 'POST' });
   return res.json();
 }
