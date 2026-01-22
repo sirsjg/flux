@@ -82,8 +82,10 @@ export const authMiddleware = createMiddleware<{ Variables: { auth: AuthContext 
 
 /**
  * Check if the current auth context allows write access to a project
+ * In dev mode (no auth configured), all writes are allowed
  */
 export function canWriteProject(auth: AuthContext, projectId: string): boolean {
+  if (!isAuthRequired()) return true;
   if (auth.keyType === 'env' || auth.keyType === 'server') return true;
   if (auth.keyType === 'project' && auth.projectIds) {
     return auth.projectIds.includes(projectId);
