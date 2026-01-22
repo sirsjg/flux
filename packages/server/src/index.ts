@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { join, dirname } from 'path';
+import { join, dirname, sep } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, watchFile, statSync, readFileSync } from 'fs';
 import {
@@ -767,7 +767,7 @@ if (existsSync(webDistPath)) {
     if (staticExtensions.test(path)) {
       const filePath = join(webDistPath, path);
       // Security: prevent path traversal attacks
-      if (!filePath.startsWith(webDistPath + '/')) {
+      if (!filePath.startsWith(webDistPath + sep)) {
         return c.notFound();
       }
       if (existsSync(filePath) && statSync(filePath).isFile()) {

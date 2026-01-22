@@ -34,6 +34,7 @@ import {
   EyeIcon,
   EyeSlashIcon,
   MagnifyingGlassIcon,
+  PencilIcon,
   PlusIcon,
   Squares2X2Icon,
   ViewColumnsIcon,
@@ -228,6 +229,11 @@ export function Board({ projectId }: BoardProps) {
   // Epic form handlers
   const openNewEpic = () => {
     setEditingEpic(undefined);
+    setEpicFormOpen(true);
+  };
+
+  const openEditEpic = (epic: Epic) => {
+    setEditingEpic(epic);
     setEpicFormOpen(true);
   };
 
@@ -472,6 +478,16 @@ export function Board({ projectId }: BoardProps) {
                       <span class="badge badge-xs badge-primary">PRD</span>
                     )}
                     <div class="ml-auto flex items-center gap-3">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <button
+                          class="btn btn-ghost btn-xs"
+                          type="button"
+                          onClick={() => openEditEpic(epic)}
+                          title="Edit epic"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                       <div
                         class="flex items-center gap-2"
                         onClick={(e) => e.stopPropagation()}
