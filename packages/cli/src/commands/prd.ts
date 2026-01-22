@@ -188,6 +188,13 @@ function prdToMarkdown(epic: { title: string }, prd: PRD): string {
     lines.push('');
   }
 
+  if (prd.notes) {
+    lines.push('## Session Notes');
+    lines.push('');
+    lines.push(prd.notes);
+    lines.push('');
+  }
+
   lines.push('---');
   lines.push(`_Generated: ${new Date().toISOString()}_`);
 
@@ -334,6 +341,19 @@ export async function prdCommand(
           const nameLabel = a.name ? ` (${a.name})` : '';
           console.log(`  ${statusColor}${icon}${c.reset} ${a.role}${nameLabel} ${statusColor}${a.status}${c.reset}`);
         });
+        console.log('');
+      }
+
+      if (prd.notes) {
+        console.log(`${c.bold}Session Notes${c.reset}`);
+        for (const line of prd.notes.split('\n')) {
+          const match = line.match(/^\[(\d{4}-\d{2}-\d{2})\] (.*)$/);
+          if (match) {
+            console.log(`  ${c.dim}${match[1]}${c.reset} ${match[2]}`);
+          } else {
+            console.log(`  ${line}`);
+          }
+        }
       }
       break;
     }
@@ -677,6 +697,71 @@ export async function prdCommand(
       break;
     }
 
+    case 'notes': {
+      const epicId = args[0];
+      if (!epicId) {
+        console.error('Usage: flux prd notes <epic-id>           # Show notes');
+        console.error('       flux prd notes <epic-id> -a "note" # Add note');
+        process.exit(1);
+      }
+
+      const epic = await getEpic(epicId);
+      if (!epic) {
+        console.error(`Epic not found: ${epicId}`);
+        process.exit(1);
+      }
+
+      const prd = await getEpicPRD(epicId);
+      if (!prd) {
+        console.error(`No PRD found for epic: ${epicId}`);
+        process.exit(1);
+      }
+
+      const addNote = flags.a as string || flags.add as string;
+      if (addNote) {
+        const timestamp = new Date().toISOString().split('T')[0];
+        const newNote = `[${timestamp}] ${addNote}`;
+        prd.notes = prd.notes ? `${prd.notes}\n${newNote}` : newNote;
+        prd.updatedAt = new Date().toISOString();
+
+        const updated = await updateEpicPRD(epicId, prd);
+        if (!updated) {
+          console.error('Failed to update PRD');
+          process.exit(1);
+        }
+
+        if (json) {
+          output({ note: newNote, notes: prd.notes }, true);
+        } else {
+          console.log(`Added note: ${newNote}`);
+        }
+        break;
+      }
+
+      // Display notes
+      if (json) {
+        output({ notes: prd.notes || null }, true);
+        break;
+      }
+
+      if (!prd.notes) {
+        console.log(`${c.dim}No session notes for this PRD${c.reset}`);
+        console.log(`Add one with: flux prd notes ${epicId} -a "Your note"`);
+        break;
+      }
+
+      console.log(`${c.bold}Session Notes: ${epic.title}${c.reset}\n`);
+      for (const line of prd.notes.split('\n')) {
+        const match = line.match(/^\[(\d{4}-\d{2}-\d{2})\] (.*)$/);
+        if (match) {
+          console.log(`${c.dim}${match[1]}${c.reset} ${match[2]}`);
+        } else {
+          console.log(line);
+        }
+      }
+      break;
+    }
+
     default:
       console.error(`Usage: flux prd <command> [options]
 
@@ -687,6 +772,8 @@ Commands:
   export <epic-id> [-o file]  Export PRD as markdown
   coverage <epic-id>          Show requirement coverage by tasks
   verify <epic-id>            Run verify commands for all tasks
+  notes <epic-id>             Show session notes
+  notes <epic-id> -a "note"   Add a session note
   link <task-id> <req-ids...> Link a task to requirements
   phase <task-id> <phase-id>  Set task's phase (--clear to remove)
 `);

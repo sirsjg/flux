@@ -481,6 +481,21 @@ export function PRDEditor({ prd, loading, saving, onSave, onDelete, onClose }: P
         </div>
       </div>
 
+      {/* Session Notes */}
+      <div class="form-control bg-base-200 rounded-lg p-3">
+        <label class="label py-1">
+          <span class="label-text text-xs font-medium">Session Notes</span>
+          <span class="label-text-alt text-xs opacity-60">Agent decisions, blockers, learnings</span>
+        </label>
+        <textarea
+          class="textarea textarea-bordered textarea-sm w-full font-mono text-xs"
+          placeholder="Cross-session notes (typically added by agents via MCP)..."
+          rows={4}
+          value={draft.notes || ''}
+          onInput={e => updateField('notes', (e.target as HTMLTextAreaElement).value)}
+        />
+      </div>
+
       {/* Actions */}
       <div class="modal-action pt-4 border-t border-base-300">
         {!isNew && (

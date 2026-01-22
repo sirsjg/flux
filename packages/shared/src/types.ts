@@ -162,6 +162,7 @@ export type PRD = {
   successCriteria?: string[];    // Measurable metrics
   terminology?: TermDefinition[];
   approvals?: Approval[];
+  notes?: string;                // Cross-session agent decisions, blockers, learnings
 
   createdAt: string;
   updatedAt: string;

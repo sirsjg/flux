@@ -578,6 +578,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'add_prd_note',
+        description: 'Append a note to the epic PRD for cross-session context. Use this to persist important decisions, blockers, or learnings that future tasks should know.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            epic_id: { type: 'string', description: 'Epic ID' },
+            note: { type: 'string', description: 'Decision, blocker, or learning to persist' },
+          },
+          required: ['epic_id', 'note'],
+        },
+      },
+      {
         name: 'set_task_verify',
         description: 'Set or clear the verify command for a task. The verify command is a shell command that proves the task is complete (e.g., "npm test -- --grep auth").',
         inputSchema: {
@@ -1114,6 +1126,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return {
         content: [{ type: 'text', text: `Updated approval for ${role}: ${status}` }],
+      };
+    }
+
+    case 'add_prd_note': {
+      const epicId = args?.epic_id as string;
+      const note = args?.note as string;
+
+      const prd = await getEpicPRD(epicId);
+      if (!prd) {
+        return { content: [{ type: 'text', text: 'No PRD found for this epic' }], isError: true };
+      }
+
+      const timestamp = new Date().toISOString().split('T')[0];
+      const newNote = `[${timestamp}] ${note}`;
+      prd.notes = prd.notes ? `${prd.notes}\n${newNote}` : newNote;
+      prd.updatedAt = new Date().toISOString();
+
+      const epic = await updateEpicPRD(epicId, prd);
+      if (!epic) {
+        return { content: [{ type: 'text', text: 'Failed to update PRD' }], isError: true };
+      }
+
+      return {
+        content: [{ type: 'text', text: `Added note to PRD: ${newNote}` }],
       };
     }
 
