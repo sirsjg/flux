@@ -166,7 +166,6 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
               onClick={() => setTab('prd')}
             >
               PRD
-              {prd && <span class="ml-1 badge badge-xs badge-primary">•</span>}
             </button>
           </div>
         )}
