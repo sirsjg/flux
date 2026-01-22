@@ -288,6 +288,7 @@ describe('auth middleware', () => {
       });
 
       it('returns false for project key without matching project', () => {
+        process.env.FLUX_API_KEY = 'test';
         const auth: AuthContext = {
           keyType: 'project',
           projectIds: ['proj-1'],
@@ -296,7 +297,13 @@ describe('auth middleware', () => {
       });
 
       it('returns false for anonymous', () => {
+        process.env.FLUX_API_KEY = 'test';
         expect(canWriteProject({ keyType: 'anonymous' }, 'any')).toBe(false);
+      });
+
+      it('returns true in dev mode (no auth configured)', () => {
+        expect(canWriteProject({ keyType: 'anonymous' }, 'any')).toBe(true);
+        expect(canWriteProject({ keyType: 'project', projectIds: ['proj-1'] }, 'proj-2')).toBe(true);
       });
     });
 
