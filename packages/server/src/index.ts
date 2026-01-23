@@ -24,6 +24,9 @@ import {
   updateProjectPRD,
   deleteProjectPRD,
   getPRDCoverage,
+  linkTaskToRequirements,
+  linkTaskToPhase,
+  getProjectForPRDGeneration,
   getTasks,
   getTask,
   getTaskWithContext,
@@ -394,6 +397,20 @@ app.get('/api/projects/:id/prd/coverage', (c) => {
   return c.json(coverage);
 });
 
+// Get project context for PRD generation (brownfield: tasks → PRD)
+app.get('/api/projects/:id/prd-context', (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('id');
+  const project = getProject(projectId);
+  if (!project) return c.json({ error: 'Project not found' }, 404);
+  if (!canReadProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const context = getProjectForPRDGeneration(projectId);
+  if (!context) return c.json({ error: 'Project not found' }, 404);
+  return c.json(context);
+});
+
 // Tasks
 app.get('/api/projects/:projectId/tasks', (c) => {
   const auth = c.get('auth');
@@ -431,6 +448,41 @@ app.get('/api/tasks/:id/context', (c) => {
   });
 });
 
+// Link task to PRD requirements
+app.put('/api/tasks/:id/requirements', async (c) => {
+  const auth = c.get('auth');
+  const taskId = c.req.param('id');
+  const task = getTask(taskId);
+  if (!task) return c.json({ error: 'Task not found' }, 404);
+  if (!canWriteProject(auth, task.project_id)) {
+    return c.json({ error: 'Task not found' }, 404);
+  }
+  const body = await c.req.json().catch(() => null);
+  const requirementIds = body?.requirement_ids;
+  if (!Array.isArray(requirementIds)) {
+    return c.json({ error: 'requirement_ids must be an array' }, 400);
+  }
+  const updated = linkTaskToRequirements(taskId, requirementIds);
+  if (!updated) return c.json({ error: 'Task not found' }, 404);
+  return c.json({ ...updated, blocked: isTaskBlocked(updated.id) });
+});
+
+// Link task to PRD phase
+app.put('/api/tasks/:id/phase', async (c) => {
+  const auth = c.get('auth');
+  const taskId = c.req.param('id');
+  const task = getTask(taskId);
+  if (!task) return c.json({ error: 'Task not found' }, 404);
+  if (!canWriteProject(auth, task.project_id)) {
+    return c.json({ error: 'Task not found' }, 404);
+  }
+  const body = await c.req.json().catch(() => null);
+  const phaseId = body?.phase_id ?? undefined;
+  const updated = linkTaskToPhase(taskId, phaseId);
+  if (!updated) return c.json({ error: 'Task not found' }, 404);
+  return c.json({ ...updated, blocked: isTaskBlocked(updated.id) });
+});
+
 // Run task verification command
 app.post('/api/tasks/:id/verify', async (c) => {
   const auth = c.get('auth');
@@ -450,8 +502,9 @@ app.post('/api/tasks/:id/verify', async (c) => {
   try {
     output = execSync(task.verify, { encoding: 'utf-8', timeout: 60000, stdio: ['pipe', 'pipe', 'pipe'] });
     passed = true;
-  } catch (err: any) {
-    output = err.stdout?.toString() || '' + (err.stderr?.toString() || '') || err.message;
+  } catch (err: unknown) {
+    const execErr = err as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string };
+    output = (execErr.stdout?.toString() || '') + (execErr.stderr?.toString() || '') || execErr.message || 'Command failed';
     passed = false;
   }
   setTaskVerifyResult(taskId, passed, output.slice(0, 5000));
