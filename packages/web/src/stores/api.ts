@@ -309,9 +309,11 @@ export interface RequirementCoverage {
 }
 
 export async function getProjectPRD(projectId: string): Promise<PRD | null> {
-  const res = await authFetch(`${API_BASE}/projects/${projectId}/prd`);
+  // Fetch from project endpoint and extract PRD (more reliable than /prd endpoint)
+  const res = await authFetch(`${API_BASE}/projects/${projectId}`);
   if (!res.ok) return null;
-  return res.json();
+  const project = await res.json();
+  return project.prd || null;
 }
 
 export async function updateProjectPRD(projectId: string, prd: Partial<PRD>): Promise<Project | null> {

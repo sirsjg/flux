@@ -686,17 +686,35 @@ export function PRDEditor({ prd, loading, saving, projectName, onSave, onDelete,
         wide
       >
         <div class="relative">
-          <button
-            type="button"
-            class="btn btn-sm btn-ghost absolute top-2 right-2"
-            onClick={() => {
-              navigator.clipboard.writeText(prdToMarkdown(projectName, draft))
-              setCopied(true)
-              setTimeout(() => setCopied(false), 2000)
-            }}
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
+          <div class="absolute top-2 right-2 flex gap-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-ghost"
+              onClick={() => {
+                navigator.clipboard.writeText(prdToMarkdown(projectName, draft))
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              }}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-primary"
+              onClick={() => {
+                const content = prdToMarkdown(projectName, draft)
+                const blob = new Blob([content], { type: 'text/markdown' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `prd-${projectName.toLowerCase().replace(/\s+/g, '-')}.md`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
+              Download
+            </button>
+          </div>
           <pre class="bg-base-200 p-4 rounded-lg overflow-auto max-h-[60vh] text-sm whitespace-pre-wrap">{prdToMarkdown(projectName, draft)}</pre>
         </div>
         <div class="modal-action">

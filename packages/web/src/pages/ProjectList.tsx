@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { route, RoutableProps } from "preact-router";
 import {
   Cog6ToothIcon,
+  DocumentTextIcon,
   ExclamationTriangleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
@@ -241,7 +242,7 @@ export function ProjectList(_props: RoutableProps) {
                     {project.description}
                   </p>
                 )}
-                <div class="mt-2">
+                <div class="mt-2 flex gap-2 flex-wrap">
                   {project.stats.total === 0 ? (
                     <span class="badge badge-soft badge-sm">No tasks</span>
                   ) : (
@@ -253,6 +254,12 @@ export function ProjectList(_props: RoutableProps) {
                       }`}
                     >
                       {project.stats.done} of {project.stats.total} complete
+                    </span>
+                  )}
+                  {project.prd && (
+                    <span class="badge badge-soft badge-sm badge-secondary">
+                      <DocumentTextIcon className="h-3 w-3 mr-1" />
+                      PRD
                     </span>
                   )}
                 </div>
