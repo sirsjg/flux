@@ -15,9 +15,12 @@ import {
   updateEpic,
   updateTask,
   cleanupProject,
+  getProjectPRD,
+  updateProjectPRD,
+  deleteProjectPRD,
   type TaskWithBlocked,
 } from "../stores";
-import type { Epic } from "@flux/shared";
+import type { Epic, PRD } from "@flux/shared";
 import { STATUSES, STATUS_CONFIG, EPIC_COLORS } from "@flux/shared";
 import {
   TaskForm,
@@ -25,12 +28,15 @@ import {
   DraggableTaskCard,
   DroppableColumn,
   ThemeToggle,
+  PRDEditor,
+  Modal,
 } from "../components";
 import { useBoardPreferences } from "../hooks/useBoardPreferences";
 import {
   ArrowLeftIcon,
   Bars3BottomLeftIcon,
   ChevronRightIcon,
+  DocumentTextIcon,
   EyeIcon,
   EyeSlashIcon,
   MagnifyingGlassIcon,
@@ -55,6 +61,10 @@ export function Board({ projectId }: BoardProps) {
   const [epics, setEpics] = useState<Epic[]>([]);
   const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [prd, setPrd] = useState<PRD | null>(null);
+  const [prdLoading, setPrdLoading] = useState(false);
+  const [prdSaving, setPrdSaving] = useState(false);
+  const [prdFormOpen, setPrdFormOpen] = useState(false);
 
   // Modal state
   const [taskFormOpen, setTaskFormOpen] = useState(false);
@@ -166,6 +176,8 @@ export function Board({ projectId }: BoardProps) {
     }
     setProjectName(project.name);
     await refreshData();
+    // Load PRD separately (non-blocking)
+    getProjectPRD(projectId).then(setPrd);
     setLoading(false);
   };
 
@@ -242,6 +254,37 @@ export function Board({ projectId }: BoardProps) {
     setEditingEpic(undefined);
   };
 
+  // PRD handlers
+  const openPrdForm = async () => {
+    if (!projectId) return;
+    setPrdLoading(true);
+    setPrdFormOpen(true);
+    const data = await getProjectPRD(projectId);
+    setPrd(data);
+    setPrdLoading(false);
+  };
+
+  const handleSavePrd = async (updatedPrd: PRD) => {
+    if (!projectId) return;
+    setPrdSaving(true);
+    await updateProjectPRD(projectId, updatedPrd);
+    setPrd(updatedPrd);
+    setPrdSaving(false);
+  };
+
+  const handleDeletePrd = async () => {
+    if (!projectId) return;
+    setPrdSaving(true);
+    await deleteProjectPRD(projectId);
+    setPrd(null);
+    setPrdSaving(false);
+    setPrdFormOpen(false);
+  };
+
+  const closePrdForm = () => {
+    setPrdFormOpen(false);
+  };
+
   // Cleanup handlers
   const handleCleanup = async () => {
     if (!projectId) return;
@@ -316,6 +359,15 @@ export function Board({ projectId }: BoardProps) {
           </div>
           <div class="flex gap-2">
             <ThemeToggle />
+            <button
+              class={`btn btn-sm ${prd ? 'btn-secondary' : 'btn-ghost'}`}
+              onClick={openPrdForm}
+              title={prd ? 'Edit PRD' : 'Create PRD'}
+            >
+              <DocumentTextIcon className="h-4 w-4" />
+              PRD
+              {prd && <span class="badge badge-xs badge-neutral">✓</span>}
+            </button>
             <button
               class="btn btn-primary btn-sm"
               onClick={() => openNewTask()}
@@ -764,6 +816,22 @@ export function Board({ projectId }: BoardProps) {
           epic={editingEpic}
           projectId={projectId!}
         />
+        <Modal
+          isOpen={prdFormOpen}
+          onClose={closePrdForm}
+          title={prd ? `PRD: ${projectName}` : `Create PRD: ${projectName}`}
+          wide
+        >
+          <PRDEditor
+            prd={prd}
+            loading={prdLoading}
+            saving={prdSaving}
+            projectName={projectName}
+            onSave={handleSavePrd}
+            onDelete={handleDeletePrd}
+            onClose={closePrdForm}
+          />
+        </Modal>
 
         {/* Cleanup Dialog */}
         {cleanupDialogOpen && (
