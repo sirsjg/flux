@@ -52,6 +52,7 @@ export type Task = {
   blocked_reason?: string; // External blocker (meeting, approval, etc.)
   acceptance_criteria?: string[]; // Observable behavioral outcomes for verification
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
+  claude_task_id?: string; // Maps to Claude Code's task system
   created_at?: string;
   updated_at?: string;
 };
