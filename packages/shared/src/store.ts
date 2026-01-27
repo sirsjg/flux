@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
+import type { Task, Epic, Project, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
 
 // Auth functions injected at runtime (server-side only, uses Node crypto)
 type AuthFunctions = {
@@ -88,6 +88,10 @@ export function initStore(): Store {
     data.epics = [];
     needsWrite = true;
   }
+  if (!Array.isArray(data.blobs)) {
+    data.blobs = [];
+    needsWrite = true;
+  }
 
   // Migrate epics: ensure auto field exists
   data.epics.forEach((epic: any) => {
@@ -132,6 +136,7 @@ export function resetStore(): void {
   db.data.projects = [];
   db.data.epics = [];
   db.data.tasks = [];
+  db.data.blobs = [];
   const data = db.data as StoreWithWebhooks;
   data.webhooks = [];
   data.webhook_deliveries = [];
@@ -144,6 +149,7 @@ export function getStore(): Store {
     projects: [...(db.data.projects || [])],
     epics: [...(db.data.epics || [])],
     tasks: [...(db.data.tasks || [])],
+    blobs: [...(db.data.blobs || [])],
   };
 }
 
@@ -152,6 +158,7 @@ export function replaceStore(data: Store): void {
   db.data.projects = data.projects || [];
   db.data.epics = data.epics || [];
   db.data.tasks = data.tasks || [];
+  db.data.blobs = data.blobs || [];
   db.write();
 }
 
@@ -161,6 +168,7 @@ export function mergeStore(data: Store): void {
   const existingProjectIds = new Set(db.data.projects.map(p => p.id));
   const existingEpicIds = new Set(db.data.epics.map(e => e.id));
   const existingTaskIds = new Set(db.data.tasks.map(t => t.id));
+  const existingBlobIds = new Set((db.data.blobs || []).map(b => b.id));
 
   for (const p of data.projects || []) {
     if (!existingProjectIds.has(p.id)) db.data.projects.push(p);
@@ -170,6 +178,10 @@ export function mergeStore(data: Store): void {
   }
   for (const t of data.tasks || []) {
     if (!existingTaskIds.has(t.id)) db.data.tasks.push(t);
+  }
+  if (!db.data.blobs) db.data.blobs = [];
+  for (const b of data.blobs || []) {
+    if (!existingBlobIds.has(b.id)) db.data.blobs.push(b);
   }
   db.write();
 }
@@ -208,10 +220,16 @@ export function updateProject(id: string, updates: Partial<Omit<Project, 'id'>>)
 export function deleteProject(id: string): void {
   const index = db.data.projects.findIndex(p => p.id === id);
   if (index === -1) return;
+  // Collect task IDs for this project to clean up blobs
+  const taskIds = new Set(db.data.tasks.filter(t => t.project_id === id).map(t => t.id));
   db.data.projects.splice(index, 1);
   // Remove all epics and tasks for this project
   db.data.epics = db.data.epics.filter(e => e.project_id !== id);
   db.data.tasks = db.data.tasks.filter(t => t.project_id !== id);
+  // Remove blobs associated with deleted tasks
+  if (db.data.blobs) {
+    db.data.blobs = db.data.blobs.filter(b => !b.task_id || !taskIds.has(b.task_id));
+  }
   db.write();
 }
 
@@ -365,6 +383,10 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task
 export function deleteTask(id: string): boolean {
   const index = db.data.tasks.findIndex(t => t.id === id);
   if (index === -1) return false;
+  // Clean up associated blobs
+  if (db.data.blobs) {
+    db.data.blobs = db.data.blobs.filter(b => b.task_id !== id);
+  }
   db.data.tasks.splice(index, 1);
   // Remove this task from any depends_on arrays
   db.data.tasks.forEach(task => {
@@ -529,6 +551,109 @@ export function cleanupProject(projectId: string, archiveTasks: boolean, archive
   }
 
   return { archivedTasks, deletedEpics };
+}
+
+// ============ Blob Operations ============
+
+function ensureBlobsArray(): void {
+  if (!db.data.blobs) db.data.blobs = [];
+}
+
+export function createBlob(
+  hash: string,
+  filename: string,
+  mime_type: string,
+  size: number,
+  task_id?: string
+): Blob {
+  ensureBlobsArray();
+  const blob: Blob = {
+    id: generateId(),
+    hash,
+    filename,
+    mime_type,
+    size,
+    task_id,
+    created_at: new Date().toISOString(),
+  };
+  db.data.blobs!.push(blob);
+  // Add to task's blob_ids if associated
+  if (task_id) {
+    const task = db.data.tasks.find(t => t.id === task_id);
+    if (task) {
+      if (!task.blob_ids) task.blob_ids = [];
+      task.blob_ids.push(blob.id);
+    }
+  }
+  db.write();
+  return blob;
+}
+
+export function getBlob(id: string): Blob | undefined {
+  ensureBlobsArray();
+  return db.data.blobs!.find(b => b.id === id);
+}
+
+export function getBlobByHash(hash: string): Blob | undefined {
+  ensureBlobsArray();
+  return db.data.blobs!.find(b => b.hash === hash);
+}
+
+export function getBlobs(filter?: { task_id?: string }): Blob[] {
+  ensureBlobsArray();
+  let blobs = [...db.data.blobs!];
+  if (filter?.task_id) {
+    blobs = blobs.filter(b => b.task_id === filter.task_id);
+  }
+  return blobs;
+}
+
+export function deleteBlob(id: string): boolean {
+  ensureBlobsArray();
+  const index = db.data.blobs!.findIndex(b => b.id === id);
+  if (index === -1) return false;
+  const blob = db.data.blobs![index];
+  // Remove from task's blob_ids
+  if (blob.task_id) {
+    const task = db.data.tasks.find(t => t.id === blob.task_id);
+    if (task?.blob_ids) {
+      const blobIndex = task.blob_ids.indexOf(id);
+      if (blobIndex !== -1) task.blob_ids.splice(blobIndex, 1);
+    }
+  }
+  db.data.blobs!.splice(index, 1);
+  db.write();
+  return true;
+}
+
+export function attachBlobToTask(blobId: string, taskId: string): boolean {
+  ensureBlobsArray();
+  const blob = db.data.blobs!.find(b => b.id === blobId);
+  const task = db.data.tasks.find(t => t.id === taskId);
+  if (!blob || !task) return false;
+  blob.task_id = taskId;
+  if (!task.blob_ids) task.blob_ids = [];
+  if (!task.blob_ids.includes(blobId)) {
+    task.blob_ids.push(blobId);
+  }
+  db.write();
+  return true;
+}
+
+export function detachBlobFromTask(blobId: string, taskId: string): boolean {
+  ensureBlobsArray();
+  const blob = db.data.blobs!.find(b => b.id === blobId);
+  const task = db.data.tasks.find(t => t.id === taskId);
+  if (!blob || !task) return false;
+  if (blob.task_id === taskId) {
+    blob.task_id = undefined;
+  }
+  if (task.blob_ids) {
+    const index = task.blob_ids.indexOf(blobId);
+    if (index !== -1) task.blob_ids.splice(index, 1);
+  }
+  db.write();
+  return true;
 }
 
 // ============ Webhook Operations ============

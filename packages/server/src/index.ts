@@ -46,12 +46,17 @@ import {
   pollCliAuthRequest,
   cleanupExpiredAuthRequests,
   setAuthFunctions,
+  createBlob,
+  getBlob as getStoreBlob,
+  getBlobs as getStoreBlobs,
+  deleteBlob as deleteStoreBlob,
   type WebhookEventType,
   type KeyScope,
 } from '@flux/shared';
 import { generateKey, generateTempToken, validateKey, encrypt, decrypt } from '@flux/shared/auth';
 import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/shared/config';
 import { createAdapter } from '@flux/shared/adapters';
+import { createFilesystemBlobStorage, setBlobStorage, getBlobStorage } from '@flux/shared/blob-storage';
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
 import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, type AuthContext } from './middleware/auth.js';
 import { rateLimit } from './middleware/rate-limit.js';
@@ -73,6 +78,10 @@ const adapter = createAdapter(DATA_FILE);
 setStorageAdapter(adapter);
 setAuthFunctions({ generateKey, generateTempToken, validateKey, encrypt, decrypt });
 initStore();
+
+// Initialize blob storage
+const blobsDir = join(fluxDir, 'blobs');
+setBlobStorage(createFilesystemBlobStorage(blobsDir));
 
 console.log(`Flux server using: ${DATA_FILE}`);
 
@@ -468,6 +477,139 @@ app.post('/api/projects/:projectId/cleanup', async (c) => {
 // Reset database (wipe all data)
 app.post('/api/reset', requireServerAccess, (c) => {
   resetStore();
+  return c.json({ success: true });
+});
+
+// ============ Blob Routes ============
+
+const MAX_BLOB_SIZE = parseInt(process.env.FLUX_MAX_BLOB_SIZE || '') || 10 * 1024 * 1024; // 10MB default
+
+app.post('/api/blobs', async (c) => {
+  const auth = c.get('auth');
+  const contentType = c.req.header('content-type') || '';
+
+  if (!contentType.includes('multipart/form-data')) {
+    return c.json({ error: 'Multipart form data required' }, 400);
+  }
+
+  const formData = await c.req.formData();
+  const file = formData.get('file') as File | null;
+  const taskId = formData.get('task_id') as string | null;
+
+  if (!file) {
+    return c.json({ error: 'File required' }, 400);
+  }
+
+  if (file.size > MAX_BLOB_SIZE) {
+    return c.json({ error: `File too large (max ${MAX_BLOB_SIZE} bytes)` }, 413);
+  }
+
+  // Check task access if task_id provided
+  if (taskId) {
+    const task = getTask(taskId);
+    if (!task || !canWriteProject(auth, task.project_id)) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+  }
+
+  const storage = getBlobStorage();
+  if (!storage) {
+    return c.json({ error: 'Blob storage not initialized' }, 500);
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { hash, size } = storage.write(buffer);
+  const blob = createBlob(hash, file.name, file.type || 'application/octet-stream', size, taskId || undefined);
+
+  notifyDataChange();
+  return c.json(blob, 201);
+});
+
+app.get('/api/blobs', (c) => {
+  const auth = c.get('auth');
+  const taskId = c.req.query('task_id');
+  let blobs = getStoreBlobs(taskId ? { task_id: taskId } : undefined);
+
+  // Filter by task access
+  if (taskId) {
+    const task = getTask(taskId);
+    if (!task || !canReadProject(auth, task.project_id)) {
+      return c.json([], 200);
+    }
+  }
+
+  return c.json(blobs);
+});
+
+app.get('/api/blobs/:id', (c) => {
+  const auth = c.get('auth');
+  const blob = getStoreBlob(c.req.param('id'));
+  if (!blob) return c.json({ error: 'Blob not found' }, 404);
+
+  // Check access via task
+  if (blob.task_id) {
+    const task = getTask(blob.task_id);
+    if (task && !canReadProject(auth, task.project_id)) {
+      return c.json({ error: 'Blob not found' }, 404);
+    }
+  }
+
+  return c.json(blob);
+});
+
+app.get('/api/blobs/:id/content', (c) => {
+  const auth = c.get('auth');
+  const blob = getStoreBlob(c.req.param('id'));
+  if (!blob) return c.json({ error: 'Blob not found' }, 404);
+
+  // Check access via task
+  if (blob.task_id) {
+    const task = getTask(blob.task_id);
+    if (task && !canReadProject(auth, task.project_id)) {
+      return c.json({ error: 'Blob not found' }, 404);
+    }
+  }
+
+  const storage = getBlobStorage();
+  if (!storage) return c.json({ error: 'Blob storage not initialized' }, 500);
+
+  const content = storage.read(blob.hash);
+  if (!content) return c.json({ error: 'Blob content not found' }, 404);
+
+  return new Response(content, {
+    headers: {
+      'Content-Type': blob.mime_type,
+      'Content-Disposition': `attachment; filename="${blob.filename}"`,
+      'Content-Length': blob.size.toString(),
+    },
+  });
+});
+
+app.delete('/api/blobs/:id', (c) => {
+  const auth = c.get('auth');
+  const blob = getStoreBlob(c.req.param('id'));
+  if (!blob) return c.json({ error: 'Blob not found' }, 404);
+
+  // Check access via task
+  if (blob.task_id) {
+    const task = getTask(blob.task_id);
+    if (task && !canWriteProject(auth, task.project_id)) {
+      return c.json({ error: 'Blob not found' }, 404);
+    }
+  }
+
+  const storage = getBlobStorage();
+  if (storage) {
+    // Only remove file if no other blob references same hash
+    const allBlobs = getStoreBlobs();
+    const otherRefs = allBlobs.filter(b => b.hash === blob.hash && b.id !== blob.id);
+    if (otherRefs.length === 0) {
+      storage.remove(blob.hash);
+    }
+  }
+
+  deleteStoreBlob(blob.id);
+  notifyDataChange();
   return c.json({ success: true });
 });
 

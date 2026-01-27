@@ -43,11 +43,18 @@ import {
   updateWebhook,
   deleteWebhook,
   getWebhookDeliveries,
+  uploadBlob,
+  downloadBlob,
+  getClientBlobs,
+  getBlobMetadata,
+  deleteBlobClient,
   type WebhookEventType,
 } from '@flux/shared/client';
 import { setStorageAdapter, initStore, STATUSES, WEBHOOK_EVENT_TYPES, type Guardrail } from '@flux/shared';
 import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/shared/config';
 import { createAdapter } from '@flux/shared/adapters';
+import { createFilesystemBlobStorage, setBlobStorage } from '@flux/shared/blob-storage';
+import { join } from 'path';
 
 // Initialize storage - use same config resolution as CLI
 const fluxDir = findFluxDir();
@@ -69,6 +76,11 @@ if (serverUrl) {
   setStorageAdapter(adapter);
   initStore();
   initClient(); // Local mode
+
+  // Initialize blob storage
+  const blobsDir = join(fluxDir, 'blobs');
+  setBlobStorage(createFilesystemBlobStorage(blobsDir));
+
   console.error(`Flux MCP using local storage: ${dataPath}`);
 }
 
@@ -551,6 +563,54 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['webhook_id'],
         },
       },
+
+      // Blob tools
+      {
+        name: 'blob_attach',
+        description: 'Attach a file (as base64 content) to a task. Returns blob metadata including the blob_id.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Task ID to attach the blob to' },
+            filename: { type: 'string', description: 'Original filename (e.g., "mockup.png")' },
+            content_base64: { type: 'string', description: 'File content encoded as base64' },
+            mime_type: { type: 'string', description: 'MIME type (e.g., "image/png"). Auto-detected if omitted.' },
+          },
+          required: ['task_id', 'filename', 'content_base64'],
+        },
+      },
+      {
+        name: 'blob_get',
+        description: 'Retrieve a blob\'s content and metadata by ID. Returns base64-encoded content.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            blob_id: { type: 'string', description: 'Blob ID to retrieve' },
+          },
+          required: ['blob_id'],
+        },
+      },
+      {
+        name: 'blob_list',
+        description: 'List blobs, optionally filtered by task ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            task_id: { type: 'string', description: 'Optional: filter blobs by task ID' },
+          },
+        },
+      },
+      {
+        name: 'blob_delete',
+        description: 'Delete a blob by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            blob_id: { type: 'string', description: 'Blob ID to delete' },
+          },
+          required: ['blob_id'],
+        },
+      },
     ],
   };
 });
@@ -843,6 +903,71 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const deliveries = await getWebhookDeliveries(args?.webhook_id as string, limit);
       return {
         content: [{ type: 'text', text: JSON.stringify(deliveries, null, 2) }],
+      };
+    }
+
+    // Blob operations
+    case 'blob_attach': {
+      const contentBase64 = args?.content_base64 as string;
+      if (!contentBase64) {
+        return { content: [{ type: 'text', text: 'content_base64 required' }], isError: true };
+      }
+      const content = Buffer.from(contentBase64, 'base64');
+      const filename = args?.filename as string;
+      const mimeType = (args?.mime_type as string) || 'application/octet-stream';
+      const taskId = args?.task_id as string;
+      const blob = await uploadBlob(content, filename, mimeType, taskId);
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ blob_id: blob.id, hash: blob.hash, size: blob.size }, null, 2) }],
+      };
+    }
+
+    case 'blob_get': {
+      const blobId = args?.blob_id as string;
+      const result = await downloadBlob(blobId);
+      if (!result) {
+        return { content: [{ type: 'text', text: 'Blob not found' }], isError: true };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            blob_id: result.blob.id,
+            filename: result.blob.filename,
+            mime_type: result.blob.mime_type,
+            size: result.blob.size,
+            content_base64: result.content.toString('base64'),
+          }, null, 2),
+        }],
+      };
+    }
+
+    case 'blob_list': {
+      const taskId = args?.task_id as string | undefined;
+      const blobs = await getClientBlobs(taskId ? { task_id: taskId } : undefined);
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(blobs.map(b => ({
+            id: b.id,
+            filename: b.filename,
+            mime_type: b.mime_type,
+            size: b.size,
+            task_id: b.task_id,
+            created_at: b.created_at,
+          })), null, 2),
+        }],
+      };
+    }
+
+    case 'blob_delete': {
+      const blobId = args?.blob_id as string;
+      const success = await deleteBlobClient(blobId);
+      if (!success) {
+        return { content: [{ type: 'text', text: 'Blob not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ success: true }) }],
       };
     }
 

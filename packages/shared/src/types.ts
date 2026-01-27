@@ -52,6 +52,7 @@ export type Task = {
   blocked_reason?: string; // External blocker (meeting, approval, etc.)
   acceptance_criteria?: string[]; // Observable behavioral outcomes for verification
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
+  blob_ids?: string[]; // References to Blob.id
   created_at?: string;
   updated_at?: string;
 };
@@ -106,11 +107,23 @@ export type CliAuthRequest = {
   completed_at?: string;
 };
 
+// Blob represents an attached file (content stored on filesystem).
+export type Blob = {
+  id: string;            // Short unique ID
+  hash: string;          // SHA-256 hex digest of content
+  filename: string;      // Original filename (e.g., "mockup.png")
+  mime_type: string;     // e.g., "image/png"
+  size: number;          // Bytes
+  task_id?: string;      // Optional association
+  created_at: string;
+};
+
 // Store is the JSON document root.
 export type Store = {
   projects: Project[];
   epics: Epic[];
   tasks: Task[];
+  blobs?: Blob[];
 };
 
 // Status columns for the Kanban board

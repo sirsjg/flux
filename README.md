@@ -12,7 +12,7 @@ Why settle for boring task trackers when you can enter the Flux Zone? Inspired b
 
 ![Demo](./docs/demo.gif)
 
-## Why Flux? Because Chaos is So Last Year 😎
+## Why Flux? Because Chaos is So Last Year
 
 Ever felt like your projects are a tangled mess of tools, bots, and half-baked ideas? Flux fixes that by being:
 
@@ -28,19 +28,20 @@ Flux isn't just another Kanban board – it's the open-source engine for the fut
   <em>Sample workflow</em>
 </p>
 
-## Features That'll Make You Say "whoa" 🔥
+## Features
 
-- 🚀 **Multi-Project Kanban Boards**: Juggle epics, tasks, and dependencies like a pro.
-- 🔗 **Task Dependencies**: See what's blocked at a glance – no more surprises!
-- 🤖 **MCP Integration**: Let LLMs list, create, update, or delete tasks programmatically.
-- 📡 **Real-Time Updates**: SSE keeps everyone in sync – web UI, APIs, and beyond.
-- 🪝 **Webhooks Galore**: Integrate with Slack, GitHub, CI/CD – trigger actions on task changes.
-- 📱 **API-First Design**: Full REST endpoints for ultimate control.
-- 💾 **Git-Native Sync**: `flux push` / `flux pull` syncs via `flux-data` branch.
+- **Multi-Project Kanban Boards**: Juggle epics, tasks, and dependencies like a pro.
+- **Task Dependencies**: See what's blocked at a glance – no more surprises!
+- **MCP Integration**: Let LLMs list, create, update, or delete tasks programmatically.
+- **Real-Time Updates**: SSE keeps everyone in sync – web UI, APIs, and beyond.
+- **Webhooks Galore**: Integrate with Slack, GitHub, CI/CD – trigger actions on task changes.
+- **API-First Design**: Full REST endpoints for ultimate control.
+- **Git-Native Sync**: `flux push` / `flux pull` syncs via `flux-data` branch.
 
-- 🖥️ **CLI-First**: Full CLI with MCP parity (`flux ready`, `flux task`, etc.)
-- 🧠 **Agent Memory**: Task comments for persistent context across sessions
-- ⚡ **Priority System**: P0/P1/P2 priorities for agent task ordering
+- **CLI-First**: Full CLI with MCP parity (`flux ready`, `flux task`, etc.)
+- **Agent Memory**: Task comments for persistent context across sessions
+- **Priority System**: P0/P1/P2 priorities for agent task ordering
+- **Blob Storage**: Attach files (images, docs, logs) to tasks via CLI, API, or MCP.
 
 ## Quick Start: Up and Running in a Flux Second ⚡
 
@@ -85,6 +86,7 @@ EXECUTION:
 - Track all work as tasks.
 - Update task status as work progresses.
 - Close tasks immediately when complete.
+- Comment on tasks where appropriate.
 
 CONTEXT LOSS:
 - If unsure of project_id, STOP.
