@@ -71,12 +71,20 @@ export type Epic = {
 // Project visibility: public = anyone can read, private = key required
 export type ProjectVisibility = 'public' | 'private';
 
+// Project context for agent orientation
+export type ProjectContext = {
+  problem?: string;          // What problem are we solving?
+  businessRules?: string[];  // Project-wide constraints
+  notes?: string;            // Cross-session agent learnings
+};
+
 // Project represents a Kanban project.
 export type Project = {
   id: string;
   name: string;
   description?: string;
   visibility?: ProjectVisibility;
+  context?: ProjectContext;  // Agent context
 };
 
 // ============ API Key Types ============

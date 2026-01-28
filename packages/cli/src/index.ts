@@ -48,6 +48,7 @@ import { serveCommand } from './commands/serve.js';
 import { primeCommand } from './commands/prime.js';
 import { authCommand } from './commands/auth.js';
 import { blobCommand } from './commands/blob.js';
+import { contextCommand } from './commands/context.js';
 import { initClient, exportAll, importAll, getProjects, createProject } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -764,6 +765,9 @@ async function main() {
       break;
     case 'blob':
       await blobCommand(parsed.subcommand, parsed.args, parsed.flags, json);
+      break;
+    case 'context':
+      await contextCommand(parsed.subcommand, parsed.args, parsed.flags, json);
       break;
     case 'export': {
       const data = await exportAll();

@@ -10,6 +10,9 @@ import {
   updateProject as localUpdateProject,
   deleteProject as localDeleteProject,
   getProjectStats as localGetProjectStats,
+  getProjectContext as localGetProjectContext,
+  updateProjectContext as localUpdateProjectContext,
+  addProjectContextNote as localAddProjectContextNote,
   getEpics as localGetEpics,
   getEpic as localGetEpic,
   createEpic as localCreateEpic,
@@ -43,6 +46,7 @@ import {
 
 import type {
   Project,
+  ProjectContext,
   Epic,
   Task,
   TaskComment,
@@ -59,7 +63,7 @@ import type {
 
 // Re-export types and constants
 export { PRIORITY_CONFIG, PRIORITIES };
-export type { Project, Epic, Task, TaskComment, Priority, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, Guardrail };
+export type { Project, ProjectContext, Epic, Task, TaskComment, Priority, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, Guardrail };
 
 // Server response includes computed blocked field
 type TaskWithBlocked = Task & { blocked: boolean };
@@ -179,6 +183,43 @@ export async function getProjectStats(id: string): Promise<{ total: number; done
     return project.stats || { total: 0, done: 0 };
   }
   return localGetProjectStats(id);
+}
+
+// Project Context
+export async function getProjectContext(projectId: string): Promise<ProjectContext | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('GET', `/api/projects/${projectId}/context`);
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localGetProjectContext(projectId);
+}
+
+export async function updateProjectContext(projectId: string, context: ProjectContext): Promise<Project | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('PUT', `/api/projects/${projectId}/context`, context);
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localUpdateProjectContext(projectId, context);
+}
+
+export async function addProjectContextNote(projectId: string, note: string): Promise<Project | undefined> {
+  if (serverUrl) {
+    try {
+      return await http('POST', `/api/projects/${projectId}/context/note`, { note });
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localAddProjectContextNote(projectId, note);
 }
 
 // Epics

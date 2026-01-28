@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
+import type { Task, Epic, Project, ProjectContext, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
 
 // Auth functions injected at runtime (server-side only, uses Node crypto)
 type AuthFunctions = {
@@ -239,6 +239,38 @@ export function getProjectStats(projectId: string): { total: number; done: numbe
     total: tasks.length,
     done: tasks.filter(t => t.status === 'done').length,
   };
+}
+
+// ============ Project Context Operations ============
+
+export function getProjectContext(projectId: string): ProjectContext | undefined {
+  const project = db.data.projects.find(p => p.id === projectId);
+  return project?.context;
+}
+
+export function updateProjectContext(projectId: string, context: ProjectContext): Project | undefined {
+  const index = db.data.projects.findIndex(p => p.id === projectId);
+  if (index === -1) return undefined;
+  db.data.projects[index].context = context;
+  db.write();
+  return db.data.projects[index];
+}
+
+export function addProjectContextNote(projectId: string, note: string): Project | undefined {
+  const index = db.data.projects.findIndex(p => p.id === projectId);
+  if (index === -1) return undefined;
+  const project = db.data.projects[index];
+  const timestamp = new Date().toISOString().split('T')[0];
+  const newNote = `[${timestamp}] ${note}`;
+  if (!project.context) {
+    project.context = { notes: newNote };
+  } else if (!project.context.notes) {
+    project.context.notes = newNote;
+  } else {
+    project.context.notes = `${project.context.notes}\n${newNote}`;
+  }
+  db.write();
+  return project;
 }
 
 // ============ Epic Operations ============

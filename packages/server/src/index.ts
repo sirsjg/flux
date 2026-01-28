@@ -15,6 +15,9 @@ import {
   updateProject,
   deleteProject,
   getProjectStats,
+  getProjectContext,
+  updateProjectContext,
+  addProjectContextNote,
   getEpics,
   getEpic,
   createEpic,
@@ -273,6 +276,49 @@ app.delete('/api/projects/:id', requireServerAccess, (c) => {
     triggerWebhooks('project.deleted', { project }, project.id);
   }
   return c.json({ success: true });
+});
+
+// Project Context
+app.get('/api/projects/:id/context', (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('id');
+  if (!canReadProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const context = getProjectContext(projectId);
+  return c.json(context || {});
+});
+
+app.put('/api/projects/:id/context', async (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('id');
+  if (!canWriteProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const body = await c.req.json();
+  const project = updateProjectContext(projectId, {
+    problem: body.problem,
+    businessRules: body.businessRules,
+    notes: body.notes,
+  });
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  return c.json(project);
+});
+
+app.post('/api/projects/:id/context/note', async (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('id');
+  if (!canWriteProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const body = await c.req.json();
+  const project = addProjectContextNote(projectId, body.note);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  return c.json(project);
 });
 
 // Epics

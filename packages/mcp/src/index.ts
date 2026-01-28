@@ -23,6 +23,9 @@ import {
   updateProject,
   deleteProject,
   getProjectStats,
+  getProjectContext,
+  updateProjectContext,
+  addProjectContextNote,
   getEpics,
   getEpic,
   createEpic,
@@ -264,6 +267,48 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             project_id: { type: 'string', description: 'Project ID to delete' },
           },
           required: ['project_id'],
+        },
+      },
+
+      // Project Context tools
+      {
+        name: 'get_project_context',
+        description: 'Get project context (problem statement, business rules, session notes). Use this to understand what problem the project solves and any constraints.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Project ID' },
+          },
+          required: ['project_id'],
+        },
+      },
+      {
+        name: 'update_project_context',
+        description: 'Set project context (problem statement and business rules). Use this to document what the project is trying to solve.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Project ID' },
+            problem: { type: 'string', description: 'What problem is this project solving?' },
+            business_rules: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Project-wide constraints and rules',
+            },
+          },
+          required: ['project_id'],
+        },
+      },
+      {
+        name: 'add_context_note',
+        description: 'Add a session note to the project context. Use this to record important decisions, learnings, or blockers for future sessions.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Project ID' },
+            note: { type: 'string', description: 'Note to add (will be timestamped)' },
+          },
+          required: ['project_id', 'note'],
         },
       },
 
@@ -658,6 +703,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await deleteProject(args?.project_id as string);
       return {
         content: [{ type: 'text', text: `Deleted project ${args?.project_id}` }],
+      };
+    }
+
+    // Project Context operations
+    case 'get_project_context': {
+      const context = await getProjectContext(args?.project_id as string);
+      if (!context) {
+        return {
+          content: [{ type: 'text', text: 'No context set for this project. Use update_project_context to add one.' }],
+        };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(context, null, 2) }],
+      };
+    }
+
+    case 'update_project_context': {
+      const project = await updateProjectContext(args?.project_id as string, {
+        problem: args?.problem as string | undefined,
+        businessRules: args?.business_rules as string[] | undefined,
+      });
+      if (!project) {
+        return { content: [{ type: 'text', text: 'Project not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: `Updated context for "${project.name}"\n\n${JSON.stringify(project.context, null, 2)}` }],
+      };
+    }
+
+    case 'add_context_note': {
+      const project = await addProjectContextNote(args?.project_id as string, args?.note as string);
+      if (!project) {
+        return { content: [{ type: 'text', text: 'Project not found' }], isError: true };
+      }
+      return {
+        content: [{ type: 'text', text: `Added note to "${project.name}"` }],
       };
     }
 
