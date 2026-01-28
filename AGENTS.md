@@ -51,7 +51,7 @@ flux task create <project> <title> -P 0  # Create P0 task
 docker build -t flux-mcp .
 
 # Mount repo's .flux directory (SQLite for better concurrency)
-docker run -d -p 3000:3000 -v $(pwd)/.flux:/app/.flux -e FLUX_DATA=/app/.flux/data.sqlite flux-mcp bun packages/server/dist/index.js
+docker run -d -p 3000:3000 -v $(pwd)/.flux:/app/packages/data -e FLUX_DATA=/app/packages/data/flux.sqlite flux-mcp
 ```
 
 ## Architecture

@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { join, dirname, resolve } from 'path';
+import { join, dirname, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, readFileSync, statSync } from 'fs';
 import {
@@ -244,8 +244,8 @@ export async function serveCommand(
       // Check if this is a request for a static file (has known extension)
       if (staticExtensions.test(path)) {
         const filePath = join(webDistPath, path);
-        // Security: prevent path traversal attacks
-        if (!filePath.startsWith(webDistPath + '/')) {
+        // Security: prevent path traversal attacks (use sep for cross-platform compatibility)
+        if (!filePath.startsWith(webDistPath + sep)) {
           return c.notFound();
         }
         if (existsSync(filePath) && statSync(filePath).isFile()) {

@@ -9,3 +9,6 @@ export * from './store.js';
 
 // Note: Config utilities are exported separately to avoid bundling Node.js fs/path in browser builds
 // Import from '@flux/shared/config' for findFluxDir, readConfig, loadEnvLocal, etc.
+
+// Note: Blob storage is exported separately to avoid bundling Node.js fs/crypto in browser builds
+// Import from '@flux/shared/blob-storage' for createFilesystemBlobStorage, setBlobStorage, getBlobStorage

@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Webhook, WebhookDelivery, WebhookEventType, TaskComment, CommentAuthor, KeyScope } from '@flux/shared';
+import type { Task, Epic, Project, Webhook, WebhookDelivery, WebhookEventType, TaskComment, CommentAuthor, KeyScope, Blob as FluxBlob } from '@flux/shared';
 import { getToken } from './auth';
 
 const API_BASE = import.meta.env.DEV ? 'http://localhost:3000/api' : '/api';
@@ -289,4 +289,32 @@ export async function completeCliAuth(
     body: JSON.stringify({ token, name, project_ids: projectIds }),
   });
   return res.json();
+}
+
+// ============ Blob Operations ============
+
+export async function uploadBlob(file: File, taskId?: string): Promise<FluxBlob> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (taskId) formData.append('task_id', taskId);
+  const res = await authFetch(`${API_BASE}/blobs`, {
+    method: 'POST',
+    body: formData,
+  });
+  return res.json();
+}
+
+export async function getBlobs(taskId?: string): Promise<FluxBlob[]> {
+  const url = taskId ? `${API_BASE}/blobs?task_id=${taskId}` : `${API_BASE}/blobs`;
+  const res = await authFetch(url);
+  return res.json();
+}
+
+export async function deleteBlob(id: string): Promise<boolean> {
+  const res = await authFetch(`${API_BASE}/blobs/${id}`, { method: 'DELETE' });
+  return res.ok;
+}
+
+export function getBlobContentUrl(id: string): string {
+  return `${API_BASE}/blobs/${id}/content`;
 }

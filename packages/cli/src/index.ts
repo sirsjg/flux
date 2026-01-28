@@ -2,11 +2,12 @@
 
 import { resolve, dirname } from 'path';
 import { execSync } from 'child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync, cpSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { createInterface } from 'readline';
 import { setStorageAdapter, initStore } from '@flux/shared';
 import { createAdapter } from '@flux/shared/adapters';
+import { createFilesystemBlobStorage, setBlobStorage } from '@flux/shared/blob-storage';
 import { type FluxConfig, findFluxDir, readConfig, writeConfig, loadEnvLocal, resolveDataPath } from './config.js';
 
 // ANSI colors
@@ -46,6 +47,7 @@ import { showCommand } from './commands/show.js';
 import { serveCommand } from './commands/serve.js';
 import { primeCommand } from './commands/prime.js';
 import { authCommand } from './commands/auth.js';
+import { blobCommand } from './commands/blob.js';
 import { initClient, exportAll, importAll, getProjects, createProject } from './client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -166,6 +168,11 @@ function initStorage(): { mode: 'file' | 'server'; serverUrl?: string; project?:
   setStorageAdapter(adapter);
   initStore();
   initClient(); // No server = local mode
+
+  // Initialize blob storage
+  const blobsDir = resolve(fluxDir, 'blobs');
+  setBlobStorage(createFilesystemBlobStorage(blobsDir));
+
   return { mode: 'file', project: config.project };
 }
 
@@ -627,6 +634,8 @@ async function main() {
       try {
         const worktree = ensureWorktree(gitRoot);
         const worktreeData = resolve(worktree, '.flux', 'data.json');
+        const worktreeBlobs = resolve(worktree, '.flux', 'blobs');
+        const localBlobs = resolve(fluxDir, 'blobs');
 
         execSync('git fetch origin flux-data', { stdio: 'pipe', cwd: worktree });
         execSync('git reset --hard origin/flux-data', { stdio: 'pipe', cwd: worktree });
@@ -637,6 +646,12 @@ async function main() {
           console.log('Pulled latest tasks from flux-data branch');
         } else {
           console.log('No .flux/data.json in flux-data branch yet');
+        }
+        // Copy blobs from worktree
+        if (existsSync(worktreeBlobs)) {
+          mkdirSync(localBlobs, { recursive: true });
+          cpSync(worktreeBlobs, localBlobs, { recursive: true });
+          console.log('Pulled blobs from flux-data branch');
         }
       } catch (e: any) {
         console.error('Failed to pull:', e.message);
@@ -653,11 +668,22 @@ async function main() {
         const worktree = ensureWorktree(gitRoot);
         const worktreeFlux = resolve(worktree, '.flux');
         const worktreeData = resolve(worktreeFlux, 'data.json');
+        const localBlobs = resolve(fluxDir, 'blobs');
+        const worktreeBlobs = resolve(worktreeFlux, 'blobs');
 
         mkdirSync(worktreeFlux, { recursive: true });
         writeFileSync(worktreeData, readFileSync(dataPath, 'utf-8'));
 
+        // Copy blobs to worktree
+        if (existsSync(localBlobs)) {
+          mkdirSync(worktreeBlobs, { recursive: true });
+          cpSync(localBlobs, worktreeBlobs, { recursive: true });
+        }
+
         execSync('git add .flux/data.json', { stdio: 'pipe', cwd: worktree });
+        if (existsSync(worktreeBlobs)) {
+          execSync('git add .flux/blobs', { stdio: 'pipe', cwd: worktree });
+        }
         try {
           execSync(`git commit -m "flux: ${msg}"`, { stdio: 'pipe', cwd: worktree });
           execSync('git push origin flux-data', { stdio: 'pipe', cwd: worktree });
@@ -735,6 +761,9 @@ async function main() {
       break;
     case 'auth':
       await authCommand(parsed.subcommand, parsed.args, parsed.flags, json);
+      break;
+    case 'blob':
+      await blobCommand(parsed.subcommand, parsed.args, parsed.flags, json);
       break;
     case 'export': {
       const data = await exportAll();
@@ -825,6 +854,12 @@ ${c.bold}Commands:${c.reset}
   ${c.cyan}flux task update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--title] [--status] [--note] [--epic] [--blocked] [--ac ...] [--guardrail ...]${c.reset}
   ${c.cyan}flux task done${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--note]${c.reset}       Mark task done
   ${c.cyan}flux task start${c.reset} ${c.yellow}<id>${c.reset}               Mark task in_progress
+
+${c.bold}Blobs:${c.reset}
+  ${c.cyan}flux blob attach${c.reset} ${c.yellow}<task-id> <file>${c.reset}  Attach a file to a task
+  ${c.cyan}flux blob get${c.reset} ${c.yellow}<blob-id>${c.reset} ${c.green}[path]${c.reset}     Download blob to file
+  ${c.cyan}flux blob list${c.reset} ${c.green}[--task <id>]${c.reset}       List blobs
+  ${c.cyan}flux blob delete${c.reset} ${c.yellow}<blob-id>${c.reset}         Delete a blob
 
 ${c.bold}Data:${c.reset}
   ${c.cyan}flux export${c.reset} ${c.green}[-o file]${c.reset}              Export all data to JSON

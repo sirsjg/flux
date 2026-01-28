@@ -1,4 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
+import { PaperClipIcon } from "@heroicons/react/24/outline";
 import { ConfirmModal } from "./ConfirmModal";
 import { Modal } from "./Modal";
 import {
@@ -9,10 +10,20 @@ import {
   deleteTaskComment,
   getEpics,
   getTasks,
+  uploadBlob,
+  getBlobs,
+  deleteBlob,
+  getBlobContentUrl,
   type TaskWithBlocked,
 } from "../stores";
-import type { Task, Epic, Status, TaskComment, Guardrail } from "@flux/shared";
+import type { Task, Epic, Status, TaskComment, Guardrail, Blob as FluxBlob } from "@flux/shared";
 import { STATUSES, STATUS_CONFIG } from "@flux/shared";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -50,6 +61,8 @@ export function TaskForm({
   const [guardrails, setGuardrails] = useState<Guardrail[]>([]);
   const [newGuardrailNumber, setNewGuardrailNumber] = useState("");
   const [newGuardrailText, setNewGuardrailText] = useState("");
+  const [blobs, setBlobs] = useState<FluxBlob[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const isEdit = !!task;
 
@@ -87,6 +100,8 @@ export function TaskForm({
       setBlockedReason(task.blocked_reason || "");
       setAcceptanceCriteria(task.acceptance_criteria ? [...task.acceptance_criteria] : []);
       setGuardrails(task.guardrails ? [...task.guardrails] : []);
+      const blobsData = await getBlobs(task.id);
+      setBlobs(blobsData);
     } else {
       setTitle("");
       setStatus("todo");
@@ -96,6 +111,7 @@ export function TaskForm({
       setBlockedReason("");
       setAcceptanceCriteria([]);
       setGuardrails([]);
+      setBlobs([]);
     }
   };
 
@@ -218,6 +234,27 @@ export function TaskForm({
 
   const removeGuardrail = (id: string) => {
     setGuardrails((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  const handleFileUpload = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !task || uploading) return;
+    setUploading(true);
+    try {
+      const blob = await uploadBlob(file, task.id);
+      setBlobs((prev) => [...prev, blob]);
+      await onSave();
+    } finally {
+      setUploading(false);
+      input.value = "";
+    }
+  };
+
+  const handleDeleteBlob = async (blobId: string) => {
+    await deleteBlob(blobId);
+    setBlobs((prev) => prev.filter((b) => b.id !== blobId));
+    await onSave();
   };
 
   return (
@@ -476,6 +513,70 @@ export function TaskForm({
                 </div>
               </div>
             </div>
+
+            {isEdit && (
+              <div class="form-control mb-4">
+                <label class="label">
+                  <span class="label-text">Attachments</span>
+                  {blobs.length > 0 && (
+                    <span class="label-text-alt">{blobs.length}</span>
+                  )}
+                </label>
+                <div class="space-y-2">
+                  {blobs.map((blob) => (
+                    <div
+                      key={blob.id}
+                      class="flex items-center gap-2 border border-base-300 rounded-lg p-2"
+                    >
+                      {blob.mime_type.startsWith("image/") ? (
+                        <img
+                          src={getBlobContentUrl(blob.id)}
+                          alt={blob.filename}
+                          class="w-10 h-10 object-cover rounded"
+                        />
+                      ) : (
+                        <PaperClipIcon className="h-5 w-5 text-base-content/50 flex-shrink-0" />
+                      )}
+                      <div class="flex-1 min-w-0">
+                        <a
+                          href={getBlobContentUrl(blob.id)}
+                          target="_blank"
+                          class="text-sm font-medium truncate block hover:underline"
+                        >
+                          {blob.filename}
+                        </a>
+                        <span class="text-xs text-base-content/50">
+                          {formatFileSize(blob.size)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-xs"
+                        onClick={() => handleDeleteBlob(blob.id)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <label class="btn btn-sm btn-outline gap-2 cursor-pointer">
+                    {uploading ? (
+                      <span class="loading loading-spinner loading-xs" />
+                    ) : (
+                      <>
+                        <PaperClipIcon className="h-4 w-4" />
+                        Attach file
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      class="hidden"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
 
             {isEdit && (
               <div class="form-control mb-4">
