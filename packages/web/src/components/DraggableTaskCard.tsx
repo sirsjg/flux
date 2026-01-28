@@ -1,4 +1,4 @@
-import { ArrowDownIcon, CheckCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
+import { ArrowDownIcon, CheckCircleIcon, PaperClipIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { TaskWithBlocked } from '../stores'
@@ -49,6 +49,12 @@ export function DraggableTaskCard({
         <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-info/70`} title="Guardrails">
           <ShieldCheckIcon className="h-3.5 w-3.5" />
           <span>{task.guardrails.length}</span>
+        </div>
+      )}
+      {task.blob_ids && task.blob_ids.length > 0 && (
+        <div class={`flex items-center ${compact ? 'gap-0.5 flex-shrink-0' : 'gap-1'} text-xs text-base-content/50`} title="Attachments">
+          <PaperClipIcon className="h-3.5 w-3.5" />
+          <span>{task.blob_ids.length}</span>
         </div>
       )}
     </>

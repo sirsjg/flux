@@ -567,16 +567,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // Blob tools
       {
         name: 'blob_attach',
-        description: 'Attach a file (as base64 content) to a task. Returns blob metadata including the blob_id.',
+        description: 'Attach a file to a task. Provide the absolute file path and the MCP server reads it directly from disk.',
         inputSchema: {
           type: 'object',
           properties: {
             task_id: { type: 'string', description: 'Task ID to attach the blob to' },
-            filename: { type: 'string', description: 'Original filename (e.g., "mockup.png")' },
-            content_base64: { type: 'string', description: 'File content encoded as base64' },
-            mime_type: { type: 'string', description: 'MIME type (e.g., "image/png"). Auto-detected if omitted.' },
+            file_path: { type: 'string', description: 'Absolute path to the file on disk' },
+            mime_type: { type: 'string', description: 'MIME type (e.g., "image/png"). Auto-detected from extension if omitted.' },
           },
-          required: ['task_id', 'filename', 'content_base64'],
+          required: ['task_id', 'file_path'],
         },
       },
       {
@@ -908,18 +907,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Blob operations
     case 'blob_attach': {
-      const contentBase64 = args?.content_base64 as string;
-      if (!contentBase64) {
-        return { content: [{ type: 'text', text: 'content_base64 required' }], isError: true };
-      }
-      const content = Buffer.from(contentBase64, 'base64');
-      const filename = args?.filename as string;
-      const mimeType = (args?.mime_type as string) || 'application/octet-stream';
+      const filePath = args?.file_path as string;
       const taskId = args?.task_id as string;
-      const blob = await uploadBlob(content, filename, mimeType, taskId);
-      return {
-        content: [{ type: 'text', text: JSON.stringify({ blob_id: blob.id, hash: blob.hash, size: blob.size }, null, 2) }],
-      };
+      if (!filePath) {
+        return { content: [{ type: 'text', text: 'file_path required' }], isError: true };
+      }
+      if (!taskId) {
+        return { content: [{ type: 'text', text: 'task_id required' }], isError: true };
+      }
+      try {
+        const { readFileSync, existsSync } = await import('fs');
+        const { basename, extname } = await import('path');
+        if (!existsSync(filePath)) {
+          return { content: [{ type: 'text', text: `File not found: ${filePath}` }], isError: true };
+        }
+        const content = readFileSync(filePath);
+        const filename = basename(filePath);
+        const ext = extname(filePath).toLowerCase().slice(1);
+        const mimeMap: Record<string, string> = {
+          png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+          webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf',
+          txt: 'text/plain', md: 'text/markdown', json: 'application/json',
+          csv: 'text/csv', html: 'text/html', xml: 'application/xml',
+          zip: 'application/zip', gz: 'application/gzip',
+          log: 'text/plain', yaml: 'text/yaml', yml: 'text/yaml',
+        };
+        const mimeType = (args?.mime_type as string) || mimeMap[ext] || 'application/octet-stream';
+        const blob = await uploadBlob(content, filename, mimeType, taskId);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ blob_id: blob.id, hash: blob.hash, size: blob.size, filename }, null, 2) }],
+        };
+      } catch (err: any) {
+        return { content: [{ type: 'text', text: `Error attaching file: ${err.message}` }], isError: true };
+      }
     }
 
     case 'blob_get': {
