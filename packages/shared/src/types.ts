@@ -71,9 +71,6 @@ export type Task = {
 
 // ============ PRD Types ============
 
-// Requirement priority using MoSCoW method
-export type RequirementPriority = 'must' | 'should' | 'could';
-
 // Requirement type
 export type RequirementType = 'functional' | 'non-functional' | 'constraint';
 
@@ -82,7 +79,6 @@ export type Requirement = {
   id: string;                    // REQ-001
   type: RequirementType;
   description: string;
-  priority: RequirementPriority;
   acceptance?: string;           // How to verify this requirement
 };
 

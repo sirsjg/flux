@@ -28,9 +28,8 @@ const c = {
 
 // Format requirement for display
 function formatRequirement(req: Requirement, indent: string = ''): string {
-  const priorityColor = req.priority === 'must' ? c.red : req.priority === 'should' ? c.yellow : c.gray;
   const typeLabel = req.type === 'functional' ? 'F' : req.type === 'non-functional' ? 'NF' : 'C';
-  return `${indent}${c.cyan}${req.id}${c.reset} [${typeLabel}] ${priorityColor}${req.priority.toUpperCase()}${c.reset} ${req.description}${req.acceptance ? `\n${indent}  ${c.dim}Acceptance: ${req.acceptance}${c.reset}` : ''}`;
+  return `${indent}${c.cyan}${req.id}${c.reset} [${typeLabel}] ${req.description}${req.acceptance ? `\n${indent}  ${c.dim}Acceptance: ${req.acceptance}${c.reset}` : ''}`;
 }
 
 // Export PRD as markdown
@@ -81,36 +80,11 @@ function prdToMarkdown(project: { name: string }, prd: PRD): string {
   lines.push('## Requirements');
   lines.push('');
 
-  const mustReqs = prd.requirements.filter(r => r.priority === 'must');
-  const shouldReqs = prd.requirements.filter(r => r.priority === 'should');
-  const couldReqs = prd.requirements.filter(r => r.priority === 'could');
-
-  if (mustReqs.length) {
-    lines.push('### Must Have');
-    mustReqs.forEach(r => {
-      lines.push(`- **${r.id}** [${r.type}]: ${r.description}`);
-      if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`);
-    });
-    lines.push('');
-  }
-
-  if (shouldReqs.length) {
-    lines.push('### Should Have');
-    shouldReqs.forEach(r => {
-      lines.push(`- **${r.id}** [${r.type}]: ${r.description}`);
-      if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`);
-    });
-    lines.push('');
-  }
-
-  if (couldReqs.length) {
-    lines.push('### Could Have');
-    couldReqs.forEach(r => {
-      lines.push(`- **${r.id}** [${r.type}]: ${r.description}`);
-      if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`);
-    });
-    lines.push('');
-  }
+  prd.requirements.forEach(r => {
+    lines.push(`- **${r.id}** [${r.type}]: ${r.description}`);
+    if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`);
+  });
+  lines.push('');
 
   lines.push('## Technical Approach');
   lines.push(prd.approach);

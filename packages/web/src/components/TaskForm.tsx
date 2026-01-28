@@ -297,15 +297,6 @@ export function TaskForm({
     }
   };
 
-  const priorityBadge = (priority: string) => {
-    const colors: Record<string, string> = {
-      must: "badge-error",
-      should: "badge-warning",
-      could: "badge-info",
-    };
-    return colors[priority] || "badge-ghost";
-  };
-
   return (
     <>
       <Modal
@@ -496,7 +487,7 @@ export function TaskForm({
                               onChange={() => toggleRequirement(req.id)}
                             />
                             <span class="font-mono text-xs text-base-content/60">{req.id}</span>
-                            <span class={`badge badge-xs ${priorityBadge(req.priority)}`}>{req.priority}</span>
+                            <span class="badge badge-xs badge-ghost">{req.type}</span>
                             <span class="text-xs truncate flex-1">{req.description}</span>
                           </label>
                         ))}

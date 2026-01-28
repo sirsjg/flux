@@ -78,37 +78,11 @@ function prdToMarkdown(projectName: string, prd: PRD): string {
   if (prd.requirements.length) {
     lines.push('## Requirements')
     lines.push('')
-
-    const mustReqs = prd.requirements.filter(r => r.priority === 'must')
-    const shouldReqs = prd.requirements.filter(r => r.priority === 'should')
-    const couldReqs = prd.requirements.filter(r => r.priority === 'could')
-
-    if (mustReqs.length) {
-      lines.push('### Must Have')
-      mustReqs.forEach(r => {
-        lines.push(`- **${r.id}** [${r.type}]: ${r.description}`)
-        if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`)
-      })
-      lines.push('')
-    }
-
-    if (shouldReqs.length) {
-      lines.push('### Should Have')
-      shouldReqs.forEach(r => {
-        lines.push(`- **${r.id}** [${r.type}]: ${r.description}`)
-        if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`)
-      })
-      lines.push('')
-    }
-
-    if (couldReqs.length) {
-      lines.push('### Could Have')
-      couldReqs.forEach(r => {
-        lines.push(`- **${r.id}** [${r.type}]: ${r.description}`)
-        if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`)
-      })
-      lines.push('')
-    }
+    prd.requirements.forEach(r => {
+      lines.push(`- **${r.id}** [${r.type}]: ${r.description}`)
+      if (r.acceptance) lines.push(`  - _Acceptance_: ${r.acceptance}`)
+    })
+    lines.push('')
   }
 
   if (prd.approach) {
@@ -218,7 +192,7 @@ export function PRDEditor({ prd, loading, saving, projectName, onSave, onDelete,
   // Requirement helpers
   const addRequirement = () => {
     const id = `REQ-${String(draft.requirements.length + 1).padStart(3, '0')}`
-    updateField('requirements', [...draft.requirements, { id, type: 'functional', description: '', priority: 'should' }])
+    updateField('requirements', [...draft.requirements, { id, type: 'functional', description: '' }])
   }
 
   // Business rule helpers
@@ -371,15 +345,6 @@ export function PRDEditor({ prd, loading, saving, projectName, onSave, onDelete,
                 <div class="card-body py-2 px-3">
                   <div class="flex items-center gap-2">
                     <span class="font-mono text-xs text-base-content/60">{req.id}</span>
-                    <select
-                      class="select select-bordered select-xs"
-                      value={req.priority}
-                      onChange={e => updateField('requirements', updateListItem(draft.requirements, i, { ...req, priority: (e.target as HTMLSelectElement).value as Requirement['priority'] }))}
-                    >
-                      <option value="must">must</option>
-                      <option value="should">should</option>
-                      <option value="could">could</option>
-                    </select>
                     <select
                       class="select select-bordered select-xs"
                       value={req.type}
