@@ -56,7 +56,7 @@ Add to Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_conf
 {
   "mcpServers": {
     "flux": {
-      "command": "node",
+      "command": "bun",
       "args": ["/path/to/flux/packages/mcp/dist/index.js"]
     }
   }
@@ -67,10 +67,10 @@ For Claude Code:
 
 ```bash
 # Claude Code
-claude mcp add flux -- node /path/to/flux/packages/mcp/dist/index.js
+claude mcp add flux -- bun /path/to/flux/packages/mcp/dist/index.js
 
 # Codex
-codex mcp add flux -- node /path/to/flux/packages/mcp/dist/index.js
+codex mcp add flux -- bun /path/to/flux/packages/mcp/dist/index.js
 ```
 
 For ChatGPT setup and best practices, see `docs/assistant-setup.md`.

@@ -66,6 +66,7 @@ export function createSqliteAdapter(filePath: string): StorageAdapter {
           projects: mergeById(current.projects, _data.projects),
           epics: mergeById(current.epics, _data.epics),
           tasks: mergeById(current.tasks, _data.tasks),
+          blobs: mergeById(current.blobs || [], _data.blobs || []),
         };
         
         const serialized = JSON.stringify(merged);

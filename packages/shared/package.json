@@ -25,6 +25,10 @@
     "./config": {
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js"
+    },
+    "./blob-storage": {
+      "types": "./dist/blob-storage.d.ts",
+      "import": "./dist/blob-storage.js"
     }
   },
   "scripts": {

@@ -33,6 +33,10 @@ import {
   updateWebhook as localUpdateWebhook,
   deleteWebhook as localDeleteWebhook,
   getWebhookDeliveries as localGetWebhookDeliveries,
+  createBlob as localCreateBlob,
+  getBlob as localGetBlob,
+  getBlobs as localGetBlobs,
+  deleteBlob as localDeleteBlob,
   PRIORITY_CONFIG,
   PRIORITIES,
 } from './index.js';
@@ -44,6 +48,7 @@ import type {
   TaskComment,
   Priority,
   Store,
+  Blob,
   Webhook,
   WebhookDelivery,
   WebhookEventType,
@@ -54,7 +59,7 @@ import type {
 
 // Re-export types and constants
 export { PRIORITY_CONFIG, PRIORITIES };
-export type { Project, Epic, Task, TaskComment, Priority, Store, Webhook, WebhookDelivery, WebhookEventType, Guardrail };
+export type { Project, Epic, Task, TaskComment, Priority, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, Guardrail };
 
 // Server response includes computed blocked field
 type TaskWithBlocked = Task & { blocked: boolean };
@@ -428,6 +433,110 @@ export async function getWebhookDeliveries(webhookId: string, limit?: number): P
     return http('GET', `/api/webhooks/${webhookId}/deliveries${query}`);
   }
   return localGetWebhookDeliveries(webhookId, limit);
+}
+
+// ============ Blobs ============
+
+export async function uploadBlob(
+  content: Buffer,
+  filename: string,
+  mime_type: string,
+  task_id?: string
+): Promise<Blob> {
+  if (serverUrl) {
+    const formData = new FormData();
+    formData.append('file', new File([content], filename, { type: mime_type }));
+    if (task_id) formData.append('task_id', task_id);
+
+    const url = `${serverUrl}/api/blobs`;
+    const headers: Record<string, string> = {};
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+    const res = await fetch(url, { method: 'POST', headers, body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new FluxHttpError(err.error || res.statusText, res.status, res.statusText);
+    }
+    return res.json();
+  }
+  // Local mode: use blob storage provider
+  const { getBlobStorage } = await import('./blob-storage.js');
+  const storage = getBlobStorage();
+  if (!storage) throw new Error('Blob storage not initialized');
+  const { hash, size } = storage.write(content);
+  return localCreateBlob(hash, filename, mime_type, size, task_id);
+}
+
+export async function downloadBlob(id: string): Promise<{ blob: Blob; content: Buffer } | null> {
+  if (serverUrl) {
+    try {
+      const blob = await http<Blob>('GET', `/api/blobs/${id}`);
+      const url = `${serverUrl}/api/blobs/${id}/content`;
+      const headers: Record<string, string> = {};
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) return null;
+      const content = Buffer.from(await res.arrayBuffer());
+      return { blob, content };
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return null;
+      throw e;
+    }
+  }
+  const blobMeta = localGetBlob(id);
+  if (!blobMeta) return null;
+  const { getBlobStorage } = await import('./blob-storage.js');
+  const storage = getBlobStorage();
+  if (!storage) throw new Error('Blob storage not initialized');
+  const content = storage.read(blobMeta.hash);
+  if (!content) return null;
+  return { blob: blobMeta, content };
+}
+
+export async function getBlobMetadata(id: string): Promise<Blob | undefined> {
+  if (serverUrl) {
+    try {
+      return await http<Blob>('GET', `/api/blobs/${id}`);
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return undefined;
+      throw e;
+    }
+  }
+  return localGetBlob(id);
+}
+
+export async function getClientBlobs(filter?: { task_id?: string }): Promise<Blob[]> {
+  if (serverUrl) {
+    const query = filter?.task_id ? `?task_id=${filter.task_id}` : '';
+    return http('GET', `/api/blobs${query}`);
+  }
+  return localGetBlobs(filter);
+}
+
+export async function deleteBlobClient(id: string): Promise<boolean> {
+  if (serverUrl) {
+    try {
+      await http('DELETE', `/api/blobs/${id}`);
+      return true;
+    } catch (e) {
+      if (e instanceof FluxHttpError && e.isNotFound) return false;
+      throw e;
+    }
+  }
+  // Local mode: remove from storage and metadata
+  const blobMeta = localGetBlob(id);
+  if (!blobMeta) return false;
+  const { getBlobStorage } = await import('./blob-storage.js');
+  const storage = getBlobStorage();
+  if (storage) {
+    // Only remove file if no other blob metadata references same hash
+    const allBlobs = localGetBlobs();
+    const otherRefs = allBlobs.filter(b => b.hash === blobMeta.hash && b.id !== id);
+    if (otherRefs.length === 0) {
+      storage.remove(blobMeta.hash);
+    }
+  }
+  return localDeleteBlob(id);
 }
 
 // ============ Auth (server mode only) ============

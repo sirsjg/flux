@@ -9,7 +9,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/app/.flux
+      - ./data:/app/packages/data
     environment:
-      - FLUX_DATA=/app/.flux/data.sqlite
+      - FLUX_DATA=/app/packages/data/data.sqlite
     restart: unless-stopped

@@ -16,7 +16,7 @@ Add Flux to your Claude Desktop configuration file:
   "mcpServers": {
     "flux": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-v", "flux-data:/app/packages/data", "flux-mcp"]
+      "args": ["run", "-i", "--rm", "-v", "flux-data:/app/packages/data", "-e", "FLUX_DATA=/app/packages/data/flux.sqlite", "flux-mcp"]
     }
   }
 }
@@ -47,7 +47,7 @@ If your ChatGPT client supports MCP servers, add Flux as a custom MCP server usi
 
 ```
 Command: docker
-Args: run -i --rm -v flux-data:/app/packages/data flux-mcp
+Args: run -i --rm -v flux-data:/app/packages/data -e FLUX_DATA=/app/packages/data/flux.sqlite flux-mcp
 ```
 
 ### Local install
