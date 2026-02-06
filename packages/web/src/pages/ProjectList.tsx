@@ -6,6 +6,7 @@ import {
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import {
+  deleteProject,
   getProjects,
   resetDatabase,
   updateProject,
@@ -35,6 +36,8 @@ export function ProjectList(_props: RoutableProps) {
   );
   const [resetting, setResetting] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     refreshProjects();
@@ -134,6 +137,25 @@ export function ProjectList(_props: RoutableProps) {
       if (didSave) {
         closeEditModal(true);
       }
+    }
+  };
+
+  const handleDelete = () => {
+    if (editingProject && !saving && !deleting) {
+      setDeleteConfirmOpen(true);
+    }
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!editingProject || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteProject(editingProject.id);
+      await refreshProjects();
+      setDeleteConfirmOpen(false);
+      closeEditModal(true);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -423,6 +445,15 @@ export function ProjectList(_props: RoutableProps) {
           <div class="modal-action">
             <button
               type="button"
+              class="btn btn-error btn-outline"
+              onClick={handleDelete}
+              disabled={saving || deleting}
+            >
+              Delete
+            </button>
+            <div class="flex-1" />
+            <button
+              type="button"
               class="btn btn-ghost"
               onClick={() => closeEditModal()}
             >
@@ -454,6 +485,19 @@ export function ProjectList(_props: RoutableProps) {
           if (!resetting) setResetConfirmOpen(false);
         }}
         isLoading={resetting}
+      />
+
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        title="Delete Project?"
+        description="This will permanently delete the project and ALL its epics and tasks. This action cannot be undone."
+        confirmLabel="Delete"
+        confirmClassName="btn-error"
+        onConfirm={handleDeleteConfirmed}
+        onClose={() => {
+          if (!deleting) setDeleteConfirmOpen(false);
+        }}
+        isLoading={deleting}
       />
     </div>
   );
