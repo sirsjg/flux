@@ -430,6 +430,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               },
               description: 'Numbered behavioral constraints (higher number = more critical)',
             },
+            agent_name: { type: 'string', description: 'Name of the agent/teammate performing this update (for agent team tracking on the Kanban board)' },
           },
           required: ['task_id'],
         },
@@ -457,6 +458,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               enum: STATUSES,
               description: 'New status (planning, todo, in_progress, done). Tasks in "planning" cannot be moved directly to "in_progress".',
             },
+            agent_name: { type: 'string', description: 'Name of the agent/teammate performing this update (for agent team tracking on the Kanban board)' },
           },
           required: ['task_id', 'status'],
         },
@@ -474,6 +476,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               enum: ['user', 'mcp'],
               description: 'Comment author type (defaults to mcp)',
             },
+            agent_name: { type: 'string', description: 'Name of the agent/teammate adding this comment (shown as badge on the Kanban board)' },
           },
           required: ['task_id', 'body'],
         },
@@ -773,6 +776,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       if (args?.acceptance_criteria !== undefined) updates.acceptance_criteria = args.acceptance_criteria;
       if (args?.guardrails !== undefined) updates.guardrails = args.guardrails;
+      // Agent team worker tracking
+      const agentName = args?.agent_name as string | undefined;
+      if (args?.status === 'in_progress' && agentName) {
+        const currentTask = await getTask(args?.task_id as string);
+        const currentWorkers = currentTask?.workers || [];
+        if (!currentWorkers.includes(agentName)) {
+          updates.workers = [...currentWorkers, agentName];
+        }
+      } else if (args?.status === 'done') {
+        updates.workers = [];
+      }
       const task = await updateTask(args?.task_id as string, updates);
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
@@ -808,7 +822,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
       }
-      const task = await updateTask(args?.task_id as string, { status: args?.status as string });
+      const statusUpdates: Record<string, unknown> = { status: args?.status as string };
+      // Agent team worker tracking
+      const agentName = args?.agent_name as string | undefined;
+      if (args?.status === 'in_progress' && agentName) {
+        const currentTask = await getTask(args?.task_id as string);
+        const currentWorkers = currentTask?.workers || [];
+        if (!currentWorkers.includes(agentName)) {
+          statusUpdates.workers = [...currentWorkers, agentName];
+        }
+      } else if (args?.status === 'done') {
+        statusUpdates.workers = [];
+      }
+      const task = await updateTask(args?.task_id as string, statusUpdates);
       if (!task) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }
@@ -825,7 +851,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: 'Comment body required' }], isError: true };
       }
       const author = args?.author === 'user' ? 'user' : 'mcp';
-      const comment = await addTaskComment(args?.task_id as string, body, author);
+      const agentName = args?.agent_name as string | undefined;
+      const comment = await addTaskComment(args?.task_id as string, body, author, agentName);
       if (!comment) {
         return { content: [{ type: 'text', text: 'Task not found' }], isError: true };
       }

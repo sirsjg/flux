@@ -605,6 +605,11 @@ export function TaskForm({
                               >
                                 {comment.author === "mcp" ? "MCP" : "User"}
                               </span>
+                              {comment.agent_name && (
+                                <span class="badge badge-primary badge-xs">
+                                  {comment.agent_name}
+                                </span>
+                              )}
                               {comment.created_at && (
                                 <span class="text-xs text-base-content/50">
                                   {new Date(

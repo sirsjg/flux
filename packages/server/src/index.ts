@@ -372,7 +372,8 @@ app.post('/api/tasks/:id/comments', async (c) => {
   const commentBody = typeof body?.body === 'string' ? body.body.trim() : '';
   if (!commentBody) return c.json({ error: 'Comment body required' }, 400);
   const author = body?.author === 'mcp' ? 'mcp' : 'user';
-  const comment = addTaskComment(taskId, commentBody, author);
+  const agentName = typeof body?.agent_name === 'string' ? body.agent_name : undefined;
+  const comment = addTaskComment(taskId, commentBody, author, agentName);
   if (!comment) return c.json({ error: 'Task not found' }, 404);
   return c.json(comment, 201);
 });
@@ -422,6 +423,17 @@ app.patch('/api/tasks/:id', async (c) => {
   const body = await c.req.json();
   const validation = validateTaskFields(body);
   if (validation.error) return c.json({ error: validation.error }, 400);
+  // Agent team worker tracking
+  const agentName = typeof body.agent_name === 'string' ? body.agent_name : undefined;
+  if (body.status === 'in_progress' && agentName) {
+    const currentWorkers = previous.workers || [];
+    if (!currentWorkers.includes(agentName)) {
+      body.workers = [...currentWorkers, agentName];
+    }
+  } else if (body.status === 'done') {
+    body.workers = [];
+  }
+  delete body.agent_name; // Don't persist agent_name on the task itself
   const task = updateTask(taskId, body);
   if (!task) return c.json({ error: 'Task not found' }, 404);
 

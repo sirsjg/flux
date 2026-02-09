@@ -404,7 +404,8 @@ export function deleteTask(id: string): boolean {
 export function addTaskComment(
   taskId: string,
   body: string,
-  author: CommentAuthor
+  author: CommentAuthor,
+  agentName?: string
 ): TaskComment | undefined {
   const task = db.data.tasks.find(t => t.id === taskId);
   if (!task) return undefined;
@@ -412,6 +413,7 @@ export function addTaskComment(
     id: generateId(),
     body,
     author,
+    ...(agentName ? { agent_name: agentName } : {}),
     created_at: new Date().toISOString(),
   };
   if (!task.comments) task.comments = [];

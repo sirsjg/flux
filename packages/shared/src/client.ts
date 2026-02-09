@@ -314,17 +314,22 @@ export async function isTaskBlocked(id: string): Promise<boolean> {
 export async function addTaskComment(
   taskId: string,
   body: string,
-  author: 'user' | 'mcp' = 'user'
+  author: 'user' | 'mcp' = 'user',
+  agentName?: string
 ): Promise<TaskComment | undefined> {
   if (serverUrl) {
     try {
-      return await http('POST', `/api/tasks/${taskId}/comments`, { body, author });
+      return await http('POST', `/api/tasks/${taskId}/comments`, {
+        body,
+        author,
+        ...(agentName ? { agent_name: agentName } : {}),
+      });
     } catch (e) {
       if (e instanceof FluxHttpError && e.isNotFound) return undefined;
       throw e;
     }
   }
-  return localAddTaskComment(taskId, body, author);
+  return localAddTaskComment(taskId, body, author, agentName);
 }
 
 export async function deleteTaskComment(taskId: string, commentId: string): Promise<boolean> {

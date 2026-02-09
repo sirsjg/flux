@@ -96,7 +96,12 @@ export function DraggableTaskCard({
             <progress class="progress w-8 flex-shrink-0" value={0} max={100} />
           )}
           {task.status === 'in_progress' && (
-            <progress class="progress progress-warning w-8 flex-shrink-0" />
+            <>
+              <progress class="progress progress-warning w-8 flex-shrink-0" />
+              {task.workers && task.workers.length > 0 && task.workers.map(name => (
+                <span key={name} class="badge badge-primary badge-xs flex-shrink-0">{name}</span>
+              ))}
+            </>
           )}
           {task.status === 'done' && (
             <progress class="progress progress-success w-8 flex-shrink-0" value={100} max={100} />
@@ -165,6 +170,9 @@ export function DraggableTaskCard({
             <>
               <progress class="progress progress-warning w-10" />
               <span class="badge badge-ghost badge-warning badge-xs">Agent working</span>
+              {task.workers && task.workers.map(name => (
+                <span key={name} class="badge badge-primary badge-xs">{name}</span>
+              ))}
             </>
           )}
           {task.status === 'done' && (

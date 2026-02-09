@@ -27,6 +27,7 @@ export type TaskComment = {
   id: string;
   body: string;
   author: CommentAuthor;
+  agent_name?: string;
   created_at: string;
 };
 
@@ -53,6 +54,7 @@ export type Task = {
   acceptance_criteria?: string[]; // Observable behavioral outcomes for verification
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
   blob_ids?: string[]; // References to Blob.id
+  workers?: string[]; // Agent team members currently working on this task
   created_at?: string;
   updated_at?: string;
 };
