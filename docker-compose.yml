@@ -12,4 +12,5 @@ services:
       - ./data:/app/packages/data
     environment:
       - FLUX_DATA=/app/packages/data/data.sqlite
+      - FLUX_DIR=/app/packages/data
     restart: unless-stopped
