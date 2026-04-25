@@ -1,11 +1,14 @@
 import { resolve, dirname } from 'path';
 import { existsSync, readFileSync, writeFileSync, chmodSync } from 'fs';
 
+import type { SyncConfig } from './sync-types.js';
+
 export type FluxConfig = {
   server?: string;    // Server URL (server mode)
   apiKey?: string;    // API key for server auth (supports $ENV_VAR)
   dataFile?: string;  // Local data file path (file mode)
   project?: string;   // Default project ID
+  sync?: SyncConfig;  // Peer sync configuration
 };
 
 // Expand $ENV_VAR references in string values
