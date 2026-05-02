@@ -567,9 +567,16 @@ class SyncService {
       peer.lastSyncedAt = new Date().toISOString();
       peer.online = true;
 
-      // Update hub info if provided
+      // Update hub info if provided — and re-key the peer in the map
+      // so findPeerById(hubNodeId) works in subsequent sync cycles.
       if (pullResponse.hubNodeId) {
         this.hubNodeId = pullResponse.hubNodeId;
+        if (peer.nodeId !== pullResponse.hubNodeId) {
+          this.peers.delete(peer.nodeId);
+          peer.nodeId = pullResponse.hubNodeId;
+          peer.role = 'hub';
+          this.peers.set(peer.nodeId, peer);
+        }
       }
 
       return true;
