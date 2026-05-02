@@ -344,7 +344,16 @@ app.get('/api/projects/:projectId/tasks', (c) => {
   if (!canReadProject(auth, projectId)) {
     return c.json({ error: 'Project not found' }, 404);
   }
-  const tasks = getTasks(projectId).map(t => ({
+  const statusFilter = c.req.query('status');
+  const epicFilter = c.req.query('epic_id');
+  let filteredTasks = getTasks(projectId);
+  if (statusFilter) {
+    filteredTasks = filteredTasks.filter(t => t.status === statusFilter);
+  }
+  if (epicFilter) {
+    filteredTasks = filteredTasks.filter(t => t.epic_id === epicFilter);
+  }
+  const tasks = filteredTasks.map(t => ({
     ...t,
     blocked: isTaskBlocked(t.id),
   }));
