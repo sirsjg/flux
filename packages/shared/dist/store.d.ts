@@ -21,6 +21,24 @@ export declare function getStorageAdapter(): StorageAdapter;
 export declare function initStore(): Store;
 export declare function resetStore(): void;
 export declare function getStore(): Store;
+/**
+ * Insert a task directly, preserving its existing ID.
+ * Used by sync to replicate entities from remote nodes.
+ * Throws if a task with the same ID already exists.
+ */
+export declare function insertTask(task: Task): void;
+/**
+ * Insert an epic directly, preserving its existing ID.
+ * Used by sync to replicate entities from remote nodes.
+ * Throws if an epic with the same ID already exists.
+ */
+export declare function insertEpic(epic: Epic): void;
+/**
+ * Insert a project directly, preserving its existing ID.
+ * Used by sync to replicate entities from remote nodes.
+ * Throws if a project with the same ID already exists.
+ */
+export declare function insertProject(project: Project): void;
 export declare function replaceStore(data: Store): void;
 export declare function mergeStore(data: Store): void;
 export declare function getProjects(): Project[];

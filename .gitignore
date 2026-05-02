@@ -33,3 +33,4 @@ packages/data/flux.sqlite*
 packages/data/flux.json
 .env.local
 .flux/
+data/

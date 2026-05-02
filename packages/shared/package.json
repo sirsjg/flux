@@ -29,6 +29,18 @@
     "./blob-storage": {
       "types": "./dist/blob-storage.d.ts",
       "import": "./dist/blob-storage.js"
+    },
+    "./sync-types": {
+      "types": "./dist/sync-types.d.ts",
+      "import": "./dist/sync-types.js"
+    },
+    "./sync-service": {
+      "types": "./dist/sync-service.d.ts",
+      "import": "./dist/sync-service.js"
+    },
+    "./tailscale-discovery": {
+      "types": "./dist/tailscale-discovery.d.ts",
+      "import": "./dist/tailscale-discovery.js"
     }
   },
   "scripts": {

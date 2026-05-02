@@ -1,8 +1,10 @@
+import type { SyncConfig } from './sync-types.js';
 export type FluxConfig = {
     server?: string;
     apiKey?: string;
     dataFile?: string;
     project?: string;
+    sync?: SyncConfig;
 };
 export declare function findFluxDir(): string;
 export declare function loadEnvLocal(fluxDir: string): void;

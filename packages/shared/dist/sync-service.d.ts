@@ -33,6 +33,16 @@ declare class SyncService {
     recordChange(entity: SyncEnvelope['entity'], entityId: string, action: SyncEnvelope['action'], data: Record<string, unknown>): SyncEnvelope;
     getChangesSince(sequence: number): SyncEnvelope[];
     getCurrentSequence(): number;
+    /**
+     * Return the oldest sequence number still in the changelog.
+     * If a peer requests changes older than this, they need a full snapshot.
+     */
+    getOldestSequence(): number;
+    /**
+     * Build a full-state snapshot for peers that are too far behind
+     * the changelog. Returns all entities as synthetic 'create' changes.
+     */
+    getFullSnapshot(): SyncEnvelope[];
     applyRemoteChanges(changes: SyncEnvelope[]): SyncPushResponse;
     private applyChange;
     private applyTaskChange;

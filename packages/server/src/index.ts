@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, watchFile, statSync, readFileSync } from 'fs';
 import {
@@ -60,6 +60,8 @@ import { createFilesystemBlobStorage, setBlobStorage, getBlobStorage } from '@fl
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
 import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, type AuthContext } from './middleware/auth.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { registerSyncRoutes } from './sync-routes.js';
+import { syncService } from '@flux/shared/sync-service';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -253,6 +255,7 @@ app.get('/api/projects/:id', (c) => {
 app.post('/api/projects', requireServerAccess, async (c) => {
   const body = await c.req.json();
   const project = createProject(body.name, body.description, body.visibility);
+  syncService.recordChange('project', project.id, 'create', project);
   triggerWebhooks('project.created', { project });
   return c.json(project, 201);
 });
@@ -262,6 +265,7 @@ app.patch('/api/projects/:id', requireServerAccess, async (c) => {
   const previous = getProject(c.req.param('id'));
   const project = updateProject(c.req.param('id'), body);
   if (!project) return c.json({ error: 'Project not found' }, 404);
+  syncService.recordChange('project', project.id, 'update', project);
   triggerWebhooks('project.updated', { project, previous }, project.id);
   return c.json(project);
 });
@@ -270,6 +274,7 @@ app.delete('/api/projects/:id', requireServerAccess, (c) => {
   const project = getProject(c.req.param('id'));
   deleteProject(c.req.param('id'));
   if (project) {
+    syncService.recordChange('project', project.id, 'delete', project);
     triggerWebhooks('project.deleted', { project }, project.id);
   }
   return c.json({ success: true });
@@ -303,7 +308,7 @@ app.post('/api/projects/:projectId/epics', async (c) => {
   }
   const body = await c.req.json();
   const epic = createEpic(projectId, body.title, body.notes, body.auto);
-  // Trigger webhook
+  syncService.recordChange('epic', epic.id, 'create', epic);
   triggerWebhooks('epic.created', { epic }, projectId);
   return c.json(epic, 201);
 });
@@ -319,6 +324,7 @@ app.patch('/api/epics/:id', async (c) => {
   const body = await c.req.json();
   const epic = updateEpic(epicId, body);
   if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  syncService.recordChange('epic', epic.id, 'update', epic);
   triggerWebhooks('epic.updated', { epic, previous }, epic.project_id);
   return c.json(epic);
 });
@@ -333,6 +339,7 @@ app.delete('/api/epics/:id', (c) => {
   }
   const success = deleteEpic(epicId);
   if (!success) return c.json({ error: 'Epic not found' }, 404);
+  syncService.recordChange('epic', epicId, 'delete', epic);
   triggerWebhooks('epic.deleted', { epic }, epic.project_id);
   return c.json({ success: true });
 });
@@ -416,7 +423,7 @@ app.post('/api/projects/:projectId/tasks', async (c) => {
     acceptance_criteria: body.acceptance_criteria,
     guardrails: body.guardrails,
   });
-  // Trigger webhook
+  syncService.recordChange('task', task.id, 'create', task);
   triggerWebhooks('task.created', { task }, projectId);
   return c.json(task, 201);
 });
@@ -454,6 +461,7 @@ app.patch('/api/tasks/:id', async (c) => {
   delete body.agent_name; // Don't persist agent_name on the task itself
   const task = updateTask(taskId, body);
   if (!task) return c.json({ error: 'Task not found' }, 404);
+  syncService.recordChange('task', task.id, 'update', task);
 
   // Determine which webhook events to trigger
   const events: WebhookEventType[] = ['task.updated'];
@@ -480,6 +488,7 @@ app.delete('/api/tasks/:id', (c) => {
   }
   const success = deleteTask(taskId);
   if (!success) return c.json({ error: 'Task not found' }, 404);
+  syncService.recordChange('task', taskId, 'delete', task);
   triggerWebhooks('task.deleted', { task }, task.project_id);
   return c.json({ success: true });
 });
@@ -1039,6 +1048,19 @@ app.post('/api/auth/cli-complete', requireServerAccess, async (c) => {
   }
   return c.json({ success: true });
 });
+
+// ============ Sync Routes ============
+registerSyncRoutes(app);
+
+// Start sync loop if configured
+if (config.sync?.enabled) {
+  syncService.setStatePath(resolve(fluxDir, 'sync-state.json'));
+  syncService.startSyncLoop(config.sync).then(() => {
+    console.log(`[sync] Started — role: ${syncService.getStatus().role}, discovery: ${config.sync!.discovery}`);
+  }).catch((err: unknown) => {
+    console.error('[sync] Failed to start:', err);
+  });
+}
 
 // API 404 handler - must be before SPA fallback
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
