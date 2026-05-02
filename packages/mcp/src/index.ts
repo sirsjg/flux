@@ -98,6 +98,35 @@ const server = new Server(
   }
 );
 
+
+// ============ Project Name Resolution ============
+// Agents can use project_name instead of project_id - resolution is transparent
+async function resolveProjectId(args: Record<string, unknown> | undefined): Promise<string> {
+  if (!args) throw new Error("No arguments provided");
+  if (args.project_id && typeof args.project_id === "string" && args.project_id.trim()) {
+    return args.project_id as string;
+  }
+  if (args.project_name && typeof args.project_name === "string") {
+    const name = (args.project_name as string).trim();
+    const projects = await getProjects();
+    const matches = projects.filter(p => p.name.toLowerCase() === name.toLowerCase());
+    if (matches.length === 0) {
+      throw new Error(`No project found with name "${name}". Available: ${projects.map(p => p.name).join(", ")}`);
+    }
+    if (matches.length > 1) {
+      throw new Error(`Multiple projects match "${name}": ${matches.map(p => p.name + " (" + p.id + ")").join(", ")}. Use project_id to disambiguate.`);
+    }
+    return matches[0].id;
+  }
+  throw new Error("Either project_id or project_name is required");
+}
+
+async function optionalResolveProjectId(args: Record<string, unknown> | undefined): Promise<string | undefined> {
+  if (!args) return undefined;
+  if (!args.project_id && !args.project_name) return undefined;
+  return resolveProjectId(args);
+}
+
 // ============ Resources ============
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => {
@@ -248,11 +277,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Project ID' },
+            project_id: { type: 'string', description: 'Project ID (or use project_name)' },
+            project_name: { type: 'string', description: 'Project name (alternative to project_id - resolved automatically)' },
             name: { type: 'string', description: 'New project name' },
             description: { type: 'string', description: 'New project description' },
           },
-          required: ['project_id'],
+          required: [],
         },
       },
       {
@@ -261,9 +291,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Project ID to delete' },
+            project_id: { type: 'string', description: 'Project ID to delete (or use project_name)' },
+            project_name: { type: 'string', description: 'Project name (alternative to project_id - resolved automatically)' },
           },
-          required: ['project_id'],
+          required: [],
         },
       },
 
@@ -274,9 +305,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Project ID' },
+            project_id: { type: 'string', description: 'Project ID (or use project_name)' },
+            project_name: { type: 'string', description: 'Project name (alternative to project_id - resolved automatically)' },
           },
-          required: ['project_id'],
+          required: [],
         },
       },
       {
@@ -285,12 +317,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Project ID' },
+            project_id: { type: 'string', description: 'Project ID (or use project_name)' },
+            project_name: { type: 'string', description: 'Project name (alternative to project_id - resolved automatically)' },
             title: { type: 'string', description: 'Epic title' },
             notes: { type: 'string', description: 'Optional epic notes' },
             auto: { type: 'boolean', description: 'Optional auto flag (defaults to false)' },
           },
-          required: ['project_id', 'title'],
+          required: ['title'],
         },
       },
       {
@@ -339,7 +372,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Project ID' },
+            project_id: { type: 'string', description: 'Project ID (or use project_name)' },
+            project_name: { type: 'string', description: 'Project name (alternative to project_id - resolved automatically)' },
             epic_id: { type: 'string', description: 'Optional: filter by epic ID' },
             status: {
               type: 'string',
@@ -356,7 +390,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Optional: filter by project ID' },
+            project_id: { type: 'string', description: 'Optional: filter by project ID (or use project_name)' },
+            project_name: { type: 'string', description: 'Optional: filter by project name (alternative to project_id)' },
           },
         },
       },
@@ -366,7 +401,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            project_id: { type: 'string', description: 'Project ID' },
+            project_id: { type: 'string', description: 'Project ID (or use project_name)' },
+            project_name: { type: 'string', description: 'Project name (alternative to project_id - resolved automatically)' },
             title: { type: 'string', description: 'Task title' },
             epic_id: { type: 'string', description: 'Optional: assign to epic' },
             acceptance_criteria: {
@@ -387,7 +423,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'Numbered behavioral constraints (higher number = more critical)',
             },
           },
-          required: ['project_id', 'title'],
+          required: ['title'],
         },
       },
       {
@@ -645,10 +681,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'update_project': {
+      const projectId = await resolveProjectId(args);
       const updates: Record<string, string> = {};
       if (args?.name) updates.name = args.name as string;
       if (args?.description !== undefined) updates.description = args.description as string;
-      const project = await updateProject(args?.project_id as string, updates);
+      const project = await updateProject(projectId, updates);
       if (!project) {
         return { content: [{ type: 'text', text: 'Project not found' }], isError: true };
       }
@@ -658,23 +695,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'delete_project': {
-      await deleteProject(args?.project_id as string);
+      const projectId = await resolveProjectId(args);
+      await deleteProject(projectId);
       return {
-        content: [{ type: 'text', text: `Deleted project ${args?.project_id}` }],
+        content: [{ type: 'text', text: `Deleted project ${projectId}` }],
       };
     }
 
     // Epic operations
     case 'list_epics': {
-      const epics = await getEpics(args?.project_id as string);
+      const projectId = await resolveProjectId(args);
+      const epics = await getEpics(projectId);
       return {
         content: [{ type: 'text', text: JSON.stringify(epics, null, 2) }],
       };
     }
 
     case 'create_epic': {
+      const projectId = await resolveProjectId(args);
       const epic = await createEpic(
-        args?.project_id as string,
+        projectId,
         args?.title as string,
         args?.notes as string,
         args?.auto as boolean | undefined
@@ -712,7 +752,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // Task operations
     case 'list_tasks': {
-      const taskList = await getTasks(args?.project_id as string);
+      const projectId = await resolveProjectId(args);
+      const taskList = await getTasks(projectId);
       let tasks = await Promise.all(
         taskList.map(async t => ({
           ...t,
@@ -734,15 +775,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case 'list_ready_tasks': {
-      const tasks = await getReadyTasks(args?.project_id as string | undefined);
+      const projectId = await optionalResolveProjectId(args);
+      const tasks = await getReadyTasks(projectId);
       return {
         content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }],
       };
     }
 
     case 'create_task': {
+      const projectId = await resolveProjectId(args);
       const task = await createTask(
-        args?.project_id as string,
+        projectId,
         args?.title as string,
         args?.epic_id as string,
         {
