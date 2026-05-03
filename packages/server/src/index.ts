@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, watchFile, statSync, readFileSync } from 'fs';
 import {
@@ -60,6 +60,8 @@ import { createFilesystemBlobStorage, setBlobStorage, getBlobStorage } from '@fl
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
 import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, type AuthContext } from './middleware/auth.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { registerSyncRoutes } from './sync-routes.js';
+import { syncService } from '@flux/shared/sync-service';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -253,6 +255,7 @@ app.get('/api/projects/:id', (c) => {
 app.post('/api/projects', requireServerAccess, async (c) => {
   const body = await c.req.json();
   const project = createProject(body.name, body.description, body.visibility);
+  syncService.recordChange('project', project.id, 'create', project);
   triggerWebhooks('project.created', { project });
   return c.json(project, 201);
 });
@@ -262,6 +265,7 @@ app.patch('/api/projects/:id', requireServerAccess, async (c) => {
   const previous = getProject(c.req.param('id'));
   const project = updateProject(c.req.param('id'), body);
   if (!project) return c.json({ error: 'Project not found' }, 404);
+  syncService.recordChange('project', project.id, 'update', project);
   triggerWebhooks('project.updated', { project, previous }, project.id);
   return c.json(project);
 });
@@ -270,6 +274,7 @@ app.delete('/api/projects/:id', requireServerAccess, (c) => {
   const project = getProject(c.req.param('id'));
   deleteProject(c.req.param('id'));
   if (project) {
+    syncService.recordChange('project', project.id, 'delete', project);
     triggerWebhooks('project.deleted', { project }, project.id);
   }
   return c.json({ success: true });
@@ -303,7 +308,7 @@ app.post('/api/projects/:projectId/epics', async (c) => {
   }
   const body = await c.req.json();
   const epic = createEpic(projectId, body.title, body.notes, body.auto);
-  // Trigger webhook
+  syncService.recordChange('epic', epic.id, 'create', epic);
   triggerWebhooks('epic.created', { epic }, projectId);
   return c.json(epic, 201);
 });
@@ -319,6 +324,7 @@ app.patch('/api/epics/:id', async (c) => {
   const body = await c.req.json();
   const epic = updateEpic(epicId, body);
   if (!epic) return c.json({ error: 'Epic not found' }, 404);
+  syncService.recordChange('epic', epic.id, 'update', epic);
   triggerWebhooks('epic.updated', { epic, previous }, epic.project_id);
   return c.json(epic);
 });
@@ -333,6 +339,7 @@ app.delete('/api/epics/:id', (c) => {
   }
   const success = deleteEpic(epicId);
   if (!success) return c.json({ error: 'Epic not found' }, 404);
+  syncService.recordChange('epic', epicId, 'delete', epic);
   triggerWebhooks('epic.deleted', { epic }, epic.project_id);
   return c.json({ success: true });
 });
@@ -344,7 +351,16 @@ app.get('/api/projects/:projectId/tasks', (c) => {
   if (!canReadProject(auth, projectId)) {
     return c.json({ error: 'Project not found' }, 404);
   }
-  const tasks = getTasks(projectId).map(t => ({
+  const statusFilter = c.req.query('status');
+  const epicFilter = c.req.query('epic_id');
+  let filteredTasks = getTasks(projectId);
+  if (statusFilter) {
+    filteredTasks = filteredTasks.filter(t => t.status === statusFilter);
+  }
+  if (epicFilter) {
+    filteredTasks = filteredTasks.filter(t => t.epic_id === epicFilter);
+  }
+  const tasks = filteredTasks.map(t => ({
     ...t,
     blocked: isTaskBlocked(t.id),
   }));
@@ -407,7 +423,7 @@ app.post('/api/projects/:projectId/tasks', async (c) => {
     acceptance_criteria: body.acceptance_criteria,
     guardrails: body.guardrails,
   });
-  // Trigger webhook
+  syncService.recordChange('task', task.id, 'create', task);
   triggerWebhooks('task.created', { task }, projectId);
   return c.json(task, 201);
 });
@@ -423,19 +439,29 @@ app.patch('/api/tasks/:id', async (c) => {
   const body = await c.req.json();
   const validation = validateTaskFields(body);
   if (validation.error) return c.json({ error: validation.error }, 400);
-  // Agent team worker tracking
+  // Agent team worker tracking + activity timestamps
   const agentName = typeof body.agent_name === 'string' ? body.agent_name : undefined;
-  if (body.status === 'in_progress' && agentName) {
-    const currentWorkers = previous.workers || [];
-    if (!currentWorkers.includes(agentName)) {
-      body.workers = [...currentWorkers, agentName];
+  if (body.status === 'in_progress') {
+    // Set started_at on first move to in_progress (don't overwrite on re-entry)
+    if (!previous.started_at) {
+      body.started_at = new Date().toISOString();
+    }
+    if (agentName) {
+      const currentWorkers = previous.workers || [];
+      if (!currentWorkers.includes(agentName)) {
+        body.workers = [...currentWorkers, agentName];
+      }
     }
   } else if (body.status === 'done') {
+    body.completed_at = new Date().toISOString();
+    // Persist who completed it: prefer explicit agent_name, fall back to first worker
+    body.completed_by = agentName || (previous.workers && previous.workers[0]) || undefined;
     body.workers = [];
   }
   delete body.agent_name; // Don't persist agent_name on the task itself
   const task = updateTask(taskId, body);
   if (!task) return c.json({ error: 'Task not found' }, 404);
+  syncService.recordChange('task', task.id, 'update', task);
 
   // Determine which webhook events to trigger
   const events: WebhookEventType[] = ['task.updated'];
@@ -462,6 +488,7 @@ app.delete('/api/tasks/:id', (c) => {
   }
   const success = deleteTask(taskId);
   if (!success) return c.json({ error: 'Task not found' }, 404);
+  syncService.recordChange('task', taskId, 'delete', task);
   triggerWebhooks('task.deleted', { task }, task.project_id);
   return c.json({ success: true });
 });
@@ -472,6 +499,242 @@ app.get('/api/tasks/ready', (c) => {
   const projectId = c.req.query('project_id');
   const tasks = getReadyTasks(projectId).filter(t => canReadProject(auth, t.project_id));
   return c.json(tasks);
+});
+
+// ============ Agent Activity Tracking ============
+
+// Epic progress — detailed view of an epic's completion state with agent attribution
+app.get('/api/projects/:projectId/epics/:epicId/progress', (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('projectId');
+  const epicId = c.req.param('epicId');
+  if (!canReadProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const epic = getEpic(epicId);
+  if (!epic || epic.project_id !== projectId) {
+    return c.json({ error: 'Epic not found' }, 404);
+  }
+  const tasks = getTasks(projectId).filter(t => t.epic_id === epicId);
+  const byStatus: Record<string, number> = { planning: 0, todo: 0, in_progress: 0, done: 0 };
+  const activeWorkers: Array<{ agent_name: string; task_id: string; task_title: string; started_at?: string }> = [];
+  const recentlyCompleted: Array<{ task_id: string; task_title: string; completed_by?: string; completed_at?: string }> = [];
+  const remainingWork: Array<{ task_id: string; task_title: string; priority?: number; blocked: boolean }> = [];
+
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  for (const task of tasks) {
+    byStatus[task.status] = (byStatus[task.status] || 0) + 1;
+
+    if (task.status === 'in_progress' && task.workers) {
+      for (const w of task.workers) {
+        activeWorkers.push({ agent_name: w, task_id: task.id, task_title: task.title, started_at: task.started_at });
+      }
+    }
+
+    if (task.status === 'done' && task.completed_at && task.completed_at > oneDayAgo) {
+      recentlyCompleted.push({
+        task_id: task.id,
+        task_title: task.title,
+        completed_by: task.completed_by,
+        completed_at: task.completed_at,
+      });
+    }
+
+    if (task.status !== 'done' && task.status !== 'in_progress') {
+      remainingWork.push({
+        task_id: task.id,
+        task_title: task.title,
+        priority: task.priority,
+        blocked: isTaskBlocked(task.id),
+      });
+    }
+  }
+
+  // Sort remaining by priority (P0 first) then unblocked first
+  remainingWork.sort((a, b) => {
+    if (a.blocked !== b.blocked) return a.blocked ? 1 : -1;
+    return (a.priority ?? 1) - (b.priority ?? 1);
+  });
+
+  const total = tasks.length;
+  const percentComplete = total > 0 ? Math.round((byStatus.done / total) * 100) : 0;
+
+  return c.json({
+    epic: { id: epic.id, title: epic.title, status: epic.status, notes: epic.notes },
+    total_tasks: total,
+    by_status: byStatus,
+    active_workers: activeWorkers,
+    recently_completed: recentlyCompleted,
+    remaining_work: remainingWork,
+    percent_complete: percentComplete,
+  });
+});
+
+// Agent activity — what each agent is doing and has recently done
+app.get('/api/agents/activity', (c) => {
+  const auth = c.get('auth');
+  const agentFilter = c.req.query('agent_name');
+  // Gather all tasks from all accessible projects
+  const projects = getProjects().filter(p => canReadProject(auth, p.id));
+  const allTasks: any[] = [];
+  const epicMap = new Map<string, { id: string; title: string }>();
+
+  for (const project of projects) {
+    const tasks = getTasks(project.id);
+    allTasks.push(...tasks);
+    for (const epic of getEpics(project.id)) {
+      epicMap.set(epic.id, { id: epic.id, title: epic.title });
+    }
+  }
+
+  // Collect agent stats
+  const agentData = new Map<string, {
+    current_tasks: Array<{ task_id: string; title: string; epic_id?: string; epic_title?: string; started_at?: string }>;
+    recent_completions: Array<{ task_id: string; title: string; epic_id?: string; epic_title?: string; completed_at?: string }>;
+    completed_today: number;
+    completed_this_week: number;
+    in_progress: number;
+  }>();
+
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const ensureAgent = (name: string) => {
+    if (!agentData.has(name)) {
+      agentData.set(name, { current_tasks: [], recent_completions: [], completed_today: 0, completed_this_week: 0, in_progress: 0 });
+    }
+    return agentData.get(name)!;
+  };
+
+  for (const task of allTasks) {
+    const epicInfo = task.epic_id ? epicMap.get(task.epic_id) : undefined;
+
+    // Track current workers
+    if (task.status === 'in_progress' && task.workers) {
+      for (const w of task.workers) {
+        if (agentFilter && w !== agentFilter) continue;
+        const data = ensureAgent(w);
+        data.current_tasks.push({
+          task_id: task.id, title: task.title,
+          epic_id: epicInfo?.id, epic_title: epicInfo?.title,
+          started_at: task.started_at,
+        });
+        data.in_progress++;
+      }
+    }
+
+    // Track completions
+    if (task.status === 'done' && task.completed_by) {
+      if (agentFilter && task.completed_by !== agentFilter) continue;
+      const data = ensureAgent(task.completed_by);
+      if (task.completed_at && task.completed_at > oneDayAgo) {
+        data.recent_completions.push({
+          task_id: task.id, title: task.title,
+          epic_id: epicInfo?.id, epic_title: epicInfo?.title,
+          completed_at: task.completed_at,
+        });
+        data.completed_today++;
+      }
+      if (task.completed_at && task.completed_at > oneWeekAgo) {
+        data.completed_this_week++;
+      }
+    }
+  }
+
+  const agents = Array.from(agentData.entries()).map(([name, data]) => ({
+    name,
+    current_tasks: data.current_tasks,
+    recent_completions: data.recent_completions,
+    stats: {
+      completed_today: data.completed_today,
+      completed_this_week: data.completed_this_week,
+      in_progress: data.in_progress,
+    },
+  }));
+
+  return c.json({ agents });
+});
+
+// Project overview — high-level status for agent orientation
+app.get('/api/projects/:projectId/overview', (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.param('projectId');
+  if (!canReadProject(auth, projectId)) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  const project = getProject(projectId);
+  if (!project) return c.json({ error: 'Project not found' }, 404);
+
+  const allTasks = getTasks(projectId);
+  const epics = getEpics(projectId);
+
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  // Build epic summaries
+  const epicSummary = epics.map(epic => {
+    const epicTasks = allTasks.filter(t => t.epic_id === epic.id);
+    const byStatus: Record<string, number> = { planning: 0, todo: 0, in_progress: 0, done: 0 };
+    const activeAgents = new Set<string>();
+
+    for (const t of epicTasks) {
+      byStatus[t.status] = (byStatus[t.status] || 0) + 1;
+      if (t.status === 'in_progress' && t.workers) {
+        for (const w of t.workers) activeAgents.add(w);
+      }
+    }
+
+    const total = epicTasks.length;
+    // Extract wave identifier from title (e.g., "LAUNCH-01" from "LAUNCH-01: Payment System")
+    const waveMatch = epic.title.match(/^(LAUNCH-\d+|Sprint \d+|[A-Z]+-\d+)/);
+
+    return {
+      id: epic.id,
+      title: epic.title,
+      total,
+      done: byStatus.done,
+      in_progress: byStatus.in_progress,
+      todo: byStatus.todo,
+      planning: byStatus.planning,
+      percent_complete: total > 0 ? Math.round((byStatus.done / total) * 100) : 0,
+      active_agents: Array.from(activeAgents),
+      wave: waveMatch ? waveMatch[1] : undefined,
+    };
+  });
+
+  // Active agents across the project
+  const agentTasks = new Map<string, { count: number; epics: Set<string> }>();
+  for (const t of allTasks) {
+    if (t.status === 'in_progress' && t.workers) {
+      for (const w of t.workers) {
+        if (!agentTasks.has(w)) agentTasks.set(w, { count: 0, epics: new Set() });
+        const data = agentTasks.get(w)!;
+        data.count++;
+        if (t.epic_id) data.epics.add(t.epic_id);
+      }
+    }
+  }
+
+  const activeAgents = Array.from(agentTasks.entries()).map(([name, data]) => ({
+    name,
+    current_task_count: data.count,
+    epics_active_in: Array.from(data.epics),
+  }));
+
+  const recentlyCompletedCount = allTasks.filter(
+    t => t.status === 'done' && t.completed_at && t.completed_at > oneDayAgo
+  ).length;
+
+  const totalDone = allTasks.filter(t => t.status === 'done').length;
+
+  return c.json({
+    project: { id: project.id, name: project.name, description: project.description },
+    epic_summary: epicSummary,
+    active_agents: activeAgents,
+    recently_completed_count: recentlyCompletedCount,
+    total_tasks: allTasks.length,
+    overall_percent_complete: allTasks.length > 0 ? Math.round((totalDone / allTasks.length) * 100) : 0,
+  });
 });
 
 // Cleanup project (archive done tasks and/or delete empty epics)
@@ -785,6 +1048,19 @@ app.post('/api/auth/cli-complete', requireServerAccess, async (c) => {
   }
   return c.json({ success: true });
 });
+
+// ============ Sync Routes ============
+registerSyncRoutes(app);
+
+// Start sync loop if configured
+if (config.sync?.enabled) {
+  syncService.setStatePath(resolve(fluxDir, 'sync-state.json'));
+  syncService.startSyncLoop(config.sync).then(() => {
+    console.log(`[sync] Started — role: ${syncService.getStatus().role}, discovery: ${config.sync!.discovery}`);
+  }).catch((err: unknown) => {
+    console.error('[sync] Failed to start:', err);
+  });
+}
 
 // API 404 handler - must be before SPA fallback
 app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));

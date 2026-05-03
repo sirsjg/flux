@@ -233,6 +233,59 @@ export function deleteProject(id: string): void {
   db.write();
 }
 
+// ============ Direct Insert Functions (for Sync) ============
+
+/**
+ * Insert a task directly, preserving its existing ID.
+ * Used by sync to replicate entities from remote nodes.
+ * Throws if a task with the same ID already exists.
+ */
+export function insertTask(task: Record<string, unknown>): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  if (!task.id || !task.title || !task.project_id) {
+    throw new Error('insertTask requires id, title, and project_id');
+  }
+  if (db.data.tasks.some(t => t.id === task.id)) {
+    throw new Error(`Task with id '${task.id}' already exists`);
+  }
+  db.data.tasks.push(task as unknown as Task);
+  db.write();
+}
+
+/**
+ * Insert an epic directly, preserving its existing ID.
+ * Used by sync to replicate entities from remote nodes.
+ * Throws if an epic with the same ID already exists.
+ */
+export function insertEpic(epic: Record<string, unknown>): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  if (!epic.id || !epic.title || !epic.project_id) {
+    throw new Error('insertEpic requires id, title, and project_id');
+  }
+  if (db.data.epics.some(e => e.id === epic.id)) {
+    throw new Error(`Epic with id '${epic.id}' already exists`);
+  }
+  db.data.epics.push(epic as unknown as Epic);
+  db.write();
+}
+
+/**
+ * Insert a project directly, preserving its existing ID.
+ * Used by sync to replicate entities from remote nodes.
+ * Throws if a project with the same ID already exists.
+ */
+export function insertProject(project: Record<string, unknown>): void {
+  if (!db) throw new Error('Storage adapter not set. Call setStorageAdapter first.');
+  if (!project.id || !project.name) {
+    throw new Error('insertProject requires id and name');
+  }
+  if (db.data.projects.some(p => p.id === project.id)) {
+    throw new Error(`Project with id '${project.id}' already exists`);
+  }
+  db.data.projects.push(project as unknown as Project);
+  db.write();
+}
+
 export function getProjectStats(projectId: string): { total: number; done: number } {
   const tasks = db.data.tasks.filter(t => t.project_id === projectId && !t.archived);
   return {

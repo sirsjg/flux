@@ -494,6 +494,40 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
 
+      // Agent activity tracking tools
+      {
+        name: 'get_epic_progress',
+        description: 'Get detailed progress for an epic: completion %, active workers, recently completed tasks, and remaining work sorted by priority. Use this to understand the full state of an epic before picking up work.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            epic_id: { type: 'string', description: 'Epic ID' },
+          },
+          required: ['epic_id'],
+        },
+      },
+      {
+        name: 'get_agent_activity',
+        description: 'See what each agent is currently working on, their recent completions (last 24h), and weekly stats. Use this to avoid duplicate work and coordinate with other agents.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            agent_name: { type: 'string', description: 'Optional: filter to a specific agent name. Omit to see all agents.' },
+          },
+        },
+      },
+      {
+        name: 'get_project_overview',
+        description: 'High-level project status: every epic with completion %, active agents, and overall progress. Call this at the start of each work cycle to orient yourself before picking a task.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            project_id: { type: 'string', description: 'Project ID' },
+          },
+          required: ['project_id'],
+        },
+      },
+
       // Webhook tools
       {
         name: 'list_webhooks',
@@ -823,15 +857,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
       const statusUpdates: Record<string, unknown> = { status: args?.status as string };
-      // Agent team worker tracking
+      // Agent team worker tracking + activity timestamps
       const agentName = args?.agent_name as string | undefined;
-      if (args?.status === 'in_progress' && agentName) {
+      if (args?.status === 'in_progress') {
         const currentTask = await getTask(args?.task_id as string);
-        const currentWorkers = currentTask?.workers || [];
-        if (!currentWorkers.includes(agentName)) {
-          statusUpdates.workers = [...currentWorkers, agentName];
+        // Set started_at on first move to in_progress
+        if (!currentTask?.started_at) {
+          statusUpdates.started_at = new Date().toISOString();
+        }
+        if (agentName) {
+          const currentWorkers = currentTask?.workers || [];
+          if (!currentWorkers.includes(agentName)) {
+            statusUpdates.workers = [...currentWorkers, agentName];
+          }
         }
       } else if (args?.status === 'done') {
+        const currentTask = await getTask(args?.task_id as string);
+        statusUpdates.completed_at = new Date().toISOString();
+        statusUpdates.completed_by = agentName || (currentTask?.workers && currentTask.workers[0]) || undefined;
         statusUpdates.workers = [];
       }
       const task = await updateTask(args?.task_id as string, statusUpdates);
@@ -868,6 +911,161 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
       return {
         content: [{ type: 'text', text: `Deleted comment ${args?.comment_id}` }],
+      };
+    }
+
+    // Agent activity tracking operations
+    case 'get_epic_progress': {
+      const epicId = args?.epic_id as string;
+      const epic = await getEpic(epicId);
+      if (!epic) {
+        return { content: [{ type: 'text', text: 'Epic not found' }], isError: true };
+      }
+      const tasks = await getTasks(epic.project_id);
+      const epicTasks = tasks.filter((t: any) => t.epic_id === epicId);
+      const byStatus: Record<string, number> = { planning: 0, todo: 0, in_progress: 0, done: 0 };
+      const activeWorkers: any[] = [];
+      const recentlyCompleted: any[] = [];
+      const remainingWork: any[] = [];
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      for (const task of epicTasks) {
+        byStatus[task.status] = (byStatus[task.status] || 0) + 1;
+        if (task.status === 'in_progress' && task.workers) {
+          for (const w of task.workers) {
+            activeWorkers.push({ agent_name: w, task_id: task.id, task_title: task.title, started_at: task.started_at });
+          }
+        }
+        if (task.status === 'done' && task.completed_at && task.completed_at > oneDayAgo) {
+          recentlyCompleted.push({ task_id: task.id, task_title: task.title, completed_by: task.completed_by, completed_at: task.completed_at });
+        }
+        if (task.status !== 'done' && task.status !== 'in_progress') {
+          remainingWork.push({ task_id: task.id, task_title: task.title, priority: task.priority, blocked: isTaskBlocked(task.id) });
+        }
+      }
+      remainingWork.sort((a: any, b: any) => {
+        if (a.blocked !== b.blocked) return a.blocked ? 1 : -1;
+        return (a.priority ?? 1) - (b.priority ?? 1);
+      });
+      const total = epicTasks.length;
+      const result = {
+        epic: { id: epic.id, title: epic.title, status: epic.status, notes: epic.notes },
+        total_tasks: total,
+        by_status: byStatus,
+        active_workers: activeWorkers,
+        recently_completed: recentlyCompleted,
+        remaining_work: remainingWork,
+        percent_complete: total > 0 ? Math.round((byStatus.done / total) * 100) : 0,
+      };
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    }
+
+    case 'get_agent_activity': {
+      const agentFilter = args?.agent_name as string | undefined;
+      const projects = await getProjects();
+      const agentData = new Map<string, { current_tasks: any[]; recent_completions: any[]; completed_today: number; completed_this_week: number; in_progress: number }>();
+      const epicMap = new Map<string, { id: string; title: string }>();
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const ensureAgent = (name: string) => {
+        if (!agentData.has(name)) agentData.set(name, { current_tasks: [], recent_completions: [], completed_today: 0, completed_this_week: 0, in_progress: 0 });
+        return agentData.get(name)!;
+      };
+
+      for (const project of projects) {
+        const epics = await getEpics(project.id);
+        for (const e of epics) epicMap.set(e.id, { id: e.id, title: e.title });
+        const tasks = await getTasks(project.id);
+        for (const task of tasks) {
+          const epicInfo = task.epic_id ? epicMap.get(task.epic_id) : undefined;
+          if (task.status === 'in_progress' && task.workers) {
+            for (const w of task.workers) {
+              if (agentFilter && w !== agentFilter) continue;
+              const data = ensureAgent(w);
+              data.current_tasks.push({ task_id: task.id, title: task.title, epic_id: epicInfo?.id, epic_title: epicInfo?.title, started_at: task.started_at });
+              data.in_progress++;
+            }
+          }
+          if (task.status === 'done' && task.completed_by) {
+            if (agentFilter && task.completed_by !== agentFilter) continue;
+            const data = ensureAgent(task.completed_by);
+            if (task.completed_at && task.completed_at > oneDayAgo) {
+              data.recent_completions.push({ task_id: task.id, title: task.title, epic_id: epicInfo?.id, epic_title: epicInfo?.title, completed_at: task.completed_at });
+              data.completed_today++;
+            }
+            if (task.completed_at && task.completed_at > oneWeekAgo) data.completed_this_week++;
+          }
+        }
+      }
+      const agents = Array.from(agentData.entries()).map(([name, data]) => ({
+        name, current_tasks: data.current_tasks, recent_completions: data.recent_completions,
+        stats: { completed_today: data.completed_today, completed_this_week: data.completed_this_week, in_progress: data.in_progress },
+      }));
+      return { content: [{ type: 'text', text: JSON.stringify({ agents }, null, 2) }] };
+    }
+
+    case 'get_project_overview': {
+      const projectId = args?.project_id as string;
+      const project = await getProject(projectId);
+      if (!project) {
+        return { content: [{ type: 'text', text: 'Project not found' }], isError: true };
+      }
+      const allTasks = await getTasks(projectId);
+      const epics = await getEpics(projectId);
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const epicSummary = epics.map((epic: any) => {
+        const epicTasks = allTasks.filter((t: any) => t.epic_id === epic.id);
+        const byStatus: Record<string, number> = { planning: 0, todo: 0, in_progress: 0, done: 0 };
+        const activeAgents = new Set<string>();
+        for (const t of epicTasks) {
+          byStatus[t.status] = (byStatus[t.status] || 0) + 1;
+          if (t.status === 'in_progress' && t.workers) {
+            for (const w of t.workers) activeAgents.add(w);
+          }
+        }
+        const total = epicTasks.length;
+        const waveMatch = epic.title.match(/^(LAUNCH-\d+|Sprint \d+|[A-Z]+-\d+)/);
+        return {
+          id: epic.id, title: epic.title, total, done: byStatus.done,
+          in_progress: byStatus.in_progress, todo: byStatus.todo, planning: byStatus.planning,
+          percent_complete: total > 0 ? Math.round((byStatus.done / total) * 100) : 0,
+          active_agents: Array.from(activeAgents),
+          wave: waveMatch ? waveMatch[1] : undefined,
+        };
+      });
+
+      const agentTasks = new Map<string, { count: number; epics: Set<string> }>();
+      for (const t of allTasks) {
+        if (t.status === 'in_progress' && t.workers) {
+          for (const w of t.workers) {
+            if (!agentTasks.has(w)) agentTasks.set(w, { count: 0, epics: new Set() });
+            const data = agentTasks.get(w)!;
+            data.count++;
+            if (t.epic_id) data.epics.add(t.epic_id);
+          }
+        }
+      }
+      const activeAgents = Array.from(agentTasks.entries()).map(([name, data]) => ({
+        name, current_task_count: data.count, epics_active_in: Array.from(data.epics),
+      }));
+
+      const recentlyCompletedCount = allTasks.filter((t: any) => t.status === 'done' && t.completed_at && t.completed_at > oneDayAgo).length;
+      const totalDone = allTasks.filter((t: any) => t.status === 'done').length;
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            project: { id: project.id, name: project.name, description: project.description },
+            epic_summary: epicSummary,
+            active_agents: activeAgents,
+            recently_completed_count: recentlyCompletedCount,
+            total_tasks: allTasks.length,
+            overall_percent_complete: allTasks.length > 0 ? Math.round((totalDone / allTasks.length) * 100) : 0,
+          }, null, 2),
+        }],
       };
     }
 

@@ -55,6 +55,9 @@ export type Task = {
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
   blob_ids?: string[]; // References to Blob.id
   workers?: string[]; // Agent team members currently working on this task
+  completed_by?: string; // Agent name that completed this task (persists after done)
+  started_at?: string; // ISO timestamp when task first moved to in_progress
+  completed_at?: string; // ISO timestamp when task moved to done
   created_at?: string;
   updated_at?: string;
 };
