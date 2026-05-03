@@ -36,7 +36,7 @@ export function registerSyncRoutes(
     // If the peer is asking for changes older than our oldest changelog
     // entry, they've fallen too far behind. Send a full snapshot instead
     // so they can recover without manual intervention.
-    if (since > 0 && since < oldestSequence) {
+    if (since < oldestSequence) {
       const snapshot = syncService.getFullSnapshot();
       return c.json({
         nodeId: syncService.getNodeId(),
