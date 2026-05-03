@@ -26,7 +26,15 @@ export type SyncEnvelope = {
 export type PeerState = {
   nodeId: string;
   url: string;
+  /**
+   * @deprecated Use lastPulledSequence / lastPushedSequence instead.
+   * Kept for backward-compatible status display (max of pulled & pushed).
+   */
   lastSyncedSequence: number;
+  /** The remote peer's sequence number we have pulled up to. */
+  lastPulledSequence: number;
+  /** Our local sequence number we have pushed to this peer. */
+  lastPushedSequence: number;
   lastSyncedAt: string;
   online: boolean;
   role: 'hub' | 'spoke';

@@ -455,6 +455,8 @@ class SyncService {
           nodeId: peerId,
           url,
           lastSyncedSequence: 0,
+          lastPulledSequence: 0,
+          lastPushedSequence: 0,
           lastSyncedAt: '',
           online: true,
           role: 'spoke',
@@ -524,7 +526,13 @@ class SyncService {
     }
 
     if (role === 'hub') {
-      // Hub: push changes to all spokes
+      // Hub: pull from all spokes first, then push to all spokes.
+      // Pull-first ensures spoke-originated changes are collected before
+      // being relayed to other spokes in the push phase.
+      for (const peer of this.peers.values()) {
+        if (peer.nodeId === this.nodeId) continue;
+        await this.pullFromPeer(peer);
+      }
       for (const peer of this.peers.values()) {
         if (peer.nodeId === this.nodeId) continue;
         await this.pushToPeer(peer);
@@ -549,7 +557,8 @@ class SyncService {
 
   private async pullFromPeer(peer: PeerState): Promise<boolean> {
     try {
-      const url = `${peer.url}/api/sync/pull?since=${peer.lastSyncedSequence}`;
+      const sinceSeq = peer.lastPulledSequence ?? peer.lastSyncedSequence ?? 0;
+      const url = `${peer.url}/api/sync/pull?since=${sinceSeq}`;
       const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -563,7 +572,12 @@ class SyncService {
       if (pullResponse.changes.length > 0) {
         this.applyRemoteChanges(pullResponse.changes);
       }
-      peer.lastSyncedSequence = pullResponse.currentSequence;
+      // Track the REMOTE peer's sequence for future pulls
+      peer.lastPulledSequence = pullResponse.currentSequence;
+      peer.lastSyncedSequence = Math.max(
+        peer.lastPulledSequence,
+        peer.lastPushedSequence ?? 0,
+      );
       peer.lastSyncedAt = new Date().toISOString();
       peer.online = true;
 
@@ -588,7 +602,8 @@ class SyncService {
 
   private async pushToPeer(peer: PeerState): Promise<boolean> {
     try {
-      const changes = this.getChangesSince(peer.lastSyncedSequence);
+      const sinceSeq = peer.lastPushedSequence ?? 0;
+      const changes = this.getChangesSince(sinceSeq);
       if (changes.length === 0) return true;
 
       // Record the highest local sequence we're about to push
@@ -607,11 +622,12 @@ class SyncService {
       }
       await response.json();
 
-      // Track the LOCAL sequence we pushed up to, not the remote peer's sequence.
-      // getChangesSince() filters against our own changelog sequence numbers,
-      // so storing the remote peer's sequence here causes sync to stall when
-      // the remote sequence exceeds our local sequence.
-      peer.lastSyncedSequence = pushedUpTo;
+      // Track the LOCAL sequence we pushed up to (not the remote peer's).
+      peer.lastPushedSequence = pushedUpTo;
+      peer.lastSyncedSequence = Math.max(
+        peer.lastPulledSequence ?? 0,
+        peer.lastPushedSequence,
+      );
       peer.lastSyncedAt = new Date().toISOString();
       peer.online = true;
       return true;
