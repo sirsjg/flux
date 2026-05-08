@@ -351,6 +351,15 @@ app.get('/api/projects/:projectId/tasks', (c) => {
   return c.json(tasks);
 });
 
+// Ready tasks (unblocked, not done, sorted by priority)
+// IMPORTANT: Must be before /api/tasks/:id to avoid :id catching "ready" as a task ID
+app.get('/api/tasks/ready', (c) => {
+  const auth = c.get('auth');
+  const projectId = c.req.query('project_id');
+  const tasks = getReadyTasks(projectId).filter(t => canReadProject(auth, t.project_id));
+  return c.json(tasks);
+});
+
 app.get('/api/tasks/:id', (c) => {
   const auth = c.get('auth');
   const task = getTask(c.req.param('id'));
@@ -464,14 +473,6 @@ app.delete('/api/tasks/:id', (c) => {
   if (!success) return c.json({ error: 'Task not found' }, 404);
   triggerWebhooks('task.deleted', { task }, task.project_id);
   return c.json({ success: true });
-});
-
-// Ready tasks (unblocked, not done, sorted by priority)
-app.get('/api/tasks/ready', (c) => {
-  const auth = c.get('auth');
-  const projectId = c.req.query('project_id');
-  const tasks = getReadyTasks(projectId).filter(t => canReadProject(auth, t.project_id));
-  return c.json(tasks);
 });
 
 // Cleanup project (archive done tasks and/or delete empty epics)
