@@ -50,7 +50,7 @@ import {
   deleteBlobClient,
   type WebhookEventType,
 } from '@flux/shared/client';
-import { setStorageAdapter, initStore, STATUSES, WEBHOOK_EVENT_TYPES, type Guardrail } from '@flux/shared';
+import { setStorageAdapter, initStore, getStorageAdapter, STATUSES, WEBHOOK_EVENT_TYPES, type Guardrail } from '@flux/shared';
 import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/shared/config';
 import { createAdapter } from '@flux/shared/adapters';
 import { createFilesystemBlobStorage, setBlobStorage } from '@flux/shared/blob-storage';
@@ -619,6 +619,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+
+  // Refresh data from disk before each operation to avoid stale reads
+  // This is critical when multiple MCP processes (docker exec) access the same DB
+  if (!isServerMode()) {
+    const adapter = getStorageAdapter();
+    adapter.read();
+  }
 
   switch (name) {
     // Project operations
