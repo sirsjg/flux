@@ -151,6 +151,16 @@ Tools that work well with Flux:
 | [n8n](https://github.com/n8n-io/n8n) | Workflow automation that triggers on Flux events |
 | [Zapier](https://zapier.com) | Connect Flux to 5,000+ apps via REST API and webhooks |
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=sirsjg%2Fflux&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=sirsjg/flux&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=sirsjg/flux&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=sirsjg/flux&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## Contributing
 
 Flux is early and moving quickly. If you want to help shape it, contributions are welcome.
