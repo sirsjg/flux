@@ -133,25 +133,36 @@ export type Status = 'planning' | 'todo' | 'in_progress' | 'done';
 
 export const STATUSES: Status[] = ['planning', 'todo', 'in_progress', 'done'];
 
-// Status display names and colors
+// Status display names and colors.
+//
+// Each colour is a CSS custom property with the previous hex as its fallback,
+// so appearance is unchanged unless someone defines the variable. These land in
+// the DOM as inline styles (`style={{ backgroundColor: config.color }}` in
+// Board.tsx), which a stylesheet cannot otherwise reach — so a custom theme can
+// restyle every daisyUI token and still be stuck with stock status dots. See #77.
 export const STATUS_CONFIG: Record<Status, { label: string; color: string }> = {
-  planning: { label: 'Planning', color: '#a855f7' },
-  todo: { label: 'To Do', color: '#6b7280' },
-  in_progress: { label: 'In Progress', color: '#3b82f6' },
-  done: { label: 'Done', color: '#22c55e' },
+  planning: { label: 'Planning', color: 'var(--flux-status-planning, #a855f7)' },
+  todo: { label: 'To Do', color: 'var(--flux-status-todo, #6b7280)' },
+  in_progress: { label: 'In Progress', color: 'var(--flux-status-in-progress, #3b82f6)' },
+  done: { label: 'Done', color: 'var(--flux-status-done, #22c55e)' },
 };
 
-// Epic colors palette
+// Epic colors palette. Same variable-with-fallback shape as STATUS_CONFIG, and
+// for the same reason — these reach the DOM as inline styles via getEpicColor().
 export const EPIC_COLORS = [
-  '#3b82f6', // blue
-  '#22c55e', // green
-  '#f59e0b', // orange/amber
-  '#8b5cf6', // purple
-  '#ef4444', // red
-  '#06b6d4', // cyan
-  '#ec4899', // pink
-  '#84cc16', // lime
+  'var(--flux-epic-1, #3b82f6)', // blue
+  'var(--flux-epic-2, #22c55e)', // green
+  'var(--flux-epic-3, #f59e0b)', // orange/amber
+  'var(--flux-epic-4, #8b5cf6)', // purple
+  'var(--flux-epic-5, #ef4444)', // red
+  'var(--flux-epic-6, #06b6d4)', // cyan
+  'var(--flux-epic-7, #ec4899)', // pink
+  'var(--flux-epic-8, #84cc16)', // lime
 ];
+
+// The "Unassigned" dot — the default for any task with no epic, so on a board
+// with no epics defined this is every card.
+export const EPIC_COLOR_UNASSIGNED = 'var(--flux-epic-unassigned, #9ca3af)';
 
 // ============ Webhook Types ============
 

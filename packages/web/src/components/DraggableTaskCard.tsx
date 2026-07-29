@@ -1,6 +1,7 @@
 import { ArrowDownIcon, CheckCircleIcon, PaperClipIcon, ShieldCheckIcon } from '@heroicons/react/24/outline'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
+import { EPIC_COLOR_UNASSIGNED } from '@flux/shared'
 import type { TaskWithBlocked } from '../stores'
 
 interface DraggableTaskCardProps {
@@ -14,7 +15,7 @@ interface DraggableTaskCardProps {
 
 export function DraggableTaskCard({
   task,
-  epicColor = '#9ca3af',
+  epicColor = EPIC_COLOR_UNASSIGNED,
   epicTitle = 'Unassigned',
   taskNumber,
   onClick,
