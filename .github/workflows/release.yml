@@ -54,8 +54,11 @@ jobs:
       - name: Setup Node for npm publish
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24.15.0'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@12.0.2
 
       - name: Release (dry-run)
         if: github.event_name == 'pull_request'
