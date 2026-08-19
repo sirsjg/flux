@@ -22,10 +22,10 @@
   "dependencies": {},
   "devDependencies": {
     "@flux/shared": "workspace:*",
-    "@hono/node-server": "^1.13.7",
-    "hono": "^4.6.12",
-    "@types/node": "^22.10.5",
-    "typescript": "~5.6.2"
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.3",
+    "@types/node": "^26.2.0",
+    "typescript": "~7.0.2"
   },
   "files": ["dist"],
   "publishConfig": {

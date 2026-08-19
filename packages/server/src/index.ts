@@ -589,7 +589,7 @@ app.get('/api/blobs/:id/content', (c) => {
   const content = storage.read(blob.hash);
   if (!content) return c.json({ error: 'Blob content not found' }, 404);
 
-  return new Response(content, {
+  return new Response(new Uint8Array(content), {
     headers: {
       'Content-Type': blob.mime_type,
       'Content-Disposition': `attachment; filename="${blob.filename}"`,

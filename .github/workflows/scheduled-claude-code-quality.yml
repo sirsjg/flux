@@ -27,15 +27,15 @@ jobs:
       directories: ${{ steps.select.outputs.directories }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Select random directories
         id: select
         run: |
           NUM_DIRS="${{ github.event.inputs.num_dirs || '3' }}"
 
-          # Find directories in src that have TypeScript files
-          DIRS=$(find src -type d -exec sh -c 'ls "$1"/*.ts "$1"/*.tsx 2>/dev/null | grep -v -E "\.(test|spec|stories)\." | head -1' _ {} \; 2>/dev/null | \
+          # Find workspace directories that contain TypeScript source files
+          DIRS=$(find packages -type d -exec sh -c 'ls "$1"/*.ts "$1"/*.tsx 2>/dev/null | grep -v -E "\.(test|spec|stories)\." | head -1' _ {} \; 2>/dev/null | \
             xargs -I {} dirname {} | \
             sort -u | \
             shuf -n "$NUM_DIRS")
@@ -56,6 +56,7 @@ jobs:
     needs: select-directories
     if: needs.select-directories.outputs.directories != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -63,18 +64,15 @@ jobs:
         directory: ${{ fromJson(needs.select-directories.outputs.directories) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Generate branch name
         id: branch
@@ -84,11 +82,9 @@ jobs:
           echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
       - name: Claude Code Quality Review
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-opus-4-5-20251101
-          timeout_minutes: 45
           base_branch: main
           branch_prefix: claude/code-quality-
           track_progress: true
@@ -123,7 +119,7 @@ jobs:
                - Ensure fixes don't break anything
 
             5. **Run verification**:
-               - `npm run lint` - verify no lint errors introduced
+               - `bun run lint` - verify no lint errors introduced
                - If errors occur, fix them or revert changes
 
             6. **Create PR if fixes were made**:
@@ -138,8 +134,9 @@ jobs:
             - Don't refactor working code just for style
             - If no issues found, report that and skip PR creation
           claude_args: |
+            --model claude-opus-4-5-20251101
             --max-turns 35
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(npm run lint*)"
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(bun run lint*)"
 
   report-completion:
     needs: [select-directories, review-directory]

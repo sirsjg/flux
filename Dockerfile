@@ -1,7 +1,7 @@
 # Flux - Kanban Board with MCP Server
 # Multi-stage build using Bun
 
-FROM oven/bun:1.3.5 AS base
+FROM oven/bun:1.3.14 AS base
 WORKDIR /app
 
 # ============ Build Stage ============
@@ -17,10 +17,10 @@ ENV BUILD_TIME=$BUILD_TIME
 COPY . .
 
 # Install dependencies and build
-RUN bun install && bun run build
+RUN bun install --frozen-lockfile && bun run build
 
 # ============ Production Stage ============
-FROM oven/bun:1.3.5-slim AS runner
+FROM oven/bun:1.3.14-slim AS runner
 
 WORKDIR /app
 
