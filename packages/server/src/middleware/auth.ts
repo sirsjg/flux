@@ -79,29 +79,43 @@ export const authMiddleware = createMiddleware<{ Variables: { auth: AuthContext 
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
+  const resolved = resolveTokenAuth(token);
+  if (resolved) {
+    c.set('auth', resolved);
+    return next();
+  }
+
+  return c.json({ error: 'Unauthorized' }, 401);
+});
+
+/**
+ * Resolve a raw bearer token to an auth context.
+ * Used by the auth middleware and by transports that can't send headers
+ * (e.g. EventSource passing ?token=).
+ */
+export function resolveTokenAuth(token: string): AuthContext | null {
+  const envKey = getEnvKey();
+
   // Check env key first (backwards compat)
   if (envKey && safeCompare(token, envKey)) {
-    c.set('auth', { keyType: 'env' });
-    return next();
+    return { keyType: 'env' };
   }
 
   // Check stored keys
   const apiKey = validateApiKey(token);
   if (apiKey) {
     if (apiKey.scope.type === 'server') {
-      c.set('auth', { keyType: 'server', apiKey });
-    } else {
-      c.set('auth', {
-        keyType: 'project',
-        projectIds: apiKey.scope.project_ids,
-        apiKey
-      });
+      return { keyType: 'server', apiKey };
     }
-    return next();
+    return {
+      keyType: 'project',
+      projectIds: apiKey.scope.project_ids,
+      apiKey,
+    };
   }
 
-  return c.json({ error: 'Unauthorized' }, 401);
-});
+  return null;
+}
 
 /**
  * Check if the current auth context allows write access to a project
