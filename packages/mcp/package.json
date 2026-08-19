@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@flux/shared": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.30.0"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
