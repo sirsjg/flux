@@ -59,7 +59,7 @@ import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/sh
 import { createAdapter } from '@flux/shared/adapters';
 import { createFilesystemBlobStorage, setBlobStorage, getBlobStorage } from '@flux/shared/blob-storage';
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
-import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, isAuthRequired, isOpenMode, type AuthContext } from './middleware/auth.js';
+import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, isAuthRequired, isOpenMode, hasServerAccess, resolveTokenAuth, type AuthContext } from './middleware/auth.js';
 import { rateLimit } from './middleware/rate-limit.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -173,7 +173,11 @@ app.use('/api/*', authMiddleware);
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 // ============ Live Update Events (SSE) ============
-const sseClients = new Set<ReadableStreamDefaultController<Uint8Array>>();
+type SseClient = {
+  controller: ReadableStreamDefaultController<Uint8Array>;
+  auth: AuthContext;
+};
+const sseClients = new Set<SseClient>();
 const sseEncoder = new TextEncoder();
 let heartbeatInterval: NodeJS.Timeout | null = null;
 let fileChangeTimeout: NodeJS.Timeout | null = null;
@@ -181,24 +185,69 @@ let fileChangeTimeout: NodeJS.Timeout | null = null;
 const broadcastSse = (event: string, data: unknown) => {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   const encoded = sseEncoder.encode(payload);
-  for (const controller of sseClients) {
+  for (const client of sseClients) {
     try {
-      controller.enqueue(encoded);
+      client.controller.enqueue(encoded);
     } catch {
-      sseClients.delete(controller);
+      sseClients.delete(client);
     }
   }
+};
+
+// Rich change event sent to clients allowed to see the affected project.
+// Events without a project scope go only to clients with server access.
+type ChangeEventInfo = {
+  event: WebhookEventType;
+  project_id?: string;
+  project_name?: string;
+  title?: string;
+  status?: string;
+};
+
+const broadcastChange = (info: ChangeEventInfo) => {
+  const payload = sseEncoder.encode(`event: change\ndata: ${JSON.stringify(info)}\n\n`);
+  for (const client of sseClients) {
+    if (info.project_id) {
+      if (!canReadProject(client.auth, info.project_id)) continue;
+    } else if (!hasServerAccess(client.auth)) {
+      continue;
+    }
+    try {
+      client.controller.enqueue(payload);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+};
+
+// Emit a mutation event: rich SSE change event for live clients + webhooks.
+const emitEvent = (
+  event: WebhookEventType,
+  data: Parameters<typeof triggerWebhooks>[1],
+  projectId?: string
+) => {
+  const d = data as Record<string, { id?: string; project_id?: string; title?: string; name?: string; status?: string } | undefined>;
+  const pid = projectId ?? d.project?.id ?? d.task?.project_id ?? d.epic?.project_id;
+  const project = pid ? getProject(pid) : undefined;
+  broadcastChange({
+    event,
+    project_id: pid,
+    project_name: project?.name ?? d.project?.name,
+    title: d.task?.title ?? d.epic?.title ?? d.project?.name,
+    status: d.task?.status,
+  });
+  triggerWebhooks(event, data, projectId);
 };
 
 const startHeartbeat = () => {
   if (heartbeatInterval) return;
   heartbeatInterval = setInterval(() => {
     const payload = sseEncoder.encode(': keep-alive\n\n');
-    for (const controller of sseClients) {
+    for (const client of sseClients) {
       try {
-        controller.enqueue(payload);
+        client.controller.enqueue(payload);
       } catch {
-        sseClients.delete(controller);
+        sseClients.delete(client);
       }
     }
     if (sseClients.size === 0 && heartbeatInterval) {
@@ -244,18 +293,27 @@ watchFile(DATA_FILE, { interval: 100 }, handleFileChange);
 // Also watch SQLite WAL file for changes (WAL mode writes here first)
 watchFile(DATA_FILE + '-wal', { interval: 100 }, handleFileChange);
 
-app.get('/api/events', () => {
-  let clientController: ReadableStreamDefaultController<Uint8Array> | null = null;
+app.get('/api/events', (c) => {
+  // EventSource can't send an Authorization header; accept ?token= so
+  // authenticated clients receive change events for their private projects.
+  let auth = c.get('auth');
+  const queryToken = c.req.query('token');
+  if (queryToken) {
+    const resolved = resolveTokenAuth(queryToken);
+    if (resolved) auth = resolved;
+  }
+
+  let client: SseClient | null = null;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      clientController = controller;
-      sseClients.add(controller);
+      client = { controller, auth };
+      sseClients.add(client);
       controller.enqueue(sseEncoder.encode('event: connected\ndata: "ok"\n\n'));
       startHeartbeat();
     },
     cancel() {
-      if (clientController) {
-        sseClients.delete(clientController);
+      if (client) {
+        sseClients.delete(client);
       }
     },
   });
@@ -298,7 +356,7 @@ app.get('/api/projects/:id', (c) => {
 app.post('/api/projects', requireServerAccess, async (c) => {
   const body = await c.req.json();
   const project = createProject(body.name, body.description, body.visibility);
-  triggerWebhooks('project.created', { project });
+  emitEvent('project.created', { project });
   return c.json(project, 201);
 });
 
@@ -307,7 +365,7 @@ app.patch('/api/projects/:id', requireServerAccess, async (c) => {
   const previous = getProject(c.req.param('id'));
   const project = updateProject(c.req.param('id'), body);
   if (!project) return c.json({ error: 'Project not found' }, 404);
-  triggerWebhooks('project.updated', { project, previous }, project.id);
+  emitEvent('project.updated', { project, previous }, project.id);
   return c.json(project);
 });
 
@@ -315,7 +373,7 @@ app.delete('/api/projects/:id', requireServerAccess, (c) => {
   const project = getProject(c.req.param('id'));
   deleteProject(c.req.param('id'));
   if (project) {
-    triggerWebhooks('project.deleted', { project }, project.id);
+    emitEvent('project.deleted', { project }, project.id);
   }
   return c.json({ success: true });
 });
@@ -349,7 +407,7 @@ app.post('/api/projects/:projectId/epics', async (c) => {
   const body = await c.req.json();
   const epic = createEpic(projectId, body.title, body.notes, body.auto);
   // Trigger webhook
-  triggerWebhooks('epic.created', { epic }, projectId);
+  emitEvent('epic.created', { epic }, projectId);
   return c.json(epic, 201);
 });
 
@@ -364,7 +422,7 @@ app.patch('/api/epics/:id', async (c) => {
   const body = await c.req.json();
   const epic = updateEpic(epicId, body);
   if (!epic) return c.json({ error: 'Epic not found' }, 404);
-  triggerWebhooks('epic.updated', { epic, previous }, epic.project_id);
+  emitEvent('epic.updated', { epic, previous }, epic.project_id);
   return c.json(epic);
 });
 
@@ -378,7 +436,7 @@ app.delete('/api/epics/:id', (c) => {
   }
   const success = deleteEpic(epicId);
   if (!success) return c.json({ error: 'Epic not found' }, 404);
-  triggerWebhooks('epic.deleted', { epic }, epic.project_id);
+  emitEvent('epic.deleted', { epic }, epic.project_id);
   return c.json({ success: true });
 });
 
@@ -462,7 +520,7 @@ app.post('/api/projects/:projectId/tasks', async (c) => {
     guardrails: body.guardrails,
   });
   // Trigger webhook
-  triggerWebhooks('task.created', { task }, projectId);
+  emitEvent('task.created', { task }, projectId);
   return c.json(task, 201);
 });
 
@@ -500,7 +558,7 @@ app.patch('/api/tasks/:id', async (c) => {
     events.push('task.archived');
   }
   for (const event of events) {
-    triggerWebhooks(event, { task, previous }, task.project_id);
+    emitEvent(event, { task, previous }, task.project_id);
   }
 
   return c.json({ ...task, blocked: isTaskBlocked(task.id) });
@@ -516,7 +574,7 @@ app.delete('/api/tasks/:id', (c) => {
   }
   const success = deleteTask(taskId);
   if (!success) return c.json({ error: 'Task not found' }, 404);
-  triggerWebhooks('task.deleted', { task }, task.project_id);
+  emitEvent('task.deleted', { task }, task.project_id);
   return c.json({ success: true });
 });
 

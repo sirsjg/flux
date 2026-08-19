@@ -42,6 +42,7 @@ Flux isn't just another Kanban board – it's the open-source engine for the fut
 - **Agent Memory**: Task comments for persistent context across sessions
 - **Priority System**: P0/P1/P2 priorities for agent task ordering
 - **Blob Storage**: Attach files (images, docs, logs) to tasks via CLI, API, or MCP.
+- **Live Updates & Notifications**: Boards update in real time over SSE; opt into browser notifications (bell icon) to hear about task changes while the tab is in the background.
 
 ## Quick Start: Up and Running in a Flux Second ⚡
 
