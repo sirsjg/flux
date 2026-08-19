@@ -19,7 +19,7 @@
     }],
     ["@semantic-release/exec", {
       "prepareCmd": "cd packages/cli && npm pkg set version=${nextRelease.version}",
-      "publishCmd": "cd packages/cli && bun publish --access public"
+      "publishCmd": "cd packages/cli && bun pm pack --filename packages/cli/flux-tasks.tgz --quiet && npm publish flux-tasks.tgz --access public"
     }],
     ["@semantic-release/github"]
   ]
