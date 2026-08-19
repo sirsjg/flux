@@ -175,7 +175,7 @@ export function WebhooksPanel() {
       </div>
 
       {webhooks.length === 0 ? (
-        <div class="card bg-base-100 shadow-sm border border-base-200">
+        <div class="card glass-card">
           <div class="card-body text-center py-10">
             <h2 class="text-lg font-semibold mb-2">No webhooks configured</h2>
             <p class="text-base-content/60 mb-4">
@@ -189,7 +189,7 @@ export function WebhooksPanel() {
       ) : (
         <div class="space-y-4">
           {webhooks.map(webhook => (
-            <div key={webhook.id} class="card bg-base-100 shadow-sm border border-base-200">
+            <div key={webhook.id} class="card glass-card">
               <div class="card-body">
                 <div class="flex items-start justify-between">
                   <div class="flex-1">

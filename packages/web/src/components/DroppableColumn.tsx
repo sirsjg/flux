@@ -15,12 +15,13 @@ export function DroppableColumn({ id, children, isEmpty = false }: DroppableColu
   return (
     <div
       ref={setNodeRef}
-      class={`rounded-xl p-3 min-h-32 transition-all ${
+      data-over={isOver ? 'true' : 'false'}
+      class={`board-column rounded-xl p-3 min-h-32 transition-all ${
         isOver
-          ? 'bg-primary/10 ring-2 ring-primary/50'
+          ? 'bg-primary/10'
           : isEmpty
-          ? 'bg-base-200/50 border-2 border-dashed border-base-300'
-          : 'bg-base-200/50'
+          ? 'border-dashed'
+          : ''
       }`}
     >
       {isEmpty ? (

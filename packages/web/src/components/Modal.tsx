@@ -37,7 +37,7 @@ export function Modal({ isOpen, onClose, title, children, boxClassName }: ModalP
       onClick={handleBackdropClick}
       onClose={onClose}
     >
-      <div class={`modal-box w-full max-w-xl ${boxClassName ?? ''}`}>
+      <div class={`modal-box glass-modal w-full max-w-xl ${boxClassName ?? ''}`}>
         <h3 class="font-bold text-lg mb-4">{title}</h3>
         {children}
       </div>

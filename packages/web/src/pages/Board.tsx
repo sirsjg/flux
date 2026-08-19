@@ -324,7 +324,7 @@ export function Board({ projectId }: BoardProps) {
 
   if (loading) {
     return (
-      <div class="min-h-screen bg-base-200 flex items-center justify-center">
+      <div class="app-shell flex items-center justify-center">
         <span class="loading loading-spinner loading-lg text-primary"></span>
       </div>
     );
@@ -336,9 +336,9 @@ export function Board({ projectId }: BoardProps) {
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <div class="min-h-screen bg-base-200">
+      <div class="app-shell">
         {/* Header */}
-        <div class="navbar bg-base-100 shadow-lg mb-4">
+        <div class="navbar glass-navbar mb-4">
           <div class="flex-1 flex items-center">
             <button class="btn btn-ghost btn-circle" onClick={() => route("/")}>
               <ArrowLeftIcon className="h-5 w-5" />
@@ -351,7 +351,7 @@ export function Board({ projectId }: BoardProps) {
               </span>
             </div>
           </div>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap justify-end gap-2">
             {notificationsSupported() && (
               <button
                 class="btn btn-ghost btn-circle btn-sm"
@@ -389,10 +389,10 @@ export function Board({ projectId }: BoardProps) {
           </div>
         </div>
 
-        <div class="px-6 pb-0">
+        <div class="px-3 sm:px-6 pb-0">
           {/* Filter Bar */}
-          <div class="bg-base-100 rounded-xl p-4 shadow-sm mb-6">
-            <div class="flex items-center gap-4">
+          <div class="glass-panel board-toolbar rounded-xl p-4 mb-6">
+            <div class="board-toolbar-row flex items-center gap-3 sm:gap-4">
               <div class="relative flex-1 max-w-sm">
                 <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40" />
                 <input
@@ -501,7 +501,7 @@ export function Board({ projectId }: BoardProps) {
         </div>
 
         {/* Swimlanes */}
-        <div class="px-6 pb-6 space-y-4">
+        <div class="px-3 sm:px-6 pb-6 space-y-4">
           {/* Epic Swimlanes */}
           {epics
             .filter(
@@ -515,7 +515,7 @@ export function Board({ projectId }: BoardProps) {
               return (
                 <div
                   key={epic.id}
-                  class="bg-base-100 rounded-xl shadow-sm overflow-hidden"
+                  class="glass-panel rounded-xl overflow-hidden"
                 >
                   {/* Epic Header */}
                   <div
@@ -563,8 +563,8 @@ export function Board({ projectId }: BoardProps) {
 
                   {/* Epic Content */}
                   {!isCollapsed && (
-                    <div class="px-4 pb-4">
-                      <div class="flex gap-4">
+                    <div class="board-lane-scroll px-4 pb-4">
+                      <div class="board-lane-content flex gap-4">
                         {/* Collapsed Planning Column */}
                         {planningCollapsed && (
                           <div
@@ -675,7 +675,7 @@ export function Board({ projectId }: BoardProps) {
 
           {/* Unassigned Lane */}
           {(filterEpicId === "all" || filterEpicId === "unassigned") && (
-            <div class="bg-base-100 rounded-xl shadow-sm overflow-hidden">
+            <div class="glass-panel rounded-xl overflow-hidden">
               <div
                 class="p-4 flex items-center gap-3 cursor-pointer hover:bg-base-200 transition-colors"
                 onClick={() => toggleEpicCollapse("unassigned")}
@@ -694,8 +694,8 @@ export function Board({ projectId }: BoardProps) {
               </div>
 
               {!collapsedEpics.has("unassigned") && (
-                <div class="px-4 pb-4">
-                  <div class="flex gap-4">
+                <div class="board-lane-scroll px-4 pb-4">
+                  <div class="board-lane-content flex gap-4">
                     {/* Collapsed Planning Column */}
                     {planningCollapsed && (
                       <div
@@ -819,7 +819,7 @@ export function Board({ projectId }: BoardProps) {
         {/* Cleanup Dialog */}
         {cleanupDialogOpen && (
           <div class="modal modal-open">
-            <div class="modal-box">
+            <div class="modal-box glass-modal">
               <h3 class="font-bold text-lg">Clean Up Board</h3>
               <div class="py-4 space-y-3">
                 <label class="flex items-center gap-3 cursor-pointer">

@@ -1,2 +1,215 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+:root {
+  --flux-glass: color-mix(in oklab, var(--color-base-100) 82%, transparent);
+  --flux-glass-strong: color-mix(in oklab, var(--color-base-100) 92%, transparent);
+  --flux-glass-muted: color-mix(in oklab, var(--color-base-200) 72%, transparent);
+  --flux-glass-border: color-mix(in oklab, var(--color-base-content) 11%, transparent);
+  --flux-glass-highlight: color-mix(in oklab, white 42%, transparent);
+  --flux-shadow-sm: 0 1px 2px color-mix(in oklab, var(--color-base-content) 7%, transparent),
+    0 8px 24px color-mix(in oklab, var(--color-base-content) 5%, transparent);
+  --flux-shadow-md: 0 2px 4px color-mix(in oklab, var(--color-base-content) 8%, transparent),
+    0 16px 38px color-mix(in oklab, var(--color-base-content) 8%, transparent);
+}
+
+html[data-theme="dark"] {
+  --flux-glass: color-mix(in oklab, var(--color-base-100) 80%, transparent);
+  --flux-glass-strong: color-mix(in oklab, var(--color-base-100) 90%, transparent);
+  --flux-glass-muted: color-mix(in oklab, var(--color-base-200) 68%, transparent);
+  --flux-glass-border: color-mix(in oklab, white 10%, transparent);
+  --flux-glass-highlight: color-mix(in oklab, white 6%, transparent);
+}
+
+html {
+  background: var(--color-base-200);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--color-base-200);
+  background-image:
+    radial-gradient(circle at 8% 4%, color-mix(in oklab, var(--color-primary) 10%, transparent) 0, transparent 28rem),
+    radial-gradient(circle at 92% 30%, color-mix(in oklab, var(--color-secondary) 7%, transparent) 0, transparent 30rem);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-primary) 28%, transparent);
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: 2.5rem;
+  background: transparent;
+}
+
+.glass-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid var(--flux-glass-border);
+  background: var(--flux-glass-strong);
+  box-shadow: 0 8px 28px color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  backdrop-filter: blur(18px) saturate(1.18);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.glass-panel,
+.glass-card,
+.glass-task-card,
+.glass-modal {
+  border: 1px solid var(--flux-glass-border);
+  background: var(--flux-glass);
+  box-shadow: var(--flux-shadow-sm);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+}
+
+.glass-panel,
+.glass-card,
+.glass-task-card {
+  position: relative;
+}
+
+.glass-panel::before,
+.glass-card::before,
+.glass-task-card::before,
+.glass-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 var(--flux-glass-highlight);
+}
+
+.glass-card,
+.glass-task-card {
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.glass-card:hover,
+.glass-task-card:hover {
+  border-color: color-mix(in oklab, var(--color-primary) 22%, var(--flux-glass-border));
+  box-shadow: var(--flux-shadow-md);
+  transform: translateY(-1px);
+}
+
+.glass-task-card:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.board-column {
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  background: var(--flux-glass-muted);
+  box-shadow: inset 0 1px 0 var(--flux-glass-highlight);
+}
+
+.board-column[data-over="true"] {
+  border-color: color-mix(in oklab, var(--color-primary) 48%, transparent);
+  box-shadow: inset 0 1px 0 var(--flux-glass-highlight),
+    0 0 0 3px color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+
+.board-toolbar {
+  position: relative;
+  z-index: 10;
+}
+
+.board-toolbar-row {
+  flex-wrap: wrap;
+}
+
+.board-lane-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-base-content) 18%, transparent) transparent;
+}
+
+.board-lane-content {
+  min-width: 760px;
+}
+
+.input.input-bordered,
+.select.select-bordered,
+.textarea.textarea-bordered {
+  border-color: var(--flux-glass-border);
+  background-color: color-mix(in oklab, var(--color-base-100) 62%, transparent);
+  box-shadow: inset 0 1px 0 var(--flux-glass-highlight);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.input.input-bordered:focus,
+.select.select-bordered:focus,
+.textarea.textarea-bordered:focus {
+  border-color: color-mix(in oklab, var(--color-primary) 58%, transparent);
+  background-color: color-mix(in oklab, var(--color-base-100) 82%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 12%, transparent);
+  outline: none;
+}
+
+.btn {
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.modal::backdrop {
+  background: color-mix(in oklab, black 46%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.glass-modal {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  background: var(--color-base-100);
+  box-shadow: var(--flux-shadow-md);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.glass-footer {
+  border-top: 1px solid var(--flux-glass-border);
+  background: color-mix(in oklab, var(--color-base-200) 76%, transparent);
+  box-shadow: 0 -8px 28px color-mix(in oklab, var(--color-base-content) 4%, transparent);
+  backdrop-filter: blur(16px) saturate(1.12);
+  -webkit-backdrop-filter: blur(16px) saturate(1.12);
+}
+
+@media (max-width: 767px) {
+  .app-shell {
+    padding-bottom: 4.5rem;
+  }
+
+  .glass-navbar {
+    position: relative;
+  }
+
+  .board-toolbar-row > .flex-1:last-of-type {
+    display: none;
+  }
+
+  .board-lane-content {
+    min-width: 680px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
