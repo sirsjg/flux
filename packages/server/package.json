@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "FLUX_ALLOW_ANONYMOUS=1 tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },

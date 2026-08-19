@@ -54,7 +54,9 @@ curl -fsSL https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart
 irm https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.ps1 | iex         # Windows
 ```
 
-This will start both the web UI ([http://localhost:3000](http://localhost:3000)) and the MCP server. Press Ctrl+C to stop the MCP server when you're done.
+This will start both the web UI ([http://localhost:3000](http://localhost:3000), local access only) and the MCP server. Press Ctrl+C to stop the MCP server when you're done.
+
+The server is locked by default when exposed: set `FLUX_API_KEY` to enable authenticated access on a network, or `FLUX_ALLOW_ANONYMOUS=1` to explicitly allow open access. See [`docs/api.md`](docs/api.md) for auth modes and key scopes.
 
 ```bash
 # Claude Code

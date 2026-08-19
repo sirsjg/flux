@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, watchFile, statSync, readFileSync } from 'fs';
@@ -58,7 +59,7 @@ import { findFluxDir, loadEnvLocal, readConfig, resolveDataPath } from '@flux/sh
 import { createAdapter } from '@flux/shared/adapters';
 import { createFilesystemBlobStorage, setBlobStorage, getBlobStorage } from '@flux/shared/blob-storage';
 import { handleWebhookEvent, testWebhookDelivery } from './webhook-service.js';
-import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, type AuthContext } from './middleware/auth.js';
+import { authMiddleware, filterProjects, canReadProject, canWriteProject, requireServerAccess, isAuthRequired, isOpenMode, type AuthContext } from './middleware/auth.js';
 import { rateLimit } from './middleware/rate-limit.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -118,8 +119,52 @@ function validateTaskFields(body: Record<string, unknown>): { error?: string } {
 // Create Hono app with auth context
 const app = new Hono<{ Variables: { auth: AuthContext } }>();
 
-// Enable CORS for development
-app.use('*', cors());
+// Security headers on every response. CSP is scoped to what the built web UI
+// needs: same-origin scripts/connections, inline styles (Tailwind/dnd-kit
+// style attributes), and data:/blob: images.
+app.use(
+  '*',
+  secureHeaders({
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],
+    },
+  })
+);
+
+// CORS: same-origin by default. Localhost origins are always allowed (local
+// dev: Vite on :5173 talks to :3000). Additional origins via FLUX_CORS_ORIGINS
+// (comma-separated, e.g. "https://flux.example.com").
+const extraCorsOrigins = (process.env.FLUX_CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const isLocalOrigin = (origin: string): boolean => {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+  } catch {
+    return false;
+  }
+};
+
+app.use(
+  '*',
+  cors({
+    origin: (origin) => {
+      if (!origin) return origin;
+      if (extraCorsOrigins.includes(origin) || isLocalOrigin(origin)) return origin;
+      return null;
+    },
+  })
+);
 
 // Auth middleware (readonly public, writes require FLUX_API_KEY)
 app.use('/api/*', authMiddleware);
@@ -488,7 +533,8 @@ app.post('/api/projects/:projectId/cleanup', async (c) => {
 });
 
 // Reset database (wipe all data)
-app.post('/api/reset', requireServerAccess, (c) => {
+const resetRateLimit = rateLimit({ windowMs: 60000, maxRequests: 5 });
+app.post('/api/reset', requireServerAccess, resetRateLimit, (c) => {
   resetStore();
   return c.json({ success: true });
 });
@@ -496,8 +542,9 @@ app.post('/api/reset', requireServerAccess, (c) => {
 // ============ Blob Routes ============
 
 const MAX_BLOB_SIZE = parseInt(process.env.FLUX_MAX_BLOB_SIZE || '') || 10 * 1024 * 1024; // 10MB default
+const blobUploadRateLimit = rateLimit({ windowMs: 60000, maxRequests: 60 });
 
-app.post('/api/blobs', async (c) => {
+app.post('/api/blobs', blobUploadRateLimit, async (c) => {
   const auth = c.get('auth');
   const contentType = c.req.header('content-type') || '';
 
@@ -589,10 +636,13 @@ app.get('/api/blobs/:id/content', (c) => {
   const content = storage.read(blob.hash);
   if (!content) return c.json({ error: 'Blob content not found' }, 404);
 
+  // Sanitize filename for the quoted form (header injection / quote escaping);
+  // preserve the original name via RFC 5987 filename*
+  const asciiName = blob.filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
   return new Response(new Uint8Array(content), {
     headers: {
       'Content-Type': blob.mime_type,
-      'Content-Disposition': `attachment; filename="${blob.filename}"`,
+      'Content-Disposition': `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(blob.filename)}`,
       'Content-Length': blob.size.toString(),
     },
   });
@@ -703,6 +753,7 @@ app.get('/api/auth/status', (c) => {
     authenticated: auth.keyType !== 'anonymous',
     keyType: auth.keyType,
     projectIds: auth.projectIds,
+    authRequired: !isOpenMode(),
   });
 });
 
@@ -836,6 +887,18 @@ if (existsSync(webDistPath)) {
 // Start server
 const port = parseInt(process.env.PORT || '3000');
 console.log(`Flux server running at http://localhost:${port}`);
+
+if (isAuthRequired()) {
+  console.log('Auth: enabled (API keys configured)');
+} else if (isOpenMode()) {
+  console.log('Auth: DISABLED via FLUX_ALLOW_ANONYMOUS — anyone with network access has full control');
+} else {
+  console.log(
+    'Auth: locked — no API keys configured. All API requests will be rejected.\n' +
+      '      Set FLUX_API_KEY=<secret> to enable authentication,\n' +
+      '      or FLUX_ALLOW_ANONYMOUS=1 to explicitly allow open access.'
+  );
+}
 
 serve({
   fetch: app.fetch,

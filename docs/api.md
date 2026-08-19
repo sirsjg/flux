@@ -2,11 +2,37 @@
 
 ## Authentication
 
-The API uses Bearer token authentication via `FLUX_API_KEY` environment variable.
+The API uses Bearer token authentication. Keys come from the `FLUX_API_KEY`
+environment variable and/or stored API keys created via `/api/auth/keys`.
 
-- **GET/HEAD requests** are public (readonly)
-- **All other methods** require `Authorization: Bearer <FLUX_API_KEY>` header
-- If `FLUX_API_KEY` is not set, all requests are allowed (dev mode)
+The server runs in one of three modes:
+
+| Mode | Condition | Behavior |
+|------|-----------|----------|
+| **Keys** | `FLUX_API_KEY` set or stored keys exist | GET/HEAD on public projects work anonymously; all other requests require `Authorization: Bearer <key>` |
+| **Open** | No keys, `FLUX_ALLOW_ANONYMOUS=1` set | All requests allowed — only use on trusted networks |
+| **Locked** | No keys, no opt-in (default) | All API requests rejected with 401 (except `GET /api/auth/status`) |
+
+A fresh server with no configuration is **locked by default**. Set
+`FLUX_API_KEY=<secret>` to enable authenticated access, or set
+`FLUX_ALLOW_ANONYMOUS=1` to explicitly opt into open access.
+
+Key scopes:
+
+- **Server keys** (`FLUX_API_KEY` or stored server-scoped keys): full access, including webhooks, key management, and `/api/reset`
+- **Project keys**: read/write limited to their `project_ids`; private projects outside that list return 404
+
+Other security-related environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `FLUX_ALLOW_ANONYMOUS` | Set to `1`/`true`/`yes` to allow keyless open access |
+| `FLUX_CORS_ORIGINS` | Comma-separated list of additional allowed CORS origins. Localhost origins are always allowed; all others are rejected by default |
+| `FLUX_MAX_BLOB_SIZE` | Max blob upload size in bytes (default 10 MB) |
+
+All responses carry security headers (CSP, `X-Content-Type-Options`,
+`X-Frame-Options`). Auth endpoints, blob uploads, and `/api/reset` are
+rate-limited per client IP.
 
 ## Endpoints
 

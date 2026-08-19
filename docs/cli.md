@@ -37,7 +37,7 @@ Connect to any Flux server (local or remote):
 # Connect to hosted instance (with API key for writes)
 flux init --server https://flux.example.com --api-key '$FLUX_API_KEY'
 
-# Or local server (no auth needed in dev mode)
+# Or local server (works keyless only if it runs with FLUX_ALLOW_ANONYMOUS=1)
 flux init --server http://localhost:3000
 
 # All commands now use the API
