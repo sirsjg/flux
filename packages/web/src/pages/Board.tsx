@@ -18,7 +18,7 @@ import {
   type TaskWithBlocked,
 } from "../stores";
 import type { Epic } from "@flux/shared";
-import { STATUSES, STATUS_CONFIG, EPIC_COLORS } from "@flux/shared";
+import { STATUSES, STATUS_CONFIG, EPIC_COLORS, EPIC_COLOR_UNASSIGNED } from "@flux/shared";
 import {
   TaskForm,
   EpicForm,
@@ -780,7 +780,7 @@ export function Board({ projectId }: BoardProps) {
                                 <DraggableTaskCard
                                   key={task.id}
                                   task={task}
-                                  epicColor="#9ca3af"
+                                  epicColor={EPIC_COLOR_UNASSIGNED}
                                   epicTitle="Unassigned"
                                   taskNumber={taskIndex + 1}
                                   onClick={() => openEditTask(task)}
