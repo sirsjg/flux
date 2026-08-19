@@ -38,6 +38,7 @@ function createAdapter(initial?: Partial<StoreWithWebhooks>) {
 
 describe('auth middleware', () => {
   const originalEnv = process.env.FLUX_API_KEY;
+  const originalAllowAnonymous = process.env.FLUX_ALLOW_ANONYMOUS;
 
   beforeAll(() => {
     setAuthFunctions({ generateKey, generateTempToken, validateKey, encrypt, decrypt });
@@ -45,6 +46,7 @@ describe('auth middleware', () => {
 
   beforeEach(() => {
     delete process.env.FLUX_API_KEY;
+    delete process.env.FLUX_ALLOW_ANONYMOUS;
     setStorageAdapter(createAdapter());
     initStore();
   });
@@ -55,10 +57,44 @@ describe('auth middleware', () => {
     } else {
       delete process.env.FLUX_API_KEY;
     }
+    if (originalAllowAnonymous) {
+      process.env.FLUX_ALLOW_ANONYMOUS = originalAllowAnonymous;
+    } else {
+      delete process.env.FLUX_ALLOW_ANONYMOUS;
+    }
   });
 
-  describe('dev mode (no auth)', () => {
-    it('allows all requests when no keys configured', async () => {
+  describe('locked mode (no keys, no opt-in)', () => {
+    it('rejects requests when no keys configured', async () => {
+      const app = new Hono<{ Variables: { auth: AuthContext } }>();
+      app.use('*', authMiddleware);
+      app.post('/test', (c) => c.json({ ok: true }));
+      app.get('/test', (c) => c.json({ ok: true }));
+
+      const post = await app.request('/test', { method: 'POST' });
+      expect(post.status).toBe(401);
+
+      const get = await app.request('/test');
+      expect(get.status).toBe(401);
+    });
+
+    it('still allows GET /api/auth/status so clients can discover login', async () => {
+      const app = new Hono<{ Variables: { auth: AuthContext } }>();
+      app.use('*', authMiddleware);
+      app.get('/api/auth/status', (c) => c.json({ auth: c.get('auth') }));
+
+      const res = await app.request('/api/auth/status');
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.auth.keyType).toBe('anonymous');
+    });
+  });
+
+  describe('open mode (FLUX_ALLOW_ANONYMOUS)', () => {
+    it('allows all requests when explicitly opted in', async () => {
+      process.env.FLUX_ALLOW_ANONYMOUS = '1';
+
       const app = new Hono<{ Variables: { auth: AuthContext } }>();
       app.use('*', authMiddleware);
       app.post('/test', (c) => c.json({ auth: c.get('auth') }));
@@ -68,6 +104,30 @@ describe('auth middleware', () => {
 
       expect(res.status).toBe(200);
       expect(body.auth.keyType).toBe('anonymous');
+    });
+
+    it('accepts true/yes as opt-in values', async () => {
+      const app = new Hono<{ Variables: { auth: AuthContext } }>();
+      app.use('*', authMiddleware);
+      app.post('/test', (c) => c.json({ ok: true }));
+
+      for (const value of ['true', 'yes']) {
+        process.env.FLUX_ALLOW_ANONYMOUS = value;
+        const res = await app.request('/test', { method: 'POST' });
+        expect(res.status).toBe(200);
+      }
+    });
+
+    it('ignores the opt-in once keys are configured', async () => {
+      process.env.FLUX_ALLOW_ANONYMOUS = '1';
+      process.env.FLUX_API_KEY = 'test-env-key';
+
+      const app = new Hono<{ Variables: { auth: AuthContext } }>();
+      app.use('*', authMiddleware);
+      app.post('/test', (c) => c.json({ ok: true }));
+
+      const res = await app.request('/test', { method: 'POST' });
+      expect(res.status).toBe(401);
     });
   });
 
@@ -174,7 +234,8 @@ describe('auth middleware', () => {
   });
 
   describe('requireServerAccess middleware', () => {
-    it('allows request in dev mode', async () => {
+    it('allows request in open mode', async () => {
+      process.env.FLUX_ALLOW_ANONYMOUS = '1';
       const app = new Hono<{ Variables: { auth: AuthContext } }>();
       app.use('*', authMiddleware);
       app.post('/admin', requireServerAccess, (c) => c.json({ ok: true }));
@@ -260,8 +321,13 @@ describe('auth middleware', () => {
         expect(hasServerAccess({ keyType: 'project', projectIds: ['p1'] })).toBe(false);
       });
 
-      it('returns true for anonymous in dev mode', () => {
+      it('returns true for anonymous in open mode', () => {
+        process.env.FLUX_ALLOW_ANONYMOUS = '1';
         expect(hasServerAccess({ keyType: 'anonymous' })).toBe(true);
+      });
+
+      it('returns false for anonymous in locked mode (no keys, no opt-in)', () => {
+        expect(hasServerAccess({ keyType: 'anonymous' })).toBe(false);
       });
 
       it('returns false for anonymous when auth required', () => {
@@ -301,9 +367,14 @@ describe('auth middleware', () => {
         expect(canWriteProject({ keyType: 'anonymous' }, 'any')).toBe(false);
       });
 
-      it('returns true in dev mode (no auth configured)', () => {
+      it('returns true in open mode (no keys, explicit opt-in)', () => {
+        process.env.FLUX_ALLOW_ANONYMOUS = '1';
         expect(canWriteProject({ keyType: 'anonymous' }, 'any')).toBe(true);
         expect(canWriteProject({ keyType: 'project', projectIds: ['proj-1'] }, 'proj-2')).toBe(true);
+      });
+
+      it('returns false in locked mode (no keys, no opt-in)', () => {
+        expect(canWriteProject({ keyType: 'anonymous' }, 'any')).toBe(false);
       });
     });
 
