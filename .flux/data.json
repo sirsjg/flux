@@ -103,7 +103,33 @@
       "priority": 0,
       "created_at": "2026-08-19T12:33:40.640Z",
       "updated_at": "2026-08-19T12:55:15.125Z"
+    },
+    {
+      "id": "fjjfok5",
+      "title": "Review and triage all open GitHub pull requests",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "4mtrd4m",
+          "body": "Auditing all nine open pull requests using gh as sirsjg. Will comment only while open; close only obsolete or fundamentally outdated work.",
+          "author": "user",
+          "created_at": "2026-08-19T13:34:31.371Z"
+        },
+        {
+          "id": "99sgo4i",
+          "body": "Reviewed all nine open PRs as sirsjg. Approved #79 after merge simulation and shared/web builds. Requested changes on #50. Left two blocking compatibility findings on #83. Commented and closed obsolete/fundamentally outdated #66, #70, #71, #72, #73, and #74. Final open set: #83, #79, #50.",
+          "author": "user",
+          "created_at": "2026-08-19T13:40:20.545Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 0,
+      "created_at": "2026-08-19T13:34:23.248Z",
+      "updated_at": "2026-08-19T13:40:20.545Z"
     }
   ],
-  "blobs": []
+  "blobs": [],
+  "api_keys": [],
+  "cli_auth_requests": []
 }
