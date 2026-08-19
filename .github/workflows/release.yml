@@ -6,13 +6,19 @@ on:
     paths:
       - 'packages/cli/**'
       - 'packages/shared/**'
+      - 'package.json'
+      - 'bun.lock'
       - '.releaserc.json'
+      - '.github/workflows/release.yml'
   pull_request:
     branches: [main]
     paths:
       - 'packages/cli/**'
       - 'packages/shared/**'
+      - 'package.json'
+      - 'bun.lock'
       - '.releaserc.json'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 concurrency:
