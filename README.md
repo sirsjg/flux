@@ -133,28 +133,6 @@ EOF
 - [`docs/ideas.md`](docs/ideas.md) — ways to use Flux, from agent swarms to automation-first workflows
 - [`docs/roadmap.md`](docs/roadmap.md) — where Flux is headed next
 
-## Dogfooding
-
-Flux uses itself for task management. Tasks are stored on the `flux-data` branch and synced via git:
-
-```bash
-flux pull               # Fetch latest tasks from flux-data branch
-flux ready              # Show unblocked tasks sorted by priority
-flux task update <id> --status in_progress
-flux push "message"     # Commit and push task changes
-```
-
-Configure a remote server in `.flux/config.json`:
-
-```json
-{
-  "server": "https://app.getflux.dev",
-  "apiKey": "$FLUX_API_KEY"
-}
-```
-
-The `$FLUX_API_KEY` expands from `.env.local`.
-
 ## Ecosystem
 
 Flux's CLI, REST API, webhooks, and MCP server make it easy to compose with other tools:
