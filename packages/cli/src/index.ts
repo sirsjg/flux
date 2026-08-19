@@ -56,20 +56,31 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const FLUX_INSTRUCTIONS = `<!-- FLUX:START -->
 ## Flux Task Management
 
-You have access to Flux for task management via MCP or CLI.
+You have access to Flux for task management, via MCP tools or the \`flux\` CLI.
 
-**Rules:**
-- All work MUST belong to exactly one project_id
-- Do NOT guess or invent a project_id
-- Track all work as tasks; update status as you progress
-- Close tasks immediately when complete
+**Project scope:**
+- All work belongs to exactly one project. On startup, list projects
+  (\`flux project list\`), then select or create one and confirm its project_id
+  before doing any work.
+- Include that project_id in every Flux call. Never guess a project_id, and
+  never switch projects without explicit instruction.
 
-**Startup:**
-1. List projects (\`flux project list\`)
-2. Select or create ONE project
-3. Confirm active project_id before any work
+**Working a task:**
+- Track all work as tasks. Pick the next task with \`list_ready_tasks\` (or
+  \`flux ready\`) — it excludes blocked tasks and sorts by priority (P0 first).
+- Set status to in_progress when you start and done as soon as you finish.
+  Tasks in planning must move to todo before in_progress.
+- Pass your agent_name on status changes so the board shows who is working.
+- Don't start a task whose dependencies aren't done.
 
-**If context is lost:** Re-list projects/tasks. Ask user if ambiguous.
+**Memory and scope:**
+- Record decisions, findings, and blockers as task comments — they are your
+  memory across sessions. Check a task's comments before starting it.
+- When you discover new work, create a task for it (with acceptance criteria)
+  rather than expanding the current task's scope.
+
+**If context is lost:** stop, re-list projects and tasks, and ask the user if
+ambiguity remains.
 <!-- FLUX:END -->`;
 
 // Update AGENTS.md or CLAUDE.md with flux instructions

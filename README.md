@@ -1,63 +1,58 @@
 # Flux &middot; [![CI](https://github.com/sirsjg/flux/actions/workflows/ci.yml/badge.svg)](https://github.com/sirsjg/flux/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white) ![Preact](https://img.shields.io/badge/Preact-673ab8?style=flat&logo=preact&logoColor=white) ![Bun](https://img.shields.io/badge/Bun-fbf0df?style=flat&logo=bun&logoColor=black) ![Docker](https://img.shields.io/badge/Docker-2496ed?style=flat&logo=docker&logoColor=white) ![MCP](https://img.shields.io/badge/MCP-enabled-f59e0b?style=flat)
 
-> Flux is a **completely open, hackable, unopinionated task management engine**.
+> An open, hackable, execution-agnostic task management engine for humans and AI agents.
 
 <p align="center">
-  <img src="./docs/kibo-mascot.png" width="100%" />
+  <img src="./docs/kibo-mascot.png" width="100%" alt="Flux" />
 </p>
 
-Flux is your ultimate task management sidekick – a lightning-fast Kanban board that lets humans, AI agents, and automations team up to crush chaos. With built-in MCP (Model Context Protocol) integration, your LLMs can jump in and run the show: creating tasks, updating statuses, and keeping everything in sync. No more rigid workflows or SaaS lock-in – just pure, flexible productivity magic! ✨
-
-Why settle for boring task trackers when you can enter the Flux Zone? Inspired by the wild energy of a flux capacitor (hello, Back to the Future fans!), this open-source gem decouples tasks from execution, making it the perfect playground for developers, teams, and AI enthusiasts. Ready to go viral? Star this repo and let's make task management fun again! ⭐
+Flux is a fast, multi-project Kanban board that humans, AI agents, and automations share. Tasks live in a single JSON file in your repo, synced through git. A CLI, web dashboard, REST API, webhooks, and an MCP (Model Context Protocol) server all read and write the same data — so *where* tasks live is fixed, but *how* they get done is entirely up to you: manually, through the API, via webhooks, or by handing the board to an AI assistant.
 
 ![Demo](./docs/demo.gif)
 
-## Why Flux? Because Chaos is So Last Year
+## Why Flux
 
-Ever felt like your projects are a tangled mess of tools, bots, and half-baked ideas? Flux fixes that by being:
-
-- **Execution-Agnostic**: Tasks live here, but how they get done? That's up to you – manual, API, webhooks, or let Claude/GPT take the wheel.
-- **AI-Powered Awesomeness**: Hook up your LLMs via MCP and watch them automate the mundane. "Hey AI, create a task for fixing that bug!" – Done. 🤖
-- **Simple & Speedy**: Single JSON file, drag-and-drop UI, git-native sync. No bloat, just flow.
-
-Flux isn't just another Kanban board – it's the open-source engine for the future of work. Developers love it because it's hackable, extensible, and screams "build on me!" If you're tinkering with AI agents or just need a better way to organize, this is your ticket to productivity paradise.
-
-<p align="center">
-  <img src="./docs/sample-workflow.png" alt="Sample workflow" />
-  <br />
-  <em>Sample workflow</em>
-</p>
+- **Execution-agnostic** — Flux tracks the work; it doesn't prescribe how the work happens. Humans, scripts, CI pipelines, and LLMs are all first-class actors.
+- **AI-native** — a full MCP server lets assistants list, create, update, and close tasks programmatically, with agent memory (task comments), priorities, and dependency tracking designed for autonomous work.
+- **Simple and fast** — a single JSON file, drag-and-drop UI, zero-dependency CLI. No database to run, no SaaS lock-in.
+- **Git-native** — task data syncs through a `flux-data` branch with `flux push` / `flux pull`, so your board travels with your repo and works offline.
 
 ## Features
 
-- **Multi-Project Kanban Boards**: Juggle epics, tasks, and dependencies like a pro.
-- **Task Dependencies**: See what's blocked at a glance – no more surprises!
-- **MCP Integration**: Let LLMs list, create, update, or delete tasks programmatically.
-- **Real-Time Updates**: SSE keeps everyone in sync – web UI, APIs, and beyond.
-- **Webhooks Galore**: Integrate with Slack, GitHub, CI/CD – trigger actions on task changes.
-- **API-First Design**: Full REST endpoints for ultimate control.
-- **Git-Native Sync**: `flux push` / `flux pull` syncs via `flux-data` branch.
+- **Multi-project Kanban boards** with epics, tasks, and drag-and-drop status changes
+- **Task dependencies** — blocked tasks are flagged visually and excluded from `flux ready`
+- **Priority system** — P0/P1/P2 priorities for ordering agent (and human) work
+- **CLI-first** — full terminal workflow with MCP parity (`flux ready`, `flux task`, …)
+- **MCP integration** — 25+ tools covering projects, epics, tasks, comments, webhooks, and blobs
+- **Agent memory** — task comments persist context across assistant sessions
+- **REST API** — full endpoints for automations, integrations, and custom frontends
+- **Webhooks** — signed, retried deliveries on task changes for Slack, GitHub, CI/CD, and more
+- **Real-time updates** — boards stay in sync over SSE, with opt-in browser notifications
+- **Blob storage** — attach files (images, docs, logs) to tasks via CLI, API, or MCP
+- **Git-native sync** — `flux push` / `flux pull` against a `flux-data` branch
 
-- **CLI-First**: Full CLI with MCP parity (`flux ready`, `flux task`, etc.)
-- **Agent Memory**: Task comments for persistent context across sessions
-- **Priority System**: P0/P1/P2 priorities for agent task ordering
-- **Blob Storage**: Attach files (images, docs, logs) to tasks via CLI, API, or MCP.
-- **Live Updates & Notifications**: Boards update in real time over SSE; opt into browser notifications (bell icon) to hear about task changes while the tab is in the background.
-
-## Quick Start: Up and Running in a Flux Second ⚡
+## Quick Start
 
 ```bash
 # CLI only (npm)
 npm install -g flux-tasks
 
-# Full stack with Web UI (Docker)
+# Full stack with web UI (Docker)
 curl -fsSL https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.sh | bash  # macOS/Linux
 irm https://raw.githubusercontent.com/sirsjg/flux/main/scripts/quickstart.ps1 | iex         # Windows
 ```
 
-This will start both the web UI ([http://localhost:3000](http://localhost:3000), local access only) and the MCP server. Press Ctrl+C to stop the MCP server when you're done.
+The quickstart starts the web UI at [http://localhost:3000](http://localhost:3000) (bound to localhost only) and an MCP server on stdio. Press Ctrl+C to stop the MCP server when you're done.
 
-The server is locked by default when exposed: set `FLUX_API_KEY` to enable authenticated access on a network, or `FLUX_ALLOW_ANONYMOUS=1` to explicitly allow open access. See [`docs/api.md`](docs/api.md) for auth modes and key scopes.
+The server is locked by default when exposed beyond localhost: set `FLUX_API_KEY` to enable authenticated access on a network, or `FLUX_ALLOW_ANONYMOUS=1` to explicitly allow open access. See [`docs/api.md`](docs/api.md) for auth modes and key scopes.
+
+## Using Flux with AI Assistants
+
+Flux ships an MCP server (`packages/mcp`) that runs on **stdio** for local clients or over **Streamable HTTP** for remote ones. Full tool reference: [`docs/mcp.md`](docs/mcp.md).
+
+### Claude Code & Codex
+
+With the Docker quickstart running:
 
 ```bash
 # Claude Code
@@ -67,60 +62,76 @@ claude mcp add flux -- docker exec -i flux-web bun packages/mcp/dist/index.js
 codex mcp add flux -- docker exec -i flux-web bun packages/mcp/dist/index.js
 ```
 
-Let your agent know!
+There is also a [Claude Code plugin](docs/claude-code-plugin.md) that turns project requirements into a structured Flux board with epics, tasks, and dependencies.
+
+### Claude Desktop & ChatGPT
+
+Both connect over stdio using a local config file — see [`docs/assistant-setup.md`](docs/assistant-setup.md) for the exact configuration.
+
+### Claude Cowork
+
+Claude Cowork connects to MCP servers as **remote custom connectors**: the connection originates from Anthropic's infrastructure, not your machine, so a local stdio server won't work. Instead, run the Flux MCP server in HTTP mode and make it reachable over the public internet:
+
+```bash
+# Serve the MCP Streamable HTTP transport at /mcp (requires Bun)
+FLUX_MCP_TOKEN=<secret> bun packages/mcp/dist/index.js --http --port=3001
+```
+
+1. Expose the endpoint publicly — a hosted deployment, reverse proxy, or a tunnel (e.g. `cloudflared` or `ngrok`) for testing.
+2. In your Claude account, go to **Settings → Connectors → Add custom connector** and enter the server URL (e.g. `https://your-host/mcp`). Cowork uses account-level connectors, so this is configured on claude.ai rather than inside the app.
+3. Enable the connector in Cowork and confirm the Flux tools appear.
+
+The HTTP endpoint is unauthenticated by default — set `FLUX_MCP_TOKEN` to require a bearer token before exposing it beyond localhost, and see [`docs/mcp.md`](docs/mcp.md) for remote-server mode (`FLUX_SERVER` / `FLUX_API_KEY`) if the MCP server should talk to a hosted Flux API instead of local storage.
+
+### Ground rules for agents
+
+Add a Flux section to your project's agent instructions (`AGENTS.md`, `CLAUDE.md`, or equivalent) so assistants use the board reliably. The snippet below covers the workflow rules Flux actually enforces plus the conventions that keep a shared board coherent:
 
 ```bash
 cat << 'EOF' >> AGENTS.md
----
-You are an autonomous agent using Flux for task management.
 
-RULES:
-- All work MUST belong to exactly one project_id.
-- You MUST NOT guess or invent a project_id.
-- You MUST NOT switch projects without explicit instruction.
+## Flux task management
 
-STARTUP (MANDATORY):
-1. List projects.
-2. Select or create ONE project.
-3. Confirm the active project_id before any work.
+You have access to Flux for task management, via MCP tools or the `flux` CLI.
 
-EXECUTION:
-- Include project_id in EVERY Flux call.
-- Track all work as tasks.
-- Update task status as work progresses.
-- Close tasks immediately when complete.
-- Comment on tasks where appropriate.
+Project scope:
+- All work belongs to exactly one project. On startup, list projects, then
+  select or create one and confirm its project_id before doing any work.
+- Include that project_id in every Flux call. Never guess a project_id, and
+  never switch projects without explicit instruction.
 
-CONTEXT LOSS:
-- If unsure of project_id, STOP.
-- Re-list projects and tasks.
-- Ask the user if ambiguity remains.
+Working a task:
+- Track all work as tasks. Pick the next task with `list_ready_tasks` (or
+  `flux ready`) — it excludes blocked tasks and sorts by priority (P0 first).
+- Set status to in_progress when you start and done as soon as you finish.
+  Tasks in planning must move to todo before in_progress.
+- Pass your agent_name on status changes so the board shows who is working.
+- Don't start a task whose dependencies aren't done.
 
-FORBIDDEN:
-- Working without a confirmed project_id.
-- Mixing tasks across projects.
-- Relying on memory outside Flux.
+Memory and scope:
+- Record decisions, findings, and blockers as task comments — they are your
+  memory across sessions. Check a task's comments before starting it.
+- When you discover new work, create a task for it (with acceptance criteria)
+  rather than expanding the current task's scope.
 
-If these rules cannot be followed, halt and request clarification.
+If you lose context or are unsure of the project_id, stop, re-list projects
+and tasks, and ask the user if ambiguity remains.
 EOF
 ```
----
 
 ## Documentation
 
-Looking for install options, assistant setup, APIs, or webhooks? Start here:
-
-- [`docs/installation-docker.md`](docs/installation-docker.md) - the fastest path to a production-ready Flux stack with a shared data volume for instant sync.
-- [`docs/installation-source.md`](docs/installation-source.md) - build from source, run locally, and get a dev workflow that feels effortless.
-- [`docs/cli.md`](docs/cli.md) - full CLI reference for terminal-based task management with MCP parity.
-- [`docs/claude-code-plugin.md`](docs/claude-code-plugin.md) - Claude Code plugin that turns your project requirements into a structured Flux board with epics, tasks, and dependencies.
-- [`docs/assistant-setup.md`](docs/assistant-setup.md) - connect Claude Desktop or ChatGPT and unlock agent-driven work with best-practice guardrails.
-- [`docs/ideas.md`](docs/ideas.md) - creative ways to use Flux, from agent swarms to automation-first workflows.
-- [`docs/mcp.md`](docs/mcp.md) - the complete MCP surface area so your assistants can list, create, and update everything with confidence.
-- [`docs/api.md`](docs/api.md) - REST endpoints for building automations, integrations, or custom frontends.
-- [`docs/webhooks.md`](docs/webhooks.md) - real-time events with signatures, retries, and examples to power your workflows.
-- [`docs/architecture.md`](docs/architecture.md) - understand the monorepo, storage model, and why Flux stays fast and simple.
-- [`docs/roadmap.md`](docs/roadmap.md) - where Flux is headed and what we are shipping next.
+- [`docs/installation-docker.md`](docs/installation-docker.md) — production-ready Docker stack with a shared data volume
+- [`docs/installation-source.md`](docs/installation-source.md) — build from source and set up a local dev workflow
+- [`docs/cli.md`](docs/cli.md) — full CLI reference with MCP parity
+- [`docs/claude-code-plugin.md`](docs/claude-code-plugin.md) — Claude Code plugin for spec-driven board generation
+- [`docs/assistant-setup.md`](docs/assistant-setup.md) — connect Claude Desktop, Claude Cowork, or ChatGPT with best-practice guardrails
+- [`docs/mcp.md`](docs/mcp.md) — the complete MCP surface: tools, resources, prompts, and transports
+- [`docs/api.md`](docs/api.md) — REST endpoints for automations, integrations, and custom frontends
+- [`docs/webhooks.md`](docs/webhooks.md) — real-time events with signatures, retries, and examples
+- [`docs/architecture.md`](docs/architecture.md) — the monorepo, storage model, and design decisions
+- [`docs/ideas.md`](docs/ideas.md) — ways to use Flux, from agent swarms to automation-first workflows
+- [`docs/roadmap.md`](docs/roadmap.md) — where Flux is headed next
 
 ## Dogfooding
 
@@ -133,7 +144,8 @@ flux task update <id> --status in_progress
 flux push "message"     # Commit and push task changes
 ```
 
-Configure remote server in `.flux/config.json`:
+Configure a remote server in `.flux/config.json`:
+
 ```json
 {
   "server": "https://app.getflux.dev",
@@ -145,21 +157,32 @@ The `$FLUX_API_KEY` expands from `.env.local`.
 
 ## Ecosystem
 
-Tools that work well with Flux:
+Flux's CLI, REST API, webhooks, and MCP server make it easy to compose with other tools:
 
-| Tool | Description |
-|------|-------------|
+### Agents & assistants
+
+| Tool | How it pairs with Flux |
+|------|------------------------|
 | [Momentum](https://github.com/sirsjg/momentum) | Watches Flux for task changes and automatically spawns agents to work on them |
+| [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk) | Build custom autonomous agents that plan, pick up, and close Flux tasks through the MCP tools |
+| [Goose](https://github.com/block/goose) | Open-source, MCP-native agent — point it at the Flux MCP server and let it work ready tasks |
+| [Cursor](https://cursor.com) / [Cline](https://github.com/cline/cline) / [Zed](https://zed.dev) | MCP-capable editors and coding agents that can read and update the board while they code |
+
+### Planning & automation
+
+| Tool | How it pairs with Flux |
+|------|------------------------|
 | [Spec Kit](https://github.com/github/spec-kit) | Create spec-driven requirements that generate Flux epics and tasks |
-| [n8n](https://github.com/n8n-io/n8n) | Workflow automation that triggers on Flux events |
-| [Zapier](https://zapier.com) | Connect Flux to 5,000+ apps via REST API and webhooks |
+| [GitHub Actions](https://github.com/features/actions) | Drive the board from CI — close tasks on merge, create tasks from failed runs, or `flux push` on a schedule |
+| [n8n](https://github.com/n8n-io/n8n) | Self-hosted workflow automation triggered by Flux webhooks |
+| [Zapier](https://zapier.com) | Connect Flux to 5,000+ apps via the REST API and webhooks |
+| [Slack](https://api.slack.com/messaging/webhooks) | Post task updates to a channel via Flux webhooks — see [`docs/webhooks.md`](docs/webhooks.md) |
+| [cloudflared](https://github.com/cloudflare/cloudflared) / [ngrok](https://ngrok.com) | Tunnel the MCP HTTP endpoint so Claude Cowork and claude.ai connectors can reach it |
 
 ## Contributing
 
-Flux is early and moving quickly. If you want to help shape it, contributions are welcome.
-Open an issue for ideas and bugs, or pick something from the roadmap and send a PR.
-See `CONTRIBUTING.md` for details.
+Flux is early and moving quickly. Open an issue for ideas and bugs, or pick something from the [roadmap](docs/roadmap.md) and send a PR. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details.
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).
