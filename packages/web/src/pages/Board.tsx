@@ -41,6 +41,7 @@ import {
   Bars3BottomLeftIcon,
   BellIcon,
   BellSlashIcon,
+  ChevronDownIcon,
   ChevronRightIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -76,6 +77,7 @@ export function Board({ projectId }: BoardProps) {
   const [defaultEpicId, setDefaultEpicId] = useState<string | undefined>(
     undefined
   );
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -351,7 +353,7 @@ export function Board({ projectId }: BoardProps) {
               </span>
             </div>
           </div>
-          <div class="flex flex-wrap justify-end gap-2">
+          <div class="flex flex-wrap items-center justify-end gap-1.5">
             {notificationsSupported() && (
               <button
                 class="btn btn-ghost btn-circle btn-sm"
@@ -377,15 +379,67 @@ export function Board({ projectId }: BoardProps) {
               </button>
             )}
             <ThemeToggle />
-            <button
-              class="btn btn-primary btn-sm"
-              onClick={() => openNewTask()}
-            >
-              New Task
-            </button>
-            <button class="btn btn-neutral btn-sm" onClick={openNewEpic}>
-              New Epic
-            </button>
+            <div class="join">
+              <button
+                class="btn btn-primary btn-sm join-item gap-1.5"
+                onClick={() => {
+                  setCreateMenuOpen(false);
+                  openNewTask();
+                }}
+                aria-label="Create new task"
+                title="Create new task"
+              >
+                <PlusIcon className="h-4 w-4" />
+                New
+              </button>
+              <div
+                class={`dropdown dropdown-end ${createMenuOpen ? "dropdown-open" : ""}`}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                    setCreateMenuOpen(false);
+                  }
+                }}
+              >
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm join-item px-2"
+                  aria-label="Choose what to create"
+                  aria-haspopup="menu"
+                  aria-expanded={createMenuOpen}
+                  title="More creation options"
+                  onClick={() => setCreateMenuOpen((open) => !open)}
+                >
+                  <ChevronDownIcon className="h-4 w-4" />
+                </button>
+                <ul
+                  role="menu"
+                  class="dropdown-content menu z-40 mt-2 w-40 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg"
+                >
+                  <li role="none">
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setCreateMenuOpen(false);
+                        openNewTask();
+                      }}
+                    >
+                      New Task
+                    </button>
+                  </li>
+                  <li role="none">
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setCreateMenuOpen(false);
+                        openNewEpic();
+                      }}
+                    >
+                      New Epic
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 
