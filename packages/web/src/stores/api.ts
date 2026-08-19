@@ -239,6 +239,7 @@ export interface AuthStatus {
   authenticated: boolean;
   keyType: 'server' | 'project' | 'env' | 'anonymous';
   projectIds?: string[];
+  authRequired?: boolean;
 }
 
 export interface ApiKeyInfo {
