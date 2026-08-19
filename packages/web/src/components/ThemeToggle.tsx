@@ -5,7 +5,7 @@ export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <label class="swap swap-rotate btn btn-ghost btn-circle">
+    <label class="swap swap-rotate btn btn-ghost btn-circle btn-sm">
       <input
         type="checkbox"
         checked={theme === 'dark'}

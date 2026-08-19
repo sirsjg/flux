@@ -38,7 +38,7 @@ export function BuildInfoFooter() {
   }, [])
 
   return (
-    <footer class="fixed bottom-0 left-0 right-0 bg-base-200/80 text-base-content/70 text-xs px-3 py-2 backdrop-blur">
+    <footer class="glass-footer fixed bottom-0 left-0 right-0 z-40 text-base-content/70 text-xs px-3 py-2">
       <div class="mx-auto max-w-6xl flex flex-wrap items-center justify-center gap-3">
         <span>UI {formatSha(uiInfo.sha)} · {formatTime(uiInfo.time)}</span>
         {apiInfo && (

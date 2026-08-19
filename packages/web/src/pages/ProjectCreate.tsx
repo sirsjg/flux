@@ -16,8 +16,8 @@ export function ProjectCreate(_props: RoutableProps) {
   }
 
   return (
-    <div class="min-h-screen bg-base-200 flex items-center justify-center">
-      <div class="card w-96 bg-base-100 shadow-xl">
+    <div class="app-shell flex items-center justify-center p-4">
+      <div class="card glass-card w-96">
         <div class="card-body">
           <h2 class="card-title text-2xl mb-4">Create Project</h2>
           <form onSubmit={handleSubmit}>

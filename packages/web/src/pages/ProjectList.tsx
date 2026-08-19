@@ -200,15 +200,15 @@ export function ProjectList(_props: RoutableProps) {
 
   if (loading) {
     return (
-      <div class="min-h-screen bg-base-200 flex items-center justify-center">
+      <div class="app-shell flex items-center justify-center">
         <span class="loading loading-spinner loading-lg"></span>
       </div>
     );
   }
 
   return (
-    <div class="min-h-screen bg-base-200">
-      <div class="navbar bg-base-100 shadow-lg">
+    <div class="app-shell">
+      <div class="navbar glass-navbar">
         <div class="flex-1">
           <span class="text-xl font-bold px-4">Flux</span>
         </div>
@@ -228,7 +228,7 @@ export function ProjectList(_props: RoutableProps) {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
             type="button"
-            class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow border-2 border-dashed border-base-300 text-left"
+            class="card glass-card border-dashed text-left"
             onClick={() => route("/new")}
           >
             <div class="card-body items-center justify-center text-center">
@@ -240,7 +240,7 @@ export function ProjectList(_props: RoutableProps) {
           {projects.map((project) => (
             <div
               key={project.id}
-              class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+              class="card glass-card cursor-pointer"
               onClick={() => route(`/board/${project.id}`)}
             >
               <div class="card-body">
