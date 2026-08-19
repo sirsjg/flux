@@ -1,0 +1,109 @@
+{
+  "projects": [
+    {
+      "id": "zpcdjsc",
+      "name": "Flux maintenance",
+      "description": "Repository maintenance, dependency updates, and quality audits"
+    }
+  ],
+  "epics": [],
+  "tasks": [
+    {
+      "id": "pdd2yr6",
+      "title": "Audit and update repository dependencies",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "16yi8xd",
+          "body": "Review all workspace dependencies, update to current compatible releases, and run full validation.",
+          "author": "user",
+          "created_at": "2026-08-19T12:15:45.498Z"
+        },
+        {
+          "id": "050jxou",
+          "body": "Active project_id confirmed: zpcdjsc. Starting dependency and repository health audit.",
+          "author": "user",
+          "created_at": "2026-08-19T12:15:50.263Z"
+        },
+        {
+          "id": "e1gmz1f",
+          "body": "Completed dependency and repository health audit. All direct dependencies and GitHub Actions are current; bun outdated is clean; bun audit reports zero advisories; 223 tests, full TypeScript 7/Vite 8 build, actionlint, frozen install, CLI smoke, server health/API, and blob upload/download smoke all pass. Docker build could not run because the local Docker daemon is unavailable.",
+          "author": "user",
+          "created_at": "2026-08-19T12:27:14.324Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "created_at": "2026-08-19T12:15:45.497Z",
+      "updated_at": "2026-08-19T12:27:14.324Z"
+    },
+    {
+      "id": "3lzn5pe",
+      "title": "Fix failed GitHub Actions after dependency upgrade",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "cmn9zec",
+          "body": "Inspect failed runs for commit 325d94d with gh CLI, repair workflow/dependency regressions, validate, commit as Steve Grehan, and push.",
+          "author": "user",
+          "created_at": "2026-08-19T12:33:40.643Z"
+        },
+        {
+          "id": "55nzt2w",
+          "body": "Active project_id confirmed: zpcdjsc. Investigating runs 32253101018, 32253101017, and 32253101021.",
+          "author": "user",
+          "created_at": "2026-08-19T12:33:45.701Z"
+        },
+        {
+          "id": "meycykx",
+          "body": "Root causes confirmed: Bun's Linux runner exposed cross-file singleton storage interference in tests; canonical test command now uses --isolate. The configured Fly app was deleted and its DNS no longer exists, so stale Fly workflow/config were removed. Local suite, five randomized seeds, typecheck, and build pass.",
+          "author": "user",
+          "created_at": "2026-08-19T12:37:14.565Z"
+        },
+        {
+          "id": "owxjsf7",
+          "body": "Release follow-up: preset v10 is incompatible with semantic-release's current writer v8. Pinned latest compatible preset v9.3.1; local semantic-release dry-run now generates notes successfully. Added missing v0.1.1 baseline tag at 83dab2f (the commit changing CLI version 0.0.0 -> 0.1.1), so next release resolves to intended v0.2.0 instead of v1.0.0.",
+          "author": "user",
+          "created_at": "2026-08-19T12:42:35.933Z"
+        },
+        {
+          "id": "lglf55u",
+          "body": "Release follow-up 2: @semantic-release/git attempted to push generated CHANGELOG/version files directly to protected main and was rejected by the repository PR rule. Removed self-committing changelog/git plugins; GitHub release notes remain enabled, branch protection stays intact, and no bot-authored release commits will be created. Dry-run succeeds.",
+          "author": "user",
+          "created_at": "2026-08-19T12:44:20.595Z"
+        },
+        {
+          "id": "3xuq7dl",
+          "body": "Release follow-up 3: legacy cleanup deleted bun.lock immediately before bun publish, causing workspace dependency resolution failure. Removed cleanup; bun publish --dry-run now packs exactly package.json + dist/index.js successfully. Failed run left orphan v0.2.0 tag at f53f241 with no GitHub/npm release; removing it before retry.",
+          "author": "user",
+          "created_at": "2026-08-19T12:46:02.312Z"
+        },
+        {
+          "id": "w7hha28",
+          "body": "Release follow-up 4: Bun packs workspace dependencies correctly but does not consume npm trusted-publishing OIDC credentials. Publish command now uses Bun to create a workspace-resolved tarball and npm CLI to publish it with OIDC/provenance. Exact hybrid command passes local npm dry-run; tarball contains only package.json and dist/index.js.",
+          "author": "user",
+          "created_at": "2026-08-19T12:48:08.830Z"
+        },
+        {
+          "id": "5trhimi",
+          "body": "Release reached npm with a valid tarball and signed provenance, then failed because setup-node supplied npm 10, below npm trusted publishing's required 11.5.1. Updating the workflow to Node 24.15.0 and npm 12.0.2.",
+          "author": "user",
+          "created_at": "2026-08-19T12:51:11.843Z"
+        },
+        {
+          "id": "icanb9s",
+          "body": "Fixed all failures following dependency upgrade. CI and Docker publish succeeded in GitHub Actions run 32254860947; release succeeded in run 32254860891; flux-tasks@0.2.0 and GitHub release v0.2.0 were verified live. Commits and direct pushes were authored as Steve Grehan.",
+          "author": "user",
+          "created_at": "2026-08-19T12:55:15.122Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 0,
+      "created_at": "2026-08-19T12:33:40.640Z",
+      "updated_at": "2026-08-19T12:55:15.125Z"
+    }
+  ],
+  "blobs": []
+}
