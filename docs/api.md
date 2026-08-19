@@ -34,6 +34,28 @@ All responses carry security headers (CSP, `X-Content-Type-Options`,
 `X-Frame-Options`). Auth endpoints, blob uploads, and `/api/reset` are
 rate-limited per client IP.
 
+## Live Updates (SSE)
+
+`GET /api/events` streams Server-Sent Events:
+
+| Event | Payload | When |
+|-------|---------|------|
+| `connected` | `"ok"` | On connect — refresh to catch missed updates |
+| `change` | `{event, project_id, project_name, title, status}` | On every API mutation. `event` is a webhook event type (`task.created`, `task.status_changed`, …) |
+| `data-changed` | `{ts}` | Generic invalidation ping, e.g. when the CLI writes the data file directly |
+
+`change` events are **scoped by auth**: clients only receive events for
+projects they can read, and events without a project scope require server
+access. Because `EventSource` cannot send an `Authorization` header, pass the
+API key as a query parameter to receive events for private projects:
+
+```
+GET /api/events?token=<api-key>
+```
+
+The web UI uses `change` events to refresh only the affected board and to
+drive opt-in browser notifications (bell icon on the board).
+
 ## Endpoints
 
 | Method | Endpoint | Description |

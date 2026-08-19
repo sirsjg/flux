@@ -27,9 +27,20 @@ import {
   ThemeToggle,
 } from "../components";
 import { useBoardPreferences } from "../hooks/useBoardPreferences";
+import { getToken } from "../stores/auth";
+import {
+  isSupported as notificationsSupported,
+  isEnabled as notificationsEnabled,
+  enable as enableNotifications,
+  disable as disableNotifications,
+  notifyChange,
+  type ChangeEvent,
+} from "../lib/notifications";
 import {
   ArrowLeftIcon,
   Bars3BottomLeftIcon,
+  BellIcon,
+  BellSlashIcon,
   ChevronRightIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -70,6 +81,9 @@ export function Board({ projectId }: BoardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterEpicId, setFilterEpicId] = useState<string | "all">("all");
   const [filterStatus, setFilterStatus] = useState<string | "all">("all");
+
+  // Browser notification preference
+  const [notificationsOn, setNotificationsOn] = useState(notificationsEnabled());
 
   // Cleanup dialog state
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
@@ -120,12 +134,41 @@ export function Board({ projectId }: BoardProps) {
       }, 100);
     };
 
+    // Rich `change` events carry a project scope, so the follow-up file-watch
+    // ping for the same mutation can be skipped (or the whole refresh, when
+    // the change belongs to another project).
+    let suppressPingUntil = 0;
+
     const connect = () => {
       if (!isMounted) return;
 
-      source = new EventSource(`${eventsBase}/api/events`);
+      // EventSource can't send headers; pass the token so the server can
+      // scope change events to projects this client may read.
+      const token = getToken();
+      const query = token ? `?token=${encodeURIComponent(token)}` : "";
+      source = new EventSource(`${eventsBase}/api/events${query}`);
 
-      source.addEventListener("data-changed", scheduleRefresh);
+      source.addEventListener("change", (e) => {
+        let change: ChangeEvent;
+        try {
+          change = JSON.parse((e as MessageEvent).data);
+        } catch {
+          return;
+        }
+        suppressPingUntil = Date.now() + 400;
+        if (change.project_id && change.project_id !== projectId) {
+          return; // another project changed — nothing to refresh here
+        }
+        notifyChange(change);
+        scheduleRefresh();
+      });
+
+      source.addEventListener("data-changed", () => {
+        // Generic invalidation ping (e.g. CLI wrote the data file). Skip it
+        // when a rich change event already covered the same mutation.
+        if (Date.now() < suppressPingUntil) return;
+        scheduleRefresh();
+      });
 
       source.addEventListener("connected", () => {
         // Refresh data on reconnect to catch any missed updates
@@ -309,6 +352,30 @@ export function Board({ projectId }: BoardProps) {
             </div>
           </div>
           <div class="flex gap-2">
+            {notificationsSupported() && (
+              <button
+                class="btn btn-ghost btn-circle btn-sm"
+                onClick={async () => {
+                  if (notificationsOn) {
+                    disableNotifications();
+                    setNotificationsOn(false);
+                  } else {
+                    setNotificationsOn(await enableNotifications());
+                  }
+                }}
+                title={
+                  notificationsOn
+                    ? "Disable browser notifications"
+                    : "Enable browser notifications for this board"
+                }
+              >
+                {notificationsOn ? (
+                  <BellIcon className="h-5 w-5" />
+                ) : (
+                  <BellSlashIcon className="h-5 w-5 text-base-content/50" />
+                )}
+              </button>
+            )}
             <ThemeToggle />
             <button
               class="btn btn-primary btn-sm"
