@@ -201,7 +201,10 @@ export function createProject(name: string, description?: string, visibility?: '
     id: generateId(),
     name,
     description,
-    visibility,
+    // Default to private: callers that omit visibility (the web UI and the MCP
+    // create_project tool both do) would otherwise create a project readable by
+    // any unauthenticated client on a network-exposed server.
+    visibility: visibility ?? 'private',
   };
   if (!db.data.projects) db.data.projects = [];
   db.data.projects.push(project);

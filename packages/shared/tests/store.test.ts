@@ -81,6 +81,25 @@ describe('store', () => {
     expect(adapter.write).toHaveBeenCalledTimes(1);
   });
 
+  it('defaults new projects to private', () => {
+    const project = createProject('Project');
+
+    expect(project.visibility).toBe('private');
+    expect(getProject(project.id)?.visibility).toBe('private');
+  });
+
+  it('keeps an explicit public visibility', () => {
+    const project = createProject('Project', undefined, 'public');
+
+    expect(project.visibility).toBe('public');
+  });
+
+  it('keeps an explicit private visibility', () => {
+    const project = createProject('Project', undefined, 'private');
+
+    expect(project.visibility).toBe('private');
+  });
+
   it('removes tasks and epics when a project is deleted', () => {
     const project = createProject('Project');
     const epic = createEpic(project.id, 'Epic');
