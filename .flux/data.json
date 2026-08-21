@@ -287,6 +287,34 @@
       ],
       "created_at": "2026-08-21T12:24:35.135Z",
       "updated_at": "2026-08-21T12:26:51.186Z"
+    },
+    {
+      "id": "3214asm",
+      "title": "Review PR #85: default new projects to private",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "xgulhbr",
+          "body": "Review requested for https://github.com/sirsjg/flux/pull/85. Final head is 5812586e953c35efc3ef59db224c0e0a2a4d9b29; CI is green.",
+          "author": "user",
+          "created_at": "2026-08-21T12:32:18.335Z"
+        },
+        {
+          "id": "0yxayku",
+          "body": "Submitted a REQUEST_CHANGES review as sirsjg. Blocking finding: PATCH project updates accept untyped visibility values verbatim, while authorization treats every value except exact private as public; reproduced with visibility PUBLIC. Requested update-path validation and regression coverage. Non-blocking CLI default/help inconsistency noted. PR head typecheck passed and 249 tests passed after building shared.",
+          "author": "user",
+          "created_at": "2026-08-21T12:35:24.857Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "acceptance_criteria": [
+        "Review the final PR head for correctness, regressions, and test coverage",
+        "Provide an actionable review in Steve's voice"
+      ],
+      "created_at": "2026-08-21T12:32:18.335Z",
+      "updated_at": "2026-08-21T12:35:24.857Z"
     }
   ],
   "blobs": [],
