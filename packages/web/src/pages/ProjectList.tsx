@@ -150,7 +150,8 @@ export function ProjectList(_props: RoutableProps) {
     if (!editingProject || deleting) return;
     setDeleting(true);
     try {
-      await deleteProject(editingProject.id);
+      const deleted = await deleteProject(editingProject.id);
+      if (!deleted) throw new Error("Failed to delete project");
       await refreshProjects();
       setDeleteConfirmOpen(false);
       closeEditModal(true);

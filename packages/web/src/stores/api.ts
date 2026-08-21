@@ -55,8 +55,9 @@ export async function updateProject(id: string, updates: Partial<Omit<Project, '
   return res.json();
 }
 
-export async function deleteProject(id: string): Promise<void> {
-  await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+export async function deleteProject(id: string): Promise<boolean> {
+  const res = await authFetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+  return res.ok;
 }
 
 // ============ Epic Operations ============
