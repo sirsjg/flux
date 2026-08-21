@@ -271,6 +271,12 @@
           "body": "Root cause: web deleteProject used bare fetch, omitting the auth token required by DELETE /api/projects/:id, and ignored non-2xx responses. Fixed it to use authFetch, return success, and keep UI state open on rejection. Added web API regression coverage. Verified 246 tests pass and full typecheck/build succeeds.",
           "author": "user",
           "created_at": "2026-08-21T12:26:51.186Z"
+        },
+        {
+          "id": "m6jtgml",
+          "body": "Delivered as commit c3a0c0f (fix(web): authenticate project deletion requests) and pushed directly to origin/main.",
+          "author": "user",
+          "created_at": "2026-08-21T12:28:34.898Z"
         }
       ],
       "project_id": "zpcdjsc",
