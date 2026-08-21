@@ -1,4 +1,4 @@
-import type { Task, Epic, Project, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
+import type { Task, Epic, Project, ProjectVisibility, Store, Blob, Webhook, WebhookDelivery, WebhookEventType, WebhookPayload, StoreWithWebhooks, Priority, CommentAuthor, TaskComment, Guardrail, ApiKey, KeyScope, CliAuthRequest } from './types.js';
 
 // Auth functions injected at runtime (server-side only, uses Node crypto)
 type AuthFunctions = {
@@ -196,12 +196,20 @@ export function getProject(id: string): Project | undefined {
   return (db.data.projects || []).find(p => p.id === id);
 }
 
+// Only the literal 'public' opens a project up. Anything else - undefined, null,
+// 'PUBLIC', or any other value that reached us from untyped JSON - resolves to
+// private, because the auth layer keys off `visibility !== 'private'` and would
+// otherwise treat an unrecognised value as world-readable.
+function normalizeVisibility(value: unknown): ProjectVisibility {
+  return value === 'public' ? 'public' : 'private';
+}
+
 export function createProject(name: string, description?: string, visibility?: 'public' | 'private'): Project {
   const project: Project = {
     id: generateId(),
     name,
     description,
-    visibility,
+    visibility: normalizeVisibility(visibility),
   };
   if (!db.data.projects) db.data.projects = [];
   db.data.projects.push(project);
@@ -212,9 +220,20 @@ export function createProject(name: string, description?: string, visibility?: '
 export function updateProject(id: string, updates: Partial<Omit<Project, 'id'>>): Project | undefined {
   const index = db.data.projects.findIndex(p => p.id === id);
   if (index === -1) return undefined;
-  db.data.projects[index] = { ...db.data.projects[index], ...updates };
+
+  // Callers hand us untyped request bodies, so the Omit<> above is not enforced
+  // at runtime: drop `id` (changing it orphans the project's epics and tasks)
+  // and re-normalize visibility so an unexpected value cannot make a private
+  // project readable.
+  const { id: _ignoredId, ...safe } = updates as Partial<Project>;
+  const next: Project = { ...db.data.projects[index], ...safe };
+  if ('visibility' in safe) {
+    next.visibility = normalizeVisibility(safe.visibility);
+  }
+
+  db.data.projects[index] = next;
   db.write();
-  return db.data.projects[index];
+  return next;
 }
 
 export function deleteProject(id: string): void {

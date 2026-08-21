@@ -22,6 +22,11 @@ Key scopes:
 - **Server keys** (`FLUX_API_KEY` or stored server-scoped keys): full access, including webhooks, key management, and `/api/reset`
 - **Project keys**: read/write limited to their `project_ids`; private projects outside that list return 404
 
+Project visibility:
+
+- Projects are **private by default**. With keys enabled, a private project (and its epics, tasks, comments and blobs) returns 404 to clients without a key, and its events are withheld from unauthorised SSE listeners. In locked mode (no keys and no `FLUX_ALLOW_ANONYMOUS`), requests are rejected with 401.
+- Pass `visibility: "public"` when creating or updating a project to make it readable without a key. Writes require a server key unless the server is in open mode (`FLUX_ALLOW_ANONYMOUS=1` with no keys).
+
 Other security-related environment variables:
 
 | Variable | Description |
