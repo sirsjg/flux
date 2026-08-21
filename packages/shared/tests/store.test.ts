@@ -94,6 +94,14 @@ describe('store', () => {
     expect(project.visibility).toBe('public');
   });
 
+  it('coerces an unrecognised visibility to private', () => {
+    // The server passes request bodies straight through, so an unexpected
+    // value must not fall through to the auth layer's `!== 'private'` check.
+    const project = createProject('Project', undefined, 'PUBLIC' as 'public');
+
+    expect(project.visibility).toBe('private');
+  });
+
   it('keeps an explicit private visibility', () => {
     const project = createProject('Project', undefined, 'private');
 
