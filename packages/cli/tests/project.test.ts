@@ -73,21 +73,21 @@ describe('project command', () => {
   });
 
   describe('create', () => {
-    it('creates a project', async () => {
-      mockCreateProject.mockResolvedValue({ id: 'proj-new', name: 'New Project' });
+    it('creates a project as private by default', async () => {
+      mockCreateProject.mockResolvedValue({ id: 'proj-new', name: 'New Project', visibility: 'private' });
 
       await projectCommand('create', ['New Project'], {}, false);
 
-      expect(createProject).toHaveBeenCalledWith('New Project', undefined, undefined);
-      expect(getLogs()).toContain('Created project: proj-new');
+      expect(createProject).toHaveBeenCalledWith('New Project', undefined, 'private');
+      expect(getLogs()).toContain('Created project: proj-new (private)');
     });
 
     it('creates project with description', async () => {
-      mockCreateProject.mockResolvedValue({ id: 'proj-1', name: 'Test', description: 'Desc' });
+      mockCreateProject.mockResolvedValue({ id: 'proj-1', name: 'Test', description: 'Desc', visibility: 'private' });
 
       await projectCommand('create', ['Test'], { desc: 'Desc' }, false);
 
-      expect(createProject).toHaveBeenCalledWith('Test', 'Desc', undefined);
+      expect(createProject).toHaveBeenCalledWith('Test', 'Desc', 'private');
     });
 
     it('creates private project', async () => {
@@ -99,9 +99,34 @@ describe('project command', () => {
       expect(getLogs()).toContain('Created project: proj-1 (private)');
     });
 
+    it('creates a public project with --public', async () => {
+      mockCreateProject.mockResolvedValue({ id: 'proj-1', name: 'Test', visibility: 'public' });
+
+      await projectCommand('create', ['Test'], { public: true }, false);
+
+      expect(createProject).toHaveBeenCalledWith('Test', undefined, 'public');
+      expect(getLogs()).toContain('Created project: proj-1 (public)');
+    });
+
+    it('labels from the stored visibility, not the requested one', async () => {
+      // The server normalizes visibility, so the CLI must report what came back.
+      mockCreateProject.mockResolvedValue({ id: 'proj-1', name: 'Test', visibility: 'private' });
+
+      await projectCommand('create', ['Test'], { public: true }, false);
+
+      expect(getLogs()).toContain('Created project: proj-1 (private)');
+    });
+
+    it('rejects --private and --public together', async () => {
+      await expect(projectCommand('create', ['Test'], { private: true, public: true }, false)).rejects.toThrow(
+        'process.exit(1)'
+      );
+      expect(getErrors()).toContain('Cannot pass both --private and --public');
+    });
+
     it('exits with error when no name provided', async () => {
       await expect(projectCommand('create', [], {}, false)).rejects.toThrow('process.exit(1)');
-      expect(getErrors()).toContain('Usage: flux project create <name> [--private]');
+      expect(getErrors()).toContain('Usage: flux project create <name> [--private|--public]');
     });
   });
 

@@ -851,7 +851,7 @@ ${c.bold}Commands:${c.reset}
 
   ${c.cyan}flux project list${c.reset} ${c.green}[--json]${c.reset}         List all projects (* = current)
   ${c.cyan}flux project use${c.reset} ${c.yellow}<id>${c.reset}              Set default project
-  ${c.cyan}flux project create${c.reset} ${c.yellow}<name>${c.reset} ${c.green}[--private]${c.reset}  Create a project
+  ${c.cyan}flux project create${c.reset} ${c.yellow}<name>${c.reset} ${c.green}[--public]${c.reset}  Create a project (private by default)
   ${c.cyan}flux project update${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--name] [--desc] [--private|--public]${c.reset}
   ${c.cyan}flux project delete${c.reset} ${c.yellow}<id>${c.reset}
 

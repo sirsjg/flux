@@ -74,7 +74,8 @@ Config is stored in `.flux/config.json` and can be committed to share with your 
 
 ```bash
 flux project list                        # List all projects
-flux project create <name>               # Create project
+flux project create <name>               # Create project (private by default)
+flux project create <name> --public      # Create a publicly readable project
 flux project update <id> --name <n>      # Rename project
 flux project delete <id>                 # Delete project
 ```

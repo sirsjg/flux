@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Store } from '../src/types.js';
+import type { Project, Store } from '../src/types.js';
 import {
   addDependency,
   addTaskComment,
@@ -17,6 +17,7 @@ import {
   isTaskBlocked,
   removeDependency,
   setStorageAdapter,
+  updateProject,
   updateTask,
 } from '../src/store.js';
 
@@ -106,6 +107,46 @@ describe('store', () => {
     const project = createProject('Project', undefined, 'private');
 
     expect(project.visibility).toBe('private');
+  });
+
+  it('only lets the exact value "public" make a project public on update', () => {
+    const project = createProject('Project');
+    expect(project.visibility).toBe('private');
+
+    // The server hands updateProject an untyped request body, so anything that
+    // is not literally 'public' must leave the project private - the auth layer
+    // treats every non-'private' value as world-readable.
+    for (const value of ['PUBLIC', 'Public', '', 'yes', null, 0, {}]) {
+      updateProject(project.id, { visibility: value as 'public' });
+      expect(getProject(project.id)?.visibility).toBe('private');
+    }
+
+    updateProject(project.id, { visibility: 'public' });
+    expect(getProject(project.id)?.visibility).toBe('public');
+
+    updateProject(project.id, { visibility: 'private' });
+    expect(getProject(project.id)?.visibility).toBe('private');
+  });
+
+  it('leaves visibility alone when an update does not mention it', () => {
+    const project = createProject('Project', undefined, 'public');
+
+    updateProject(project.id, { name: 'Renamed' });
+
+    expect(getProject(project.id)?.visibility).toBe('public');
+    expect(getProject(project.id)?.name).toBe('Renamed');
+  });
+
+  it('ignores an id in an update so a project cannot be re-keyed', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task');
+
+    updateProject(project.id, { id: 'hijacked', name: 'Renamed' } as Partial<Project>);
+
+    expect(getProject('hijacked')).toBeUndefined();
+    expect(getProject(project.id)?.name).toBe('Renamed');
+    // The task would be orphaned if the project had been re-keyed.
+    expect(getTasks(project.id).map(t => t.id)).toContain(task.id);
   });
 
   it('removes tasks and epics when a project is deleted', () => {

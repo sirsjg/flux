@@ -353,8 +353,18 @@ app.get('/api/projects/:id', (c) => {
   return c.json({ ...project, stats: getProjectStats(project.id) });
 });
 
+// Reject an explicitly bogus visibility rather than silently coercing it, so a
+// caller that meant to publish a project is told it did not happen. The store
+// still normalizes as a backstop for every other code path.
+function invalidVisibility(value: unknown): boolean {
+  return value !== undefined && value !== 'public' && value !== 'private';
+}
+
 app.post('/api/projects', requireServerAccess, async (c) => {
   const body = await c.req.json();
+  if (invalidVisibility(body.visibility)) {
+    return c.json({ error: 'visibility must be "public" or "private"' }, 400);
+  }
   const project = createProject(body.name, body.description, body.visibility);
   emitEvent('project.created', { project });
   return c.json(project, 201);
@@ -362,8 +372,19 @@ app.post('/api/projects', requireServerAccess, async (c) => {
 
 app.patch('/api/projects/:id', requireServerAccess, async (c) => {
   const body = await c.req.json();
+  if (invalidVisibility(body.visibility)) {
+    return c.json({ error: 'visibility must be "public" or "private"' }, 400);
+  }
+  // Only accept fields that are actually updatable - the raw body used to be
+  // spread straight into the stored project, which let a caller rewrite `id`
+  // (orphaning its epics and tasks) or add arbitrary keys.
+  const updates: Record<string, unknown> = {};
+  if (body.name !== undefined) updates.name = body.name;
+  if (body.description !== undefined) updates.description = body.description;
+  if (body.visibility !== undefined) updates.visibility = body.visibility;
+
   const previous = getProject(c.req.param('id'));
-  const project = updateProject(c.req.param('id'), body);
+  const project = updateProject(c.req.param('id'), updates);
   if (!project) return c.json({ error: 'Project not found' }, 404);
   emitEvent('project.updated', { project, previous }, project.id);
   return c.json(project);

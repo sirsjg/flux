@@ -64,13 +64,20 @@ export async function projectCommand(
     case 'create': {
       const name = args[0];
       if (!name) {
-        console.error('Usage: flux project create <name> [--private]');
+        console.error('Usage: flux project create <name> [--private|--public]');
+        process.exit(1);
+      }
+      if (flags.private === true && flags.public === true) {
+        console.error('Cannot pass both --private and --public');
         process.exit(1);
       }
       const desc = flags.desc as string | undefined;
-      const visibility = flags.private === true ? 'private' : undefined;
+      // Projects are private unless --public is given.
+      const visibility = flags.public === true ? 'public' : 'private';
       const project = await createProject(name, desc, visibility);
-      const label = visibility === 'private' ? ' (private)' : '';
+      // Label from the stored value rather than the request, so the output
+      // reflects what the server actually did.
+      const label = project.visibility === 'public' ? ' (public)' : ' (private)';
       output(json ? project : `Created project: ${project.id}${label}`, json);
       break;
     }
