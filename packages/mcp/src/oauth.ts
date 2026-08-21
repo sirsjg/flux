@@ -167,7 +167,19 @@ export function createOAuthProvider(config: OAuthConfig): OAuthProvider {
   }
 
   function renderConsent(params: URLSearchParams, error?: string): Response {
-    const fields = ['client_id', 'redirect_uri', 'state', 'code_challenge', 'code_challenge_method', 'scope', 'resource']
+    // Every parameter the POST handler re-validates must be carried through the
+    // form, or submitting the consent screen fails on a value the client did
+    // send in the original GET.
+    const fields = [
+      'response_type',
+      'client_id',
+      'redirect_uri',
+      'state',
+      'code_challenge',
+      'code_challenge_method',
+      'scope',
+      'resource',
+    ]
       .map((name) => {
         const value = params.get(name);
         return value === null ? '' : `<input type="hidden" name="${name}" value="${escapeHtml(value)}" />`;

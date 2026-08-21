@@ -65,16 +65,38 @@ describe('MCP OAuth', () => {
     return (await res.json()).client_id;
   }
 
-  async function authorize(clientId: string, challenge: string): Promise<string> {
-    const body = new URLSearchParams({
+  /** Hidden inputs the consent page renders, i.e. what a browser would submit. */
+  function hiddenFields(html: string): URLSearchParams {
+    const fields = new URLSearchParams();
+    for (const input of html.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)" \/>/g)) {
+      fields.set(input[1], input[2]);
+    }
+    return fields;
+  }
+
+  async function consentPage(clientId: string, challenge: string): Promise<string> {
+    const query = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: REDIRECT,
       code_challenge: challenge,
       code_challenge_method: 'S256',
       state: 'state-value',
-      password: PASSWORD,
+      scope: 'flux',
+      resource: `${base}/mcp`,
     });
+    return (await fetch(`${base}/authorize?${query}`)).text();
+  }
+
+  /**
+   * Submit the consent form the way a browser does: post back exactly the
+   * hidden inputs the page rendered, rather than a hand-built parameter set.
+   * Building the body by hand hides fields the form forgets to carry through.
+   */
+  async function authorize(clientId: string, challenge: string): Promise<string> {
+    const body = hiddenFields(await consentPage(clientId, challenge));
+    body.set('password', PASSWORD);
+
     const res = await fetch(`${base}/authorize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -175,6 +197,21 @@ describe('MCP OAuth', () => {
     expect(res.status).toBe(200);
   });
 
+  it('carries every re-validated parameter through the consent form', async () => {
+    const clientId = await register();
+    const { challenge } = pkce();
+    const fields = hiddenFields(await consentPage(clientId, challenge));
+
+    // A field the POST handler validates but the form drops makes submitting
+    // the consent screen fail on a value the client did supply.
+    expect(fields.get('response_type')).toBe('code');
+    expect(fields.get('client_id')).toBe(clientId);
+    expect(fields.get('redirect_uri')).toBe(REDIRECT);
+    expect(fields.get('code_challenge')).toBe(challenge);
+    expect(fields.get('code_challenge_method')).toBe('S256');
+    expect(fields.get('state')).toBe('state-value');
+  });
+
   it('rejects an unregistered redirect_uri', async () => {
     const clientId = await register();
     const { challenge } = pkce();
@@ -205,17 +242,13 @@ describe('MCP OAuth', () => {
   it('rejects the wrong consent password', async () => {
     const clientId = await register();
     const { challenge } = pkce();
+    const body = hiddenFields(await consentPage(clientId, challenge));
+    body.set('password', 'wrong-password');
+
     const res = await fetch(`${base}/authorize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        response_type: 'code',
-        client_id: clientId,
-        redirect_uri: REDIRECT,
-        code_challenge: challenge,
-        code_challenge_method: 'S256',
-        password: 'wrong-password',
-      }),
+      body,
       redirect: 'manual',
     });
 
