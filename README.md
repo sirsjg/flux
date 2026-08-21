@@ -74,14 +74,14 @@ Claude Cowork connects to MCP servers as **remote custom connectors**: the conne
 
 ```bash
 # Serve the MCP Streamable HTTP transport at /mcp (requires Bun)
-FLUX_MCP_TOKEN=<secret> bun packages/mcp/dist/index.js --http --port=3001
+FLUX_MCP_PASSWORD=<secret> bun packages/mcp/dist/index.js --http --port=3001
 ```
 
 1. Expose the endpoint publicly — a hosted deployment, reverse proxy, or a tunnel (e.g. `cloudflared` or `ngrok`) for testing.
 2. In your Claude account, go to **Settings → Connectors → Add custom connector** and enter the server URL (e.g. `https://your-host/mcp`). Cowork uses account-level connectors, so this is configured on claude.ai rather than inside the app.
 3. Enable the connector in Cowork and confirm the Flux tools appear.
 
-The HTTP endpoint is unauthenticated by default — set `FLUX_MCP_TOKEN` to require a bearer token before exposing it beyond localhost, and see [`docs/mcp.md`](docs/mcp.md) for remote-server mode (`FLUX_SERVER` / `FLUX_API_KEY`) if the MCP server should talk to a hosted Flux API instead of local storage.
+The HTTP endpoint is unauthenticated by default. Cowork and other claude.ai connectors can only authenticate over OAuth, so set `FLUX_MCP_PASSWORD` to enable the built-in OAuth server before exposing it — a static `FLUX_MCP_TOKEN` cannot be sent by those clients, though it still works for Claude Code and scripts. See [`docs/mcp.md`](docs/mcp.md) for the OAuth endpoints and for remote-server mode (`FLUX_SERVER` / `FLUX_API_KEY`) if the MCP server should talk to a hosted Flux API instead of local storage.
 
 ### Ground rules for agents
 
