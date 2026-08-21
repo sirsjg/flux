@@ -36,7 +36,8 @@
       "project_id": "zpcdjsc",
       "priority": 1,
       "created_at": "2026-08-19T12:15:45.497Z",
-      "updated_at": "2026-08-19T12:27:14.324Z"
+      "updated_at": "2026-08-19T14:33:09.447Z",
+      "workers": []
     },
     {
       "id": "3lzn5pe",
@@ -127,6 +128,159 @@
       "priority": 0,
       "created_at": "2026-08-19T13:34:23.248Z",
       "updated_at": "2026-08-19T13:40:20.545Z"
+    },
+    {
+      "id": "um11vgn",
+      "title": "Refine web UI with subtle glassmorphism",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "mgi8ge7",
+          "body": "User requested a restrained visual refinement, not a redesign.",
+          "author": "user",
+          "created_at": "2026-08-19T14:20:27.310Z"
+        },
+        {
+          "id": "3c70356d-d252-491b-8e65-622281ce8b87",
+          "body": "Completed restrained UI refinement: added theme-aware translucent surfaces, fine borders/highlights, layered shadows, subtle ambient gradients, polished inputs/interactions, consistent glass modals/footer/navigation, and horizontally scrollable board lanes on narrow screens. Preserved the existing palette and layout. Verified light/dark desktop and 390px mobile renders with zero browser console errors. Web build, full workspace type/build check, git diff check, and all 244 tests pass.",
+          "author": "mcp",
+          "agent_name": "Codex",
+          "created_at": "2026-08-19T14:26:06.226Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "acceptance_criteria": [
+        "Preserve the current color palette and overall layouts",
+        "Apply subtle translucent surfaces, refined borders, shadows, and interactions consistently",
+        "Keep text legible and responsive behavior intact",
+        "Build and relevant tests/type checks pass"
+      ],
+      "created_at": "2026-08-19T14:20:27.305Z",
+      "updated_at": "2026-08-19T14:26:06.226Z",
+      "workers": []
+    },
+    {
+      "id": "at08x69",
+      "title": "Run UI review environment",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "7edxutk",
+          "body": "User requested the refined UI be started for manual testing.",
+          "author": "user",
+          "created_at": "2026-08-19T14:29:55.922Z"
+        },
+        {
+          "id": "0749b3ae-22c4-4fc7-bd37-cc0dcbc089bf",
+          "body": "Started API at http://localhost:3000 and Vite UI at http://localhost:5173 (LAN: http://192.168.1.208:5173). Both health checks return HTTP 200. Processes left running for manual review.",
+          "author": "mcp",
+          "agent_name": "Codex",
+          "created_at": "2026-08-19T14:30:20.871Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "acceptance_criteria": [
+        "API and web development servers are running",
+        "UI URL responds successfully"
+      ],
+      "created_at": "2026-08-19T14:29:55.922Z",
+      "updated_at": "2026-08-19T14:30:20.871Z",
+      "workers": []
+    },
+    {
+      "id": "8kktmz3",
+      "title": "Make modal surfaces opaque",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "poaoxe4",
+          "body": "User prefers solid modal content surfaces over translucent modal boxes.",
+          "author": "user",
+          "created_at": "2026-08-19T14:32:33.017Z"
+        },
+        {
+          "id": "7fdd676d-80b6-4413-bdcd-a0438d1eb687",
+          "body": "Modal boxes now use a fully opaque base-100 surface in light and dark themes, with a slightly clearer border and elevated shadow. The dimmed, blurred page backdrop remains. Verified live in both themes; git diff check and web production build pass.",
+          "author": "mcp",
+          "agent_name": "Codex",
+          "created_at": "2026-08-19T14:34:11.344Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "acceptance_criteria": [
+        "Modal boxes are opaque in light and dark themes",
+        "Backdrop blur and the rest of the glass treatment remain intact",
+        "Web build passes"
+      ],
+      "created_at": "2026-08-19T14:32:33.017Z",
+      "updated_at": "2026-08-19T14:34:11.344Z",
+      "workers": []
+    },
+    {
+      "id": "nvre7ez",
+      "title": "Align header controls and add New split button",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "trdqcm9",
+          "body": "User requested aligned header icons and a combined New split button.",
+          "author": "user",
+          "created_at": "2026-08-19T14:45:35.038Z"
+        },
+        {
+          "id": "758c5991-ddae-41ad-a8a4-31f0dc57acef",
+          "body": "Aligned notification and theme controls by standardizing the shared ThemeToggle to btn-sm. Replaced separate task/epic actions with an accessible New split button: primary action opens New Task; expanded menu offers New Task and New Epic. Menu uses explicit state, closes on selection/focus exit, and exposes aria-expanded. Verified both actions, desktop and 390px layouts, zero browser console errors, git diff check, and web production build.",
+          "author": "mcp",
+          "agent_name": "Codex",
+          "created_at": "2026-08-19T14:48:28.642Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "acceptance_criteria": [
+        "Notification and theme controls have matching size and alignment",
+        "New Task and New Epic are combined into an accessible split button",
+        "Creation actions remain functional across desktop and mobile",
+        "Web build passes"
+      ],
+      "created_at": "2026-08-19T14:45:35.038Z",
+      "updated_at": "2026-08-19T14:48:28.642Z",
+      "workers": []
+    },
+    {
+      "id": "ktmuj9s",
+      "title": "Fix project deletion",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "msso8bt",
+          "body": "User reports that deleting a project does not work; trace UI, API, and storage paths.",
+          "author": "user",
+          "created_at": "2026-08-21T12:24:35.136Z"
+        },
+        {
+          "id": "7r7cuq6",
+          "body": "Root cause: web deleteProject used bare fetch, omitting the auth token required by DELETE /api/projects/:id, and ignored non-2xx responses. Fixed it to use authFetch, return success, and keep UI state open on rejection. Added web API regression coverage. Verified 246 tests pass and full typecheck/build succeeds.",
+          "author": "user",
+          "created_at": "2026-08-21T12:26:51.186Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "priority": 1,
+      "acceptance_criteria": [
+        "Deleting a project succeeds through the web UI and API",
+        "Project data is removed consistently and tests cover the regression"
+      ],
+      "created_at": "2026-08-21T12:24:35.135Z",
+      "updated_at": "2026-08-21T12:26:51.186Z"
     }
   ],
   "blobs": [],
