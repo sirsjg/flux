@@ -43,14 +43,22 @@ Use a local build of the MCP server:
 
 Claude Cowork does not support local stdio MCP servers — connectors are configured on your Claude account and the connection to your MCP server originates from **Anthropic's infrastructure**, not your machine. That means Flux must be reachable over the public internet as a Streamable HTTP endpoint.
 
-### 1. Run the MCP server in HTTP mode
+### 1. Run the MCP server in HTTP mode with OAuth
 
 ```bash
 # Serves the MCP Streamable HTTP transport at /mcp (requires Bun)
-FLUX_MCP_TOKEN=<secret> bun packages/mcp/dist/index.js --http --port=3001
+FLUX_MCP_PASSWORD=<secret> bun packages/mcp/dist/index.js --http --port=3001
 ```
 
-The endpoint is unauthenticated by default; set `FLUX_MCP_TOKEN` to require `Authorization: Bearer <token>` before exposing it beyond localhost.
+Use `FLUX_MCP_PASSWORD`, not `FLUX_MCP_TOKEN`. Cowork connects from Anthropic's
+infrastructure and can only authenticate over OAuth — the custom connector UI
+has no field for a static bearer token, so a server behind `FLUX_MCP_TOKEN`
+alone will simply fail to connect. `FLUX_MCP_PASSWORD` enables the built-in
+OAuth authorization server; the password is what you type on the consent screen
+when authorising the connector. See the OAuth section of `docs/mcp.md`.
+
+Set both variables if you also want to reach the same endpoint from Claude Code
+or scripts with a static header.
 
 To point the MCP server at a hosted Flux API instead of local storage, set `FLUX_SERVER` and `FLUX_API_KEY` — see `docs/mcp.md`.
 
@@ -68,7 +76,7 @@ To point the MCP server at a hosted Flux API instead of local storage, set `FLUX
 2. Click **Add custom connector** and enter the public server URL, e.g. `https://your-host/mcp`.
 3. Enable the connector in Cowork and confirm the Flux tools appear.
 
-Because the endpoint is internet-facing, always use HTTPS, set `FLUX_MCP_TOKEN`, and scope any `FLUX_API_KEY` to the minimum permissions the assistant needs.
+Because the endpoint is internet-facing, always use HTTPS, set `FLUX_MCP_PASSWORD`, and scope any `FLUX_API_KEY` to the minimum permissions the assistant needs. OAuth gates who can reach the MCP endpoint; the `FLUX_API_KEY` still decides what those requests can do inside Flux.
 
 ## ChatGPT
 

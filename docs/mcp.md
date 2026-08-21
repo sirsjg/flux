@@ -25,6 +25,9 @@ FLUX_SERVER=https://flux.example.com FLUX_API_KEY=your-key npx @flux/mcp
 | `FLUX_SERVER` | Remote Flux server URL |
 | `FLUX_API_KEY` | API key for write operations against the remote server |
 | `FLUX_MCP_TOKEN` | HTTP mode only: require `Authorization: Bearer <token>` on `/mcp` requests |
+| `FLUX_MCP_PASSWORD` | HTTP mode only: enable OAuth and set the consent-screen password |
+| `FLUX_MCP_PUBLIC_URL` | HTTP mode only: public origin to advertise in OAuth metadata (derived from request headers if unset) |
+| `FLUX_MCP_OAUTH_STORE` | HTTP mode only: path for persisted OAuth state, or `none` to keep it in memory |
 
 ## HTTP Mode
 
@@ -38,6 +41,48 @@ require a bearer token before exposing it beyond localhost:
 ```bash
 FLUX_MCP_TOKEN=change-me bun packages/mcp/dist/index.js --http --port=3001
 ```
+
+## OAuth
+
+A static bearer token works for clients that let you set a header (Claude Code,
+`curl`, your own scripts). It does **not** work for clients that connect from a
+vendor's infrastructure — Claude Cowork and claude.ai custom connectors only
+authenticate over OAuth, with no field for a static token. For those, set
+`FLUX_MCP_PASSWORD` to turn on the built-in OAuth authorization server:
+
+```bash
+FLUX_MCP_PASSWORD=change-me bun packages/mcp/dist/index.js --http --port=3001
+```
+
+The server then implements the discovery and grant endpoints MCP clients use:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/.well-known/oauth-protected-resource` | RFC 9728 protected resource metadata |
+| `/.well-known/oauth-authorization-server` | RFC 8414 authorization server metadata |
+| `/register` | RFC 7591 dynamic client registration |
+| `/authorize` | Consent screen; asks for `FLUX_MCP_PASSWORD` |
+| `/token` | Authorization code (PKCE `S256`) and refresh token grants |
+
+The flow is: the client hits `/mcp`, gets a `401` carrying
+`WWW-Authenticate: Bearer resource_metadata=...`, follows the metadata,
+registers itself, sends you to `/authorize` where you enter the password, then
+exchanges the code for an access token and retries `/mcp` with it.
+
+Both schemes can run together — `FLUX_MCP_TOKEN` for Claude Code and scripts,
+OAuth for remote connectors. Access tokens last an hour; refresh tokens rotate
+on every use. Registered clients and refresh tokens are persisted (see
+`FLUX_MCP_OAUTH_STORE`) so a restart does not force every connector to
+re-authorize.
+
+Behind a reverse proxy or tunnel, the public origin is taken from
+`X-Forwarded-Proto` / `X-Forwarded-Host` (falling back to `Host`). Set
+`FLUX_MCP_PUBLIC_URL` explicitly if those are not reliable — the value must
+match the URL clients connect to, or OAuth discovery will fail.
+
+The password authorises *reaching* the MCP endpoint. Calls to Flux itself still
+use the server's `FLUX_API_KEY`, so scope that key to the projects the
+assistant should touch.
 
 ## MCP Tools
 

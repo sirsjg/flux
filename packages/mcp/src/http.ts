@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'crypto';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { resolveBaseUrl, type OAuthProvider } from './oauth.js';
 
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) {
@@ -28,17 +29,30 @@ export type HttpServerHandle = {
  *   Mcp-Session-Id header
  * - Optional bearer auth: set FLUX_MCP_TOKEN to require
  *   `Authorization: Bearer <token>` on every /mcp request
+ * - Optional OAuth: pass a provider to additionally accept OAuth access
+ *   tokens, for clients that cannot send a static bearer (Claude Cowork and
+ *   other claude.ai custom connectors)
  */
-export function startHttpServer(createServer: () => McpServer, port: number): HttpServerHandle {
+export function startHttpServer(
+  createServer: () => McpServer,
+  port: number,
+  oauth?: OAuthProvider,
+  publicUrl?: string
+): HttpServerHandle {
   const authToken = process.env.FLUX_MCP_TOKEN;
   const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
 
-  const handleMcp = async (req: Request): Promise<Response> => {
-    if (authToken) {
+  const handleMcp = async (req: Request, baseUrl: string): Promise<Response> => {
+    if (authToken || oauth) {
       const header = req.headers.get('authorization');
       const provided = header?.startsWith('Bearer ') ? header.slice(7) : null;
-      if (!provided || !safeCompare(provided, authToken)) {
-        return jsonRpcError(401, -32001, 'Unauthorized', { 'WWW-Authenticate': 'Bearer' });
+      // Either credential is sufficient: a static token (Claude Code, scripts)
+      // or an OAuth access token (Cowork and other remote connectors).
+      const ok = !!provided && ((!!authToken && safeCompare(provided, authToken)) || (!!oauth && oauth.verify(provided)));
+      if (!ok) {
+        // Point OAuth-capable clients at the metadata that starts the flow.
+        const challenge = oauth ? oauth.challenge(baseUrl) : 'Bearer';
+        return jsonRpcError(401, -32001, 'Unauthorized', { 'WWW-Authenticate': challenge });
       }
     }
 
@@ -77,6 +91,12 @@ export function startHttpServer(createServer: () => McpServer, port: number): Ht
     port,
     async fetch(req) {
       const url = new URL(req.url);
+      const baseUrl = resolveBaseUrl(req, publicUrl);
+
+      if (oauth) {
+        const handled = await oauth.handle(req, baseUrl);
+        if (handled) return handled;
+      }
 
       if (url.pathname === '/health') {
         return new Response(JSON.stringify({ status: 'ok' }), {
@@ -85,7 +105,7 @@ export function startHttpServer(createServer: () => McpServer, port: number): Ht
       }
 
       if (url.pathname === '/mcp') {
-        return handleMcp(req);
+        return handleMcp(req, baseUrl);
       }
 
       return new Response('Not Found', { status: 404 });
@@ -93,10 +113,11 @@ export function startHttpServer(createServer: () => McpServer, port: number): Ht
   });
 
   console.error(`Flux MCP server running on http://localhost:${httpServer.port}/mcp`);
+  const modes = [authToken && 'static token', oauth && 'OAuth'].filter(Boolean);
   console.error(
-    authToken
-      ? 'HTTP auth: enabled (FLUX_MCP_TOKEN)'
-      : 'HTTP auth: disabled — set FLUX_MCP_TOKEN to require a bearer token'
+    modes.length
+      ? `HTTP auth: enabled (${modes.join(' + ')})`
+      : 'HTTP auth: disabled — set FLUX_MCP_TOKEN or FLUX_MCP_PASSWORD before exposing this'
   );
 
   return {
