@@ -141,10 +141,11 @@ Flux's CLI, REST API, webhooks, and MCP server make it easy to compose with othe
 
 | Tool | How it pairs with Flux |
 |------|------------------------|
-| [Momentum](https://github.com/sirsjg/momentum) | Watches Flux for task changes and automatically spawns agents to work on them |
+| [Heretic](https://github.com/sirsjg/heretic) | A desktop companion for Flux for your multi-agent orchestration |
 | [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk) | Build custom autonomous agents that plan, pick up, and close Flux tasks through the MCP tools |
 | [Goose](https://github.com/block/goose) | Open-source, MCP-native agent — point it at the Flux MCP server and let it work ready tasks |
 | [Cursor](https://cursor.com) / [Cline](https://github.com/cline/cline) / [Zed](https://zed.dev) | MCP-capable editors and coding agents that can read and update the board while they code |
+| [Momentum](https://github.com/sirsjg/momentum) | Watches Flux for task changes and automatically spawns agents to work on them |
 
 ### Planning & automation
 
