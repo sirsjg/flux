@@ -115,7 +115,9 @@ flux task delete <id>                    # Delete task
 ### Quick Commands
 
 ```bash
-flux ready                   # Show unblocked tasks sorted by priority
+flux ready                   # Unblocked tasks in the default project, by priority
+flux ready <project>         # Unblocked tasks in a specific project
+flux ready --all             # Unblocked tasks across every project
 flux ready --json            # JSON output
 flux show <id>               # Show task details with comments
 ```

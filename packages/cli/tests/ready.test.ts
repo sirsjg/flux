@@ -50,6 +50,34 @@ describe('ready command', () => {
     expect(mockGetReadyTasks).toHaveBeenCalledWith('proj-1');
   });
 
+  it('falls back to the default project when none is given', async () => {
+    mockGetReadyTasks.mockResolvedValue([]);
+
+    await readyCommand([], {}, false, 'proj-default');
+
+    expect(mockGetReadyTasks).toHaveBeenCalledWith('proj-default');
+  });
+
+  it('prefers an explicit project over the default', async () => {
+    mockGetReadyTasks.mockResolvedValue([]);
+
+    await readyCommand(['proj-1'], {}, false, 'proj-default');
+
+    expect(mockGetReadyTasks).toHaveBeenCalledWith('proj-1');
+
+    await readyCommand([], { project: 'proj-2' }, false, 'proj-default');
+
+    expect(mockGetReadyTasks).toHaveBeenLastCalledWith('proj-2');
+  });
+
+  it('ignores the default project with --all', async () => {
+    mockGetReadyTasks.mockResolvedValue([]);
+
+    await readyCommand([], { all: true }, false, 'proj-default');
+
+    expect(mockGetReadyTasks).toHaveBeenCalledWith(undefined);
+  });
+
   it('shows message when no ready tasks', async () => {
     mockGetReadyTasks.mockResolvedValue([]);
 
