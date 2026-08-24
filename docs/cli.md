@@ -160,6 +160,7 @@ Reads `.flux/config.json` to determine storage backend. Serves both the web dash
 | Flag | Description |
 |------|-------------|
 | `--json` | Output as JSON |
+| `--all` | Ready tasks across every project instead of the default one (`ready`) |
 | `-P, --priority` | Priority: 0 (P0), 1 (P1), 2 (P2) |
 | `-e, --epic` | Epic ID |
 | `--note` | Add note/comment |

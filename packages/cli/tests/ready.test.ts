@@ -78,6 +78,14 @@ describe('ready command', () => {
     expect(mockGetReadyTasks).toHaveBeenCalledWith(undefined);
   });
 
+  it('lets --all win over an explicit project', async () => {
+    mockGetReadyTasks.mockResolvedValue([]);
+
+    await readyCommand(['proj-1'], { all: true }, false, 'proj-default');
+
+    expect(mockGetReadyTasks).toHaveBeenCalledWith(undefined);
+  });
+
   it('shows message when no ready tasks', async () => {
     mockGetReadyTasks.mockResolvedValue([]);
 

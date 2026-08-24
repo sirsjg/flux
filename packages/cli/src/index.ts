@@ -893,6 +893,7 @@ ${c.bold}Auth:${c.reset} ${c.dim}(server mode only)${c.reset}
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON
+  ${c.green}--all${c.reset}                              Ready tasks across every project (ready)
   ${c.green}--force${c.reset}                            Overwrite config without prompting (init)
   ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
   ${c.green}-e, --epic${c.reset}                         Epic ID
