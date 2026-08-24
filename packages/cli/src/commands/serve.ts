@@ -262,7 +262,15 @@ export async function serveCommand(
     app.get('/', (c) => c.text('Web UI not found. API available at /api/*'));
   }
 
+  // Loopback by default, matching the URL printed below. Binding every
+  // interface would expose the board to the local network; set HOST=0.0.0.0
+  // to do that deliberately.
+  const hostname = process.env.HOST || '127.0.0.1';
+
   console.log(`Starting server on http://localhost:${port}`);
+  if (hostname !== '127.0.0.1' && hostname !== 'localhost') {
+    console.log(`Listening on ${hostname}:${port} — reachable from the network`);
+  }
   console.log(`Data file: ${dataFile}`);
   if (webDistPath) {
     console.log(`Web UI: ${webDistPath}`);
@@ -272,5 +280,5 @@ export async function serveCommand(
   console.log('');
   console.log('Press Ctrl+C to stop');
 
-  serve({ fetch: app.fetch, port });
+  serve({ fetch: app.fetch, port, hostname });
 }
