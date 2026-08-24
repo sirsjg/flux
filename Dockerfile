@@ -30,6 +30,11 @@ ARG BUILD_TIME
 ENV BUILD_SHA=$BUILD_SHA
 ENV BUILD_TIME=$BUILD_TIME
 ENV NODE_ENV=production
+# The server binds loopback by default; inside a container that would make it
+# unreachable through published ports, since Docker cannot forward to the
+# container's own loopback. Network isolation here comes from the container's
+# namespace, and restricting exposure is the host's job via `-p 127.0.0.1:3000:3000`.
+ENV HOST=0.0.0.0
 
 # Create non-root user for security
 RUN groupadd --system --gid 1001 flux && \

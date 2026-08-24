@@ -37,6 +37,9 @@ import { findFluxDir, readConfig } from '../config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Same set the server uses: a bind to any of these is not reachable from off-box.
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+
 function createApp() {
   const app = new Hono();
   app.use('*', cors());
@@ -268,8 +271,8 @@ export async function serveCommand(
   const hostname = process.env.HOST || '127.0.0.1';
 
   console.log(`Starting server on http://localhost:${port}`);
-  if (hostname !== '127.0.0.1' && hostname !== 'localhost') {
-    console.log(`Listening on ${hostname}:${port} — reachable from the network`);
+  if (!LOOPBACK_HOSTS.has(hostname)) {
+    console.log(`Listening on ${hostname}:${port} - reachable from the network`);
   }
   console.log(`Data file: ${dataFile}`);
   if (webDistPath) {
