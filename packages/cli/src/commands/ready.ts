@@ -6,9 +6,13 @@ import { output } from '../index.js';
 export async function readyCommand(
   args: string[],
   flags: Record<string, string | boolean>,
-  json: boolean
+  json: boolean,
+  defaultProject?: string
 ): Promise<void> {
-  const projectId = args[0] || (flags.p as string) || (flags.project as string);
+  const explicitProject = args[0] || (flags.p as string) || (flags.project as string);
+  // Fall back to the default project from .flux/config.json, like `task list`
+  // does. `--all` opts out and shows ready tasks across every project.
+  const projectId = flags.all === true ? undefined : explicitProject || defaultProject;
 
   const tasks = await getReadyTasks(projectId);
 

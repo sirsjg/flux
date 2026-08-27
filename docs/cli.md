@@ -115,7 +115,9 @@ flux task delete <id>                    # Delete task
 ### Quick Commands
 
 ```bash
-flux ready                   # Show unblocked tasks sorted by priority
+flux ready                   # Unblocked tasks in the default project, by priority
+flux ready <project>         # Unblocked tasks in a specific project
+flux ready --all             # Unblocked tasks across every project
 flux ready --json            # JSON output
 flux show <id>               # Show task details with comments
 ```
@@ -158,6 +160,7 @@ Reads `.flux/config.json` to determine storage backend. Serves both the web dash
 | Flag | Description |
 |------|-------------|
 | `--json` | Output as JSON |
+| `--all` | Ready tasks across every project instead of the default one (`ready`) |
 | `-P, --priority` | Priority: 0 (P0), 1 (P1), 2 (P2) |
 | `-e, --epic` | Epic ID |
 | `--note` | Add note/comment |

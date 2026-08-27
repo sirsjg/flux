@@ -764,7 +764,7 @@ async function main() {
       break;
     case 'ready':
       // ready doesn't have a subcommand, so subcommand IS the first arg
-      await readyCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json);
+      await readyCommand(parsed.subcommand ? [parsed.subcommand, ...parsed.args] : parsed.args, parsed.flags, json, defaultProject);
       break;
     case 'show':
       // show doesn't have a subcommand, so subcommand IS the task ID
@@ -845,7 +845,7 @@ ${c.cyan}╚═╝     ╚══════╝ ╚═════╝ ╚═╝ 
 
 ${c.bold}Commands:${c.reset}
   ${c.cyan}flux init${c.reset} ${c.green}[--server URL] [--api-key KEY] [--sqlite] [--git] [--force]${c.reset}  Initialize .flux
-  ${c.cyan}flux ready${c.reset} ${c.green}[--json]${c.reset}                Show unblocked tasks sorted by priority
+  ${c.cyan}flux ready${c.reset} ${c.yellow}[project]${c.reset} ${c.green}[--all] [--json]${c.reset}  Show unblocked tasks sorted by priority
   ${c.cyan}flux show${c.reset} ${c.yellow}<id>${c.reset} ${c.green}[--json]${c.reset}            Show task details with comments
   ${c.cyan}flux prime${c.reset} ${c.green}[--mcp] [--full]${c.reset}        Output workflow context for AI hooks
 
@@ -893,6 +893,7 @@ ${c.bold}Auth:${c.reset} ${c.dim}(server mode only)${c.reset}
 
 ${c.bold}Flags:${c.reset}
   ${c.green}--json${c.reset}                             Output as JSON
+  ${c.green}--all${c.reset}                              Ready tasks across every project (ready)
   ${c.green}--force${c.reset}                            Overwrite config without prompting (init)
   ${c.green}-P, --priority${c.reset}                     Priority (0=P0, 1=P1, 2=P2)
   ${c.green}-e, --epic${c.reset}                         Epic ID
