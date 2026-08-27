@@ -31,6 +31,29 @@ Flux is a fast, multi-project Kanban board that humans, AI agents, and automatio
 - **Blob storage** — attach files (images, docs, logs) to tasks via CLI, API, or MCP
 - **Git-native sync** — `flux push` / `flux pull` against a `flux-data` branch
 
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/board-dark.jpg" alt="Kanban board with epic swimlanes, agents working, and blocked tasks" />
+      <br /><sub><b>Kanban board</b> — epic swimlanes with tasks in every state: agents at work, blocked cards, and done columns</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/task-modal-dark.jpg" alt="Task modal with acceptance criteria, guardrails, and dependencies" />
+      <br /><sub><b>Task detail</b> — acceptance criteria, numbered guardrails, dependencies, attachments, and agent comments</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/task-cards-dark.png" alt="Task cards showing a blocked task and an agent working" />
+      <br /><sub><b>Task cards</b> — dependency, criteria, and guardrail counts at a glance; live worker chips while agents run</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/filter-dropdown-dark.png" alt="Board toolbar with epic filter dropdown open" />
+      <br /><sub><b>Board toolbar</b> — search (press <code>/</code>), epic and status filters, view toggles</sub>
+    </td>
+  </tr>
+</table>
+
 ## Quick Start
 
 ```bash
