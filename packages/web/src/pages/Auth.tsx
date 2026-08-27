@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks'
 import { route, RoutableProps } from 'preact-router'
 import { completeCliAuth, getAuthStatus, getProjects, type ProjectWithStats } from '../stores/api'
 import { setToken, clearToken } from '../stores/auth'
+import { Select } from '../components'
 
 interface AuthProps extends RoutableProps {
   token?: string
@@ -256,14 +257,15 @@ export function Auth({ token: urlToken }: AuthProps) {
               <label class="label">
                 <span class="label-text">Access Scope</span>
               </label>
-              <select
-                class="select select-bordered w-full"
+              <Select
+                ariaLabel="Access Scope"
                 value={scope}
-                onChange={(e) => setScope((e.target as HTMLSelectElement).value as 'server' | 'project')}
-              >
-                <option value="server">Full Access (Server Key)</option>
-                <option value="project">Limited to Specific Projects</option>
-              </select>
+                onChange={(v) => setScope(v as 'server' | 'project')}
+                options={[
+                  { value: 'server', label: 'Full Access (Server Key)' },
+                  { value: 'project', label: 'Limited to Specific Projects' },
+                ]}
+              />
             </div>
 
             {scope === 'project' && (

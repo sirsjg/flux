@@ -25,6 +25,7 @@ import {
   DraggableTaskCard,
   DroppableColumn,
   Modal,
+  Select,
   ThemeToggle,
 } from "../components";
 import { useBoardPreferences } from "../hooks/useBoardPreferences";
@@ -492,35 +493,33 @@ export function Board({ projectId }: BoardProps) {
                   /
                 </kbd>
               </div>
-              <select
-                class="select select-bordered text-sm font-medium"
+              <Select
+                class="w-44"
+                ariaLabel="Filter by epic"
                 value={filterEpicId}
-                onChange={(e) =>
-                  setFilterEpicId((e.target as HTMLSelectElement).value)
-                }
-              >
-                <option value="all">All Epics</option>
-                {epics.map((epic) => (
-                  <option key={epic.id} value={epic.id}>
-                    {epic.title}
-                  </option>
-                ))}
-                <option value="unassigned">Unassigned</option>
-              </select>
-              <select
-                class="select select-bordered text-sm font-medium"
+                onChange={setFilterEpicId}
+                options={[
+                  { value: "all", label: "All Epics" },
+                  ...epics.map((epic) => ({
+                    value: epic.id,
+                    label: epic.title,
+                  })),
+                  { value: "unassigned", label: "Unassigned" },
+                ]}
+              />
+              <Select
+                class="w-40"
+                ariaLabel="Filter by status"
                 value={filterStatus}
-                onChange={(e) =>
-                  setFilterStatus((e.target as HTMLSelectElement).value)
-                }
-              >
-                <option value="all">All Statuses</option>
-                {STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {STATUS_CONFIG[status].label}
-                  </option>
-                ))}
-              </select>
+                onChange={setFilterStatus}
+                options={[
+                  { value: "all", label: "All Statuses" },
+                  ...STATUSES.map((status) => ({
+                    value: status,
+                    label: STATUS_CONFIG[status].label,
+                  })),
+                ]}
+              />
               {(searchQuery ||
                 filterEpicId !== "all" ||
                 filterStatus !== "all") && (

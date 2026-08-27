@@ -8,6 +8,7 @@ import {
 import { ConfirmModal } from "./ConfirmModal";
 import { Modal } from "./Modal";
 import { CollapsibleSection } from "./CollapsibleSection";
+import { Select } from "./Select";
 import {
   createTask,
   updateTask,
@@ -298,19 +299,15 @@ export function TaskForm({
                 <label class="label">
                   <span class="label-text">Status</span>
                 </label>
-                <select
-                  class="select select-bordered w-full"
+                <Select
+                  ariaLabel="Status"
                   value={status}
-                  onChange={(e) =>
-                    setStatus((e.target as HTMLSelectElement).value)
-                  }
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_CONFIG[s].label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setStatus}
+                  options={STATUSES.map((s) => ({
+                    value: s,
+                    label: STATUS_CONFIG[s].label,
+                  }))}
+                />
               </div>
             )}
 
@@ -341,18 +338,18 @@ export function TaskForm({
               <label class="label">
                 <span class="label-text">Epic</span>
               </label>
-              <select
-                class="select select-bordered w-full"
+              <Select
+                ariaLabel="Epic"
                 value={epicId}
-                onChange={(e) => setEpicId((e.target as HTMLSelectElement).value)}
-              >
-                <option value="">Unassigned</option>
-                {epics.map((epic) => (
-                  <option key={epic.id} value={epic.id}>
-                    {epic.title}
-                  </option>
-                ))}
-              </select>
+                onChange={setEpicId}
+                options={[
+                  { value: "", label: "Unassigned" },
+                  ...epics.map((epic) => ({
+                    value: epic.id,
+                    label: epic.title,
+                  })),
+                ]}
+              />
             </div>
 
             <div class="form-control mb-6">

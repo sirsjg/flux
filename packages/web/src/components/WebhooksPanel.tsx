@@ -6,6 +6,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'preact/hooks'
+import { Select } from './Select'
 import type { Webhook, WebhookDelivery, WebhookEventType } from '@flux/shared'
 import { WEBHOOK_EVENT_TYPES, WEBHOOK_EVENT_LABELS } from '@flux/shared'
 import {
@@ -370,16 +371,15 @@ export function WebhooksPanel() {
               <span class="label-text">Project Filter (optional)</span>
               <span class="label-text-alt">Only trigger for this project</span>
             </label>
-            <select
-              class="select select-bordered w-full"
+            <Select
+              ariaLabel="Project Filter"
               value={formProjectId}
-              onChange={(e) => setFormProjectId((e.target as HTMLSelectElement).value)}
-            >
-              <option value="">All Projects</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              onChange={setFormProjectId}
+              options={[
+                { value: '', label: 'All Projects' },
+                ...projects.map(p => ({ value: p.id, label: p.name })),
+              ]}
+            />
           </div>
 
           <div class="form-control">

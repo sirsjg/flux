@@ -1,4 +1,5 @@
 export { Modal } from './Modal'
+export { Select } from './Select'
 export { ConfirmModal } from './ConfirmModal'
 export { CollapsibleSection } from './CollapsibleSection'
 export { TaskForm } from './TaskForm'
