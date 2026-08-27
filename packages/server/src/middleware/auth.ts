@@ -134,6 +134,8 @@ export function canWriteProject(auth: AuthContext, projectId: string): boolean {
  * Public projects can be read by anyone, private requires key access
  */
 export function canReadProject(auth: AuthContext, projectId: string): boolean {
+  if (isOpenMode()) return true;
+
   // Server/env keys can read anything
   if (auth.keyType === 'env' || auth.keyType === 'server') return true;
 
@@ -154,6 +156,9 @@ export function canReadProject(auth: AuthContext, projectId: string): boolean {
  */
 export function filterProjects(auth: AuthContext): ReturnType<typeof getProjects> {
   const projects = getProjects();
+
+  // Open mode grants full access, so nothing is hidden
+  if (isOpenMode()) return projects;
 
   // Server/env keys see everything
   if (auth.keyType === 'env' || auth.keyType === 'server') return projects;

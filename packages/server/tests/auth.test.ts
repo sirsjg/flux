@@ -4,6 +4,7 @@ import {
   setStorageAdapter,
   initStore,
   createApiKey,
+  createProject,
   setAuthFunctions,
   type StoreWithWebhooks,
 } from '@flux/shared';
@@ -20,6 +21,7 @@ import {
   isAuthRequired,
   canWriteProject,
   canReadProject,
+  filterProjects,
   requireServerAccess,
   type AuthContext,
 } from '../src/middleware/auth.js';
@@ -375,6 +377,73 @@ describe('auth middleware', () => {
 
       it('returns false in locked mode (no keys, no opt-in)', () => {
         expect(canWriteProject({ keyType: 'anonymous' }, 'any')).toBe(false);
+      });
+    });
+
+    describe('canReadProject', () => {
+      it('returns true for env key', () => {
+        process.env.FLUX_API_KEY = 'test';
+        expect(canReadProject({ keyType: 'env' }, 'any-project')).toBe(true);
+      });
+
+      it('returns false for anonymous on a private project when auth required', () => {
+        process.env.FLUX_API_KEY = 'test';
+        const project = createProject('Private', undefined, 'private');
+        expect(canReadProject({ keyType: 'anonymous' }, project.id)).toBe(false);
+      });
+
+      it('returns true for anonymous on a public project when auth required', () => {
+        process.env.FLUX_API_KEY = 'test';
+        const project = createProject('Public', undefined, 'public');
+        expect(canReadProject({ keyType: 'anonymous' }, project.id)).toBe(true);
+      });
+
+      it('returns true for a private project in open mode (no keys, explicit opt-in)', () => {
+        process.env.FLUX_ALLOW_ANONYMOUS = '1';
+        const project = createProject('Private', undefined, 'private');
+        expect(canReadProject({ keyType: 'anonymous' }, project.id)).toBe(true);
+      });
+
+      it('returns false for a private project in locked mode (no keys, no opt-in)', () => {
+        const project = createProject('Private', undefined, 'private');
+        expect(canReadProject({ keyType: 'anonymous' }, project.id)).toBe(false);
+      });
+    });
+
+    describe('filterProjects', () => {
+      it('hides private projects from anonymous when auth required', () => {
+        process.env.FLUX_API_KEY = 'test';
+        createProject('Private', undefined, 'private');
+        createProject('Public', undefined, 'public');
+
+        const names = filterProjects({ keyType: 'anonymous' }).map(p => p.name);
+        expect(names).toEqual(['Public']);
+      });
+
+      it('shows every project to env keys', () => {
+        process.env.FLUX_API_KEY = 'test';
+        createProject('Private', undefined, 'private');
+        createProject('Public', undefined, 'public');
+
+        const names = filterProjects({ keyType: 'env' }).map(p => p.name);
+        expect(names).toEqual(['Private', 'Public']);
+      });
+
+      it('shows private projects in open mode (no keys, explicit opt-in)', () => {
+        process.env.FLUX_ALLOW_ANONYMOUS = '1';
+        createProject('Private', undefined, 'private');
+        createProject('Public', undefined, 'public');
+
+        const names = filterProjects({ keyType: 'anonymous' }).map(p => p.name);
+        expect(names).toEqual(['Private', 'Public']);
+      });
+
+      it('hides private projects in locked mode (no keys, no opt-in)', () => {
+        createProject('Private', undefined, 'private');
+        createProject('Public', undefined, 'public');
+
+        const names = filterProjects({ keyType: 'anonymous' }).map(p => p.name);
+        expect(names).toEqual(['Public']);
       });
     });
 
