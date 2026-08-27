@@ -37,6 +37,9 @@ import { findFluxDir, readConfig } from '../config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Same set the server uses: a bind to any of these is not reachable from off-box.
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+
 function createApp() {
   const app = new Hono();
   app.use('*', cors());
@@ -262,7 +265,15 @@ export async function serveCommand(
     app.get('/', (c) => c.text('Web UI not found. API available at /api/*'));
   }
 
+  // Loopback by default, matching the URL printed below. Binding every
+  // interface would expose the board to the local network; set HOST=0.0.0.0
+  // to do that deliberately.
+  const hostname = process.env.HOST || '127.0.0.1';
+
   console.log(`Starting server on http://localhost:${port}`);
+  if (!LOOPBACK_HOSTS.has(hostname)) {
+    console.log(`Listening on ${hostname}:${port} - reachable from the network`);
+  }
   console.log(`Data file: ${dataFile}`);
   if (webDistPath) {
     console.log(`Web UI: ${webDistPath}`);
@@ -272,5 +283,5 @@ export async function serveCommand(
   console.log('');
   console.log('Press Ctrl+C to stop');
 
-  serve({ fetch: app.fetch, port });
+  serve({ fetch: app.fetch, port, hostname });
 }

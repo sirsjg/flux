@@ -12,4 +12,7 @@ services:
       - ./data:/app/packages/data
     environment:
       - FLUX_DATA=/app/packages/data/data.sqlite
+      # Bind the container's wildcard so published ports reach it; the mapping
+      # above is what decides who can get in from outside.
+      - HOST=0.0.0.0
     restart: unless-stopped

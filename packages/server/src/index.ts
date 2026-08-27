@@ -964,8 +964,17 @@ if (existsSync(webDistPath)) {
 }
 
 // Start server
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 const port = parseInt(process.env.PORT || '3000');
+// Loopback by default. The Docker quickstart gets this from its
+// `-p 127.0.0.1:3000:3000` mapping, but running on a host there is no such
+// wrapper, and binding every interface exposes the board to the local network.
+// Set HOST=0.0.0.0 to expose it deliberately.
+const hostname = process.env.HOST || '127.0.0.1';
 console.log(`Flux server running at http://localhost:${port}`);
+if (!LOOPBACK_HOSTS.has(hostname)) {
+  console.log(`Listening on ${hostname}:${port} - reachable from the network`);
+}
 
 if (isAuthRequired()) {
   console.log('Auth: enabled (API keys configured)');
@@ -982,4 +991,5 @@ if (isAuthRequired()) {
 serve({
   fetch: app.fetch,
   port,
+  hostname,
 });

@@ -31,6 +31,7 @@ Other security-related environment variables:
 
 | Variable | Description |
 |----------|-------------|
+| `HOST` | Interface the server binds to (default `127.0.0.1`, loopback only). Set to `0.0.0.0` to accept connections from the network |
 | `FLUX_ALLOW_ANONYMOUS` | Set to `1`/`true`/`yes` to allow keyless open access |
 | `FLUX_CORS_ORIGINS` | Comma-separated list of additional allowed CORS origins. Localhost origins are always allowed; all others are rejected by default |
 | `FLUX_MAX_BLOB_SIZE` | Max blob upload size in bytes (default 10 MB) |
