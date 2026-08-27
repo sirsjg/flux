@@ -1,7 +1,6 @@
-export { TaskCard } from './TaskCard'
-export { EpicHeader } from './EpicHeader'
 export { Modal } from './Modal'
 export { ConfirmModal } from './ConfirmModal'
+export { CollapsibleSection } from './CollapsibleSection'
 export { TaskForm } from './TaskForm'
 export { EpicForm } from './EpicForm'
 export { DraggableTaskCard } from './DraggableTaskCard'

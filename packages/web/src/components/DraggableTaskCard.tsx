@@ -13,6 +13,16 @@ interface DraggableTaskCardProps {
   condensed?: boolean
 }
 
+// Agent name pill — truncates instead of wrapping when names run long
+function WorkerChip({ name }: { name: string }) {
+  return (
+    <span class="worker-chip" title={name}>
+      <span class="worker-chip-dot" />
+      <span class="worker-chip-name">{name}</span>
+    </span>
+  )
+}
+
 export function DraggableTaskCard({
   task,
   epicColor = EPIC_COLOR_UNASSIGNED,
@@ -36,6 +46,8 @@ export function DraggableTaskCard({
       onClick()
     }
   }
+
+  const workers = task.workers ?? []
 
   // Shared indicator badges for acceptance criteria and guardrails
   const renderMetaIndicators = (compact = false) => (
@@ -67,7 +79,7 @@ export function DraggableTaskCard({
       <div
         ref={setNodeRef}
         style={style}
-        class={`glass-task-card rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing touch-none ${
+        class={`task-card rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing touch-none ${
           task.blocked ? 'ring-2 ring-warning/50' : ''
         }`}
         onClick={handleClick}
@@ -90,22 +102,22 @@ export function DraggableTaskCard({
             </span>
           )}
           {renderMetaIndicators(true)}
-          {task.status === 'planning' && (
-            <progress class="progress progress-secondary w-8 flex-shrink-0" value={0} max={100} />
-          )}
-          {task.status === 'todo' && (
-            <progress class="progress w-8 flex-shrink-0" value={0} max={100} />
-          )}
           {task.status === 'in_progress' && (
             <>
-              <progress class="progress progress-warning w-8 flex-shrink-0" />
-              {task.workers && task.workers.length > 0 && task.workers.map(name => (
-                <span key={name} class="badge badge-primary badge-xs flex-shrink-0">{name}</span>
-              ))}
+              <span class="working-bar w-8 flex-shrink-0" />
+              {workers.length > 0 && <WorkerChip name={workers[0]} />}
+              {workers.length > 1 && (
+                <span
+                  class="text-xs text-base-content/50 flex-shrink-0"
+                  title={workers.slice(1).join(', ')}
+                >
+                  +{workers.length - 1}
+                </span>
+              )}
             </>
           )}
           {task.status === 'done' && (
-            <progress class="progress progress-success w-8 flex-shrink-0" value={100} max={100} />
+            <CheckCircleIcon className="h-4 w-4 text-success flex-shrink-0" />
           )}
         </div>
       </div>
@@ -117,7 +129,7 @@ export function DraggableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
-      class={`glass-task-card rounded-lg p-4 cursor-grab active:cursor-grabbing touch-none ${
+      class={`task-card rounded-xl p-4 cursor-grab active:cursor-grabbing touch-none ${
         task.blocked ? 'ring-2 ring-warning/50' : ''
       }`}
       onClick={handleClick}
@@ -134,9 +146,9 @@ export function DraggableTaskCard({
           class="w-2 h-2 rounded-full flex-shrink-0"
           style={{ backgroundColor: epicColor }}
         />
-        <span class="text-xs text-base-content/50 font-medium">{epicTitle}</span>
+        <span class="text-xs text-base-content/50 font-medium truncate">{epicTitle}</span>
         {task.blocked && (
-          <span class="ml-auto text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded font-medium">
+          <span class="ml-auto text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded font-medium flex-shrink-0">
             Blocked
           </span>
         )}
@@ -152,35 +164,42 @@ export function DraggableTaskCard({
         </p>
       )}
 
+      {/* Active agents get their own row so long names truncate, never wrap */}
+      {task.status === 'in_progress' && workers.length > 0 && (
+        <div class="flex items-center gap-1.5 mb-2 overflow-hidden">
+          {workers.slice(0, 2).map(name => (
+            <WorkerChip key={name} name={name} />
+          ))}
+          {workers.length > 2 && (
+            <span
+              class="text-xs text-base-content/50 flex-shrink-0"
+              title={workers.slice(2).join(', ')}
+            >
+              +{workers.length - 2}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Footer */}
       <div class="flex items-center justify-between mt-auto pt-2">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 min-w-0">
           {task.status === 'planning' && (
-            <>
-              <progress class="progress progress-secondary w-10" value={0} max={100} />
-              <span class="badge badge-ghost badge-secondary badge-xs">Planning</span>
-            </>
+            <span class="badge badge-ghost badge-secondary badge-xs flex-shrink-0">Planning</span>
           )}
           {task.status === 'todo' && (
-            <>
-              <progress class="progress w-10" value={0} max={100} />
-              <span class="badge badge-ghost badge-xs">To do</span>
-            </>
+            <span class="badge badge-ghost badge-xs flex-shrink-0">To do</span>
           )}
           {task.status === 'in_progress' && (
             <>
-              <progress class="progress progress-warning w-10" />
-              <span class="badge badge-ghost badge-warning badge-xs">Agent working</span>
-              {task.workers && task.workers.map(name => (
-                <span key={name} class="badge badge-primary badge-xs">{name}</span>
-              ))}
+              <span class="working-bar w-10 flex-shrink-0" />
+              <span class="badge badge-ghost badge-warning badge-xs flex-shrink-0">
+                Agent working
+              </span>
             </>
           )}
           {task.status === 'done' && (
-            <>
-              <progress class="progress progress-success w-10" value={100} max={100} />
-              <span class="badge badge-ghost badge-success badge-xs">Done</span>
-            </>
+            <span class="badge badge-ghost badge-success badge-xs flex-shrink-0">Done</span>
           )}
           {task.depends_on.length > 0 && (
             <div class={`flex items-center gap-1 text-xs ${task.blocked ? 'text-warning' : 'text-base-content/40'}`}>
@@ -193,7 +212,7 @@ export function DraggableTaskCard({
 
         {/* Task Number */}
         {taskNumber && (
-          <span class="text-xs text-base-content/40">#{taskNumber}</span>
+          <span class="text-xs text-base-content/40 flex-shrink-0">#{taskNumber}</span>
         )}
       </div>
     </div>
