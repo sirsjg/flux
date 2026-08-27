@@ -8,8 +8,6 @@
 
 Flux is a fast, multi-project Kanban board that humans, AI agents, and automations share. Tasks live in a single JSON file in your repo, synced through git. A CLI, web dashboard, REST API, webhooks, and an MCP (Model Context Protocol) server all read and write the same data — so *where* tasks live is fixed, but *how* they get done is entirely up to you: manually, through the API, via webhooks, or by handing the board to an AI assistant.
 
-![Demo](./docs/demo.gif)
-
 ## Why Flux
 
 - **Execution-agnostic** — Flux tracks the work; it doesn't prescribe how the work happens. Humans, scripts, CI pipelines, and LLMs are all first-class actors.
@@ -30,6 +28,29 @@ Flux is a fast, multi-project Kanban board that humans, AI agents, and automatio
 - **Real-time updates** — boards stay in sync over SSE, with opt-in browser notifications
 - **Blob storage** — attach files (images, docs, logs) to tasks via CLI, API, or MCP
 - **Git-native sync** — `flux push` / `flux pull` against a `flux-data` branch
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/board-dark.jpg" alt="Kanban board with epic swimlanes, agents working, and blocked tasks" />
+      <br /><sub><b>Kanban board</b> — epic swimlanes with tasks in every state: agents at work, blocked cards, and done columns</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/task-modal-dark.jpg" alt="Task modal with acceptance criteria, guardrails, and dependencies" />
+      <br /><sub><b>Task detail</b> — acceptance criteria, numbered guardrails, dependencies, attachments, and agent comments</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/task-cards-dark.png" alt="Task cards showing a blocked task and an agent working" />
+      <br /><sub><b>Task cards</b> — dependency, criteria, and guardrail counts at a glance; live worker chips while agents run</sub>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/filter-dropdown-dark.png" alt="Board toolbar with epic filter dropdown open" />
+      <br /><sub><b>Board toolbar</b> — search (press <code>/</code>), epic and status filters, view toggles</sub>
+    </td>
+  </tr>
+</table>
 
 ## Quick Start
 

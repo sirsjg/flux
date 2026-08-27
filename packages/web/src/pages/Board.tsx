@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { route, RoutableProps } from "preact-router";
 import {
   DndContext,
@@ -24,6 +24,8 @@ import {
   EpicForm,
   DraggableTaskCard,
   DroppableColumn,
+  Modal,
+  Select,
   ThemeToggle,
 } from "../components";
 import { useBoardPreferences } from "../hooks/useBoardPreferences";
@@ -86,6 +88,28 @@ export function Board({ projectId }: BoardProps) {
 
   // Browser notification preference
   const [notificationsOn, setNotificationsOn] = useState(notificationsEnabled());
+
+  // "/" focuses the search box from anywhere on the board
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   // Cleanup dialog state
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
@@ -340,7 +364,7 @@ export function Board({ projectId }: BoardProps) {
     >
       <div class="app-shell">
         {/* Header */}
-        <div class="navbar glass-navbar mb-4">
+        <div class="navbar app-navbar mb-4">
           <div class="flex-1 flex items-center">
             <button class="btn btn-ghost btn-circle" onClick={() => route("/")}>
               <ArrowLeftIcon className="h-5 w-5" />
@@ -445,49 +469,57 @@ export function Board({ projectId }: BoardProps) {
 
         <div class="px-3 sm:px-6 pb-0">
           {/* Filter Bar */}
-          <div class="glass-panel board-toolbar rounded-xl p-4 mb-6">
+          <div class="surface-panel board-toolbar rounded-xl p-4 mb-6">
             <div class="board-toolbar-row flex items-center gap-3 sm:gap-4">
-              <div class="relative flex-1 max-w-sm">
+              <div class="relative flex-1 min-w-48">
                 <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40" />
                 <input
+                  ref={searchInputRef}
                   type="text"
-                  placeholder="Search tasks..."
-                  class="input input-bordered w-full pl-10 text-sm"
+                  placeholder="Search tasks and comments..."
+                  class="input input-bordered w-full pl-10 pr-10 text-sm"
                   value={searchQuery}
                   onInput={(e) =>
                     setSearchQuery((e.target as HTMLInputElement).value)
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setSearchQuery("");
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
                 />
+                <kbd class="kbd kbd-sm absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-base-content/40 hidden sm:inline-flex">
+                  /
+                </kbd>
               </div>
-              <select
-                class="select select-bordered text-sm font-medium"
+              <Select
+                class="w-44"
+                ariaLabel="Filter by epic"
                 value={filterEpicId}
-                onChange={(e) =>
-                  setFilterEpicId((e.target as HTMLSelectElement).value)
-                }
-              >
-                <option value="all">All Epics</option>
-                {epics.map((epic) => (
-                  <option key={epic.id} value={epic.id}>
-                    {epic.title}
-                  </option>
-                ))}
-                <option value="unassigned">Unassigned</option>
-              </select>
-              <select
-                class="select select-bordered text-sm font-medium"
+                onChange={setFilterEpicId}
+                options={[
+                  { value: "all", label: "All Epics" },
+                  ...epics.map((epic) => ({
+                    value: epic.id,
+                    label: epic.title,
+                  })),
+                  { value: "unassigned", label: "Unassigned" },
+                ]}
+              />
+              <Select
+                class="w-40"
+                ariaLabel="Filter by status"
                 value={filterStatus}
-                onChange={(e) =>
-                  setFilterStatus((e.target as HTMLSelectElement).value)
-                }
-              >
-                <option value="all">All Statuses</option>
-                {STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {STATUS_CONFIG[status].label}
-                  </option>
-                ))}
-              </select>
+                onChange={setFilterStatus}
+                options={[
+                  { value: "all", label: "All Statuses" },
+                  ...STATUSES.map((status) => ({
+                    value: status,
+                    label: STATUS_CONFIG[status].label,
+                  })),
+                ]}
+              />
               {(searchQuery ||
                 filterEpicId !== "all" ||
                 filterStatus !== "all") && (
@@ -502,7 +534,6 @@ export function Board({ projectId }: BoardProps) {
                   Clear
                 </button>
               )}
-              <div class="flex-1" />
               <button
                 class="btn btn-ghost btn-sm"
                 onClick={() => setCleanupDialogOpen(true)}
@@ -569,7 +600,7 @@ export function Board({ projectId }: BoardProps) {
               return (
                 <div
                   key={epic.id}
-                  class="glass-panel rounded-xl overflow-hidden"
+                  class="surface-panel rounded-2xl overflow-hidden"
                 >
                   {/* Epic Header */}
                   <div
@@ -617,7 +648,7 @@ export function Board({ projectId }: BoardProps) {
 
                   {/* Epic Content */}
                   {!isCollapsed && (
-                    <div class="board-lane-scroll px-4 pb-4">
+                    <div class="board-lane-scroll lane-content-enter px-4 pb-4">
                       <div class="board-lane-content flex gap-4">
                         {/* Collapsed Planning Column */}
                         {planningCollapsed && (
@@ -729,7 +760,7 @@ export function Board({ projectId }: BoardProps) {
 
           {/* Unassigned Lane */}
           {(filterEpicId === "all" || filterEpicId === "unassigned") && (
-            <div class="glass-panel rounded-xl overflow-hidden">
+            <div class="surface-panel rounded-2xl overflow-hidden">
               <div
                 class="p-4 flex items-center gap-3 cursor-pointer hover:bg-base-200 transition-colors"
                 onClick={() => toggleEpicCollapse("unassigned")}
@@ -748,7 +779,7 @@ export function Board({ projectId }: BoardProps) {
               </div>
 
               {!collapsedEpics.has("unassigned") && (
-                <div class="board-lane-scroll px-4 pb-4">
+                <div class="board-lane-scroll lane-content-enter px-4 pb-4">
                   <div class="board-lane-content flex gap-4">
                     {/* Collapsed Planning Column */}
                     {planningCollapsed && (
@@ -871,73 +902,70 @@ export function Board({ projectId }: BoardProps) {
         />
 
         {/* Cleanup Dialog */}
-        {cleanupDialogOpen && (
-          <div class="modal modal-open">
-            <div class="modal-box glass-modal">
-              <h3 class="font-bold text-lg">Clean Up Board</h3>
-              <div class="py-4 space-y-3">
-                <label class="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    class="checkbox"
-                    checked={cleanupArchiveTasks}
-                    onChange={(e) =>
-                      setCleanupArchiveTasks(
-                        (e.target as HTMLInputElement).checked
-                      )
-                    }
-                  />
-                  <span>Archive Done Tasks</span>
-                  {doneTaskCount > 0 && (
-                    <span class="text-base-content/50 text-sm">
-                      ({doneTaskCount} task{doneTaskCount !== 1 ? "s" : ""})
-                    </span>
-                  )}
-                </label>
-                <label class="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    class="checkbox"
-                    checked={cleanupArchiveEpics}
-                    onChange={(e) =>
-                      setCleanupArchiveEpics(
-                        (e.target as HTMLInputElement).checked
-                      )
-                    }
-                  />
-                  <span>Archive Empty Epics</span>
-                </label>
-              </div>
-              <div class="modal-action">
-                <button
-                  class="btn btn-ghost"
-                  onClick={() => {
-                    setCleanupDialogOpen(false);
-                    setCleanupArchiveTasks(true);
-                    setCleanupArchiveEpics(true);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  class="btn btn-primary"
-                  onClick={handleCleanup}
-                  disabled={!cleanupArchiveTasks && !cleanupArchiveEpics}
-                >
-                  Clean
-                </button>
-              </div>
-            </div>
-            <div
-              class="modal-backdrop bg-black/50"
+        <Modal
+          isOpen={cleanupDialogOpen}
+          onClose={() => {
+            setCleanupDialogOpen(false);
+            setCleanupArchiveTasks(true);
+            setCleanupArchiveEpics(true);
+          }}
+          title="Clean Up Board"
+          subtitle="Archive finished work to keep the board focused"
+          size="sm"
+        >
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                class="checkbox"
+                checked={cleanupArchiveTasks}
+                onChange={(e) =>
+                  setCleanupArchiveTasks(
+                    (e.target as HTMLInputElement).checked
+                  )
+                }
+              />
+              <span>Archive Done Tasks</span>
+              {doneTaskCount > 0 && (
+                <span class="text-base-content/50 text-sm">
+                  ({doneTaskCount} task{doneTaskCount !== 1 ? "s" : ""})
+                </span>
+              )}
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                class="checkbox"
+                checked={cleanupArchiveEpics}
+                onChange={(e) =>
+                  setCleanupArchiveEpics(
+                    (e.target as HTMLInputElement).checked
+                  )
+                }
+              />
+              <span>Archive Empty Epics</span>
+            </label>
+          </div>
+          <div class="modal-action">
+            <button
+              class="btn btn-ghost"
               onClick={() => {
                 setCleanupDialogOpen(false);
                 setCleanupArchiveTasks(true);
                 setCleanupArchiveEpics(true);
               }}
-            />
+            >
+              Cancel
+            </button>
+            <button
+              class="btn btn-primary"
+              onClick={handleCleanup}
+              disabled={!cleanupArchiveTasks && !cleanupArchiveEpics}
+            >
+              Clean
+            </button>
           </div>
-        )}
+        </Modal>
       </div>
     </DndContext>
   );

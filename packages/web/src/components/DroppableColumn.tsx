@@ -16,20 +16,18 @@ export function DroppableColumn({ id, children, isEmpty = false }: DroppableColu
     <div
       ref={setNodeRef}
       data-over={isOver ? 'true' : 'false'}
-      class={`board-column rounded-xl p-3 min-h-32 transition-all ${
-        isOver
-          ? 'bg-primary/10'
-          : isEmpty
-          ? 'border-dashed'
-          : ''
+      class={`board-column rounded-xl p-3 min-h-32 ${
+        isEmpty && !isOver ? 'board-column-empty' : ''
       }`}
     >
       {isEmpty ? (
         <div class="h-full min-h-24 flex items-center justify-center">
-          <span class="text-base-content/40 text-sm">No tasks</span>
+          <span class="text-base-content/40 text-sm">
+            {isOver ? 'Drop here' : 'No tasks'}
+          </span>
         </div>
       ) : (
-        <div class="space-y-3">
+        <div class="space-y-3 stagger-in">
           {children}
         </div>
       )}

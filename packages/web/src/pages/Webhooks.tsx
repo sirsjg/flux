@@ -6,7 +6,7 @@ import { WebhooksPanel } from '../components/WebhooksPanel'
 export default function Webhooks(_props: RoutableProps) {
   return (
     <div class="app-shell">
-      <div class="navbar glass-navbar">
+      <div class="navbar app-navbar">
         <div class="flex-1">
           <button class="btn btn-ghost btn-sm" onClick={() => route('/')}>
             <ArrowLeftIcon className="h-5 w-5" />

@@ -4,6 +4,7 @@ import {
   Cog6ToothIcon,
   ExclamationTriangleIcon,
   PencilSquareIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import {
   deleteProject,
@@ -209,7 +210,7 @@ export function ProjectList(_props: RoutableProps) {
 
   return (
     <div class="app-shell">
-      <div class="navbar glass-navbar">
+      <div class="navbar app-navbar">
         <div class="flex-1">
           <span class="text-xl font-bold px-4">Flux</span>
         </div>
@@ -226,22 +227,24 @@ export function ProjectList(_props: RoutableProps) {
       </div>
 
       <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
           <button
             type="button"
-            class="card glass-card border-dashed text-left"
+            class="card surface-card border-dashed text-left group"
             onClick={() => route("/new")}
           >
             <div class="card-body items-center justify-center text-center">
-              <div class="text-4xl font-semibold">+</div>
-              <div class="text-lg font-semibold">New Project</div>
+              <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center transition-transform duration-200 group-hover:scale-110 group-hover:rotate-90">
+                <PlusIcon className="h-6 w-6" />
+              </div>
+              <div class="text-lg font-semibold mt-1">New Project</div>
             </div>
           </button>
 
           {projects.map((project) => (
             <div
               key={project.id}
-              class="card glass-card cursor-pointer"
+              class="card surface-card cursor-pointer"
               onClick={() => route(`/board/${project.id}`)}
             >
               <div class="card-body">
@@ -264,19 +267,37 @@ export function ProjectList(_props: RoutableProps) {
                     {project.description}
                   </p>
                 )}
-                <div class="mt-2">
+                <div class="mt-3">
                   {project.stats.total === 0 ? (
                     <span class="badge badge-soft badge-sm">No tasks</span>
                   ) : (
-                    <span
-                      class={`badge badge-soft badge-sm ${
-                        project.stats.done === project.stats.total
-                          ? "badge-success"
-                          : ""
-                      }`}
-                    >
-                      {project.stats.done} of {project.stats.total} complete
-                    </span>
+                    <>
+                      <div class="flex items-center justify-between text-xs text-base-content/50 mb-1.5">
+                        <span>
+                          {project.stats.done} of {project.stats.total} complete
+                        </span>
+                        <span class="font-mono">
+                          {Math.round(
+                            (project.stats.done / project.stats.total) * 100
+                          )}
+                          %
+                        </span>
+                      </div>
+                      <div class="h-1.5 rounded-full bg-base-200 overflow-hidden">
+                        <div
+                          class={`h-full rounded-full transition-[width] duration-700 ${
+                            project.stats.done === project.stats.total
+                              ? "bg-success"
+                              : "bg-primary"
+                          }`}
+                          style={{
+                            width: `${
+                              (project.stats.done / project.stats.total) * 100
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -289,26 +310,30 @@ export function ProjectList(_props: RoutableProps) {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         title="Settings"
-        boxClassName="!w-[80vw] !h-[80vh] !max-w-none !max-h-none overflow-y-auto"
+        size="full"
       >
         <div class="grid gap-4 lg:grid-cols-[240px_1fr]">
-          <div class="bg-base-200 rounded-box p-0">
-            <ul class="menu">
+          <div class="bg-base-200/60 rounded-xl p-2">
+            <ul class="menu w-full gap-1">
               {settingsSections.map((section) => {
                 const isActive = settingsSection === section.id;
                 return (
                   <li key={section.id}>
                     <button
                       type="button"
-                      class={`rounded-none flex flex-col items-start gap-0.5 ${
-                        isActive
-                          ? "bg-base-300 border-l-4 border-primary"
-                          : ""
+                      class={`rounded-lg flex flex-col items-start gap-0.5 transition-colors ${
+                        isActive ? "bg-primary/10 text-primary" : ""
                       }`}
                       onClick={() => setSettingsSection(section.id)}
                     >
                       <span class="font-medium">{section.title}</span>
-                      <span class="text-xs text-base-content/60">
+                      <span
+                        class={`text-xs ${
+                          isActive
+                            ? "text-primary/70"
+                            : "text-base-content/60"
+                        }`}
+                      >
                         {section.subtitle}
                       </span>
                     </button>
@@ -318,7 +343,7 @@ export function ProjectList(_props: RoutableProps) {
             </ul>
           </div>
 
-          <div class="bg-base-100 rounded-box border border-base-200 p-4 min-h-[360px]">
+          <div class="bg-base-100 rounded-xl border border-base-200 p-4 min-h-[360px]">
             {settingsSection === "configuration" && (
               <div class="space-y-4">
                 <div>

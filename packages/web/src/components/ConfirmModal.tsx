@@ -27,7 +27,7 @@ export function ConfirmModal({
   onClose,
 }: ConfirmModalProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       {description && (
         <p class="text-sm text-base-content/70">{description}</p>
       )}

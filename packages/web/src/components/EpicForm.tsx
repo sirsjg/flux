@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'preact/hooks'
 import { ConfirmModal } from './ConfirmModal'
 import { Modal } from './Modal'
+import { Select } from './Select'
 import { createEpic, updateEpic, deleteEpic, getEpics } from '../stores'
 import type { Epic, Status } from '@flux/shared'
 import { STATUSES, STATUS_CONFIG } from '@flux/shared'
@@ -136,15 +137,12 @@ export function EpicForm({ isOpen, onClose, onSave, epic, projectId }: EpicFormP
           <label class="label">
             <span class="label-text">Status</span>
           </label>
-          <select
-            class="select select-bordered w-full"
+          <Select
+            ariaLabel="Status"
             value={status}
-            onChange={(e) => setStatus((e.target as HTMLSelectElement).value)}
-          >
-            {STATUSES.map(s => (
-              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-            ))}
-          </select>
+            onChange={setStatus}
+            options={STATUSES.map(s => ({ value: s, label: STATUS_CONFIG[s].label }))}
+          />
         </div>
 
         <div class="form-control mb-6">
