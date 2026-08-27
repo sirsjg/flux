@@ -29,7 +29,7 @@ Flux is a fast, multi-project Kanban board that humans, AI agents, and automatio
 - **Blob storage** — attach files (images, docs, logs) to tasks via CLI, API, or MCP
 - **Git-native sync** — `flux push` / `flux pull` against a `flux-data` branch
 
-<table>
+<table border="0">
   <tr>
     <td width="50%">
       <img src="docs/screenshots/board-dark.jpg" alt="Kanban board with epic swimlanes, agents working, and blocked tasks" />
