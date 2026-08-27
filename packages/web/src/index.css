@@ -336,10 +336,6 @@ kbd.kbd {
     position: relative;
   }
 
-  .board-toolbar-row > .flex-1:last-of-type {
-    display: none;
-  }
-
   .board-lane-content {
     min-width: 680px;
   }

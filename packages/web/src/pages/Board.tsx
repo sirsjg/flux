@@ -470,7 +470,7 @@ export function Board({ projectId }: BoardProps) {
           {/* Filter Bar */}
           <div class="surface-panel board-toolbar rounded-xl p-4 mb-6">
             <div class="board-toolbar-row flex items-center gap-3 sm:gap-4">
-              <div class="relative flex-1 min-w-48 max-w-xl">
+              <div class="relative flex-1 min-w-48">
                 <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40" />
                 <input
                   ref={searchInputRef}
@@ -535,7 +535,6 @@ export function Board({ projectId }: BoardProps) {
                   Clear
                 </button>
               )}
-              <div class="flex-1" />
               <button
                 class="btn btn-ghost btn-sm"
                 onClick={() => setCleanupDialogOpen(true)}
