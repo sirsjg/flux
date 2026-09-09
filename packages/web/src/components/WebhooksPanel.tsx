@@ -163,7 +163,7 @@ export function WebhooksPanel() {
 
   return (
     <div>
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h4 class="text-lg font-semibold">Webhooks</h4>
           <p class="text-sm text-base-content/60">
@@ -192,9 +192,9 @@ export function WebhooksPanel() {
           {webhooks.map(webhook => (
             <div key={webhook.id} class="card surface-card">
               <div class="card-body">
-                <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-3 mb-2">
+                <div class="flex flex-col md:flex-row items-start justify-between gap-3 md:gap-0">
+                  <div class="flex-1 min-w-0 w-full md:w-auto">
+                    <div class="flex flex-wrap items-center gap-3 mb-2">
                       <h2 class="card-title text-lg">{webhook.name}</h2>
                       <span class={`badge ${webhook.enabled ? 'badge-success' : 'badge-ghost'}`}>
                         {webhook.enabled ? 'Enabled' : 'Disabled'}
@@ -218,7 +218,7 @@ export function WebhooksPanel() {
                       {webhook.secret && ' | Secret configured'}
                     </p>
                   </div>
-                  <div class="flex flex-col gap-2">
+                  <div class="flex flex-wrap md:flex-col gap-2">
                     <div class="flex gap-1">
                       <button
                         class="btn btn-ghost btn-xs"
@@ -334,7 +334,7 @@ export function WebhooksPanel() {
                 <button type="button" class="link link-primary text-xs" onClick={clearAllEvents}>Clear</button>
               </span>
             </label>
-            <div class="grid grid-cols-2 gap-2 p-3 border rounded-lg border-base-300 max-h-48 overflow-y-auto">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 border rounded-lg border-base-300 max-h-48 overflow-y-auto">
               {WEBHOOK_EVENT_TYPES.map(event => (
                 <label key={event} class="flex items-center gap-2 cursor-pointer">
                   <input

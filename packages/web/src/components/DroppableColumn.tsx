@@ -5,9 +5,10 @@ interface DroppableColumnProps {
   id: string
   children: ComponentChildren
   isEmpty?: boolean
+  mobileHeader?: ComponentChildren
 }
 
-export function DroppableColumn({ id, children, isEmpty = false }: DroppableColumnProps) {
+export function DroppableColumn({ id, children, isEmpty = false, mobileHeader }: DroppableColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id,
   })
@@ -20,6 +21,7 @@ export function DroppableColumn({ id, children, isEmpty = false }: DroppableColu
         isEmpty && !isOver ? 'board-column-empty' : ''
       }`}
     >
+      <div class="flex items-center gap-2 mb-3 md:hidden">{mobileHeader}</div>
       {isEmpty ? (
         <div class="h-full min-h-24 flex items-center justify-center">
           <span class="text-base-content/40 text-sm">

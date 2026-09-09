@@ -446,7 +446,7 @@ export function TaskForm({
                   <input
                     type="text"
                     placeholder="Add criterion..."
-                    class="input input-bordered input-sm flex-1"
+                    class="input input-bordered input-sm min-w-0 flex-1"
                     value={newCriterion}
                     onInput={(e) => setNewCriterion((e.target as HTMLInputElement).value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCriterion())}
@@ -497,7 +497,7 @@ export function TaskForm({
                       </button>
                     </div>
                   ))}
-                <div class="flex gap-2">
+                <div class="guardrail-inputs flex gap-2">
                   <input
                     type="number"
                     placeholder="999"
@@ -508,7 +508,7 @@ export function TaskForm({
                   <input
                     type="text"
                     placeholder="Guardrail instruction..."
-                    class="input input-bordered input-sm flex-1"
+                    class="input input-bordered input-sm min-w-0 flex-1"
                     value={newGuardrailText}
                     onInput={(e) => setNewGuardrailText((e.target as HTMLInputElement).value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addGuardrail())}
@@ -686,7 +686,7 @@ export function TaskForm({
           </div>
         </div>
 
-        <div class="modal-action sticky bottom-0 -mx-6 -mb-5 mt-6 px-6 py-4 bg-base-100 border-t border-base-200">
+        <div class="task-form-actions modal-action sticky bottom-0 -mx-6 -mb-5 mt-6 px-6 py-4 bg-base-100 border-t border-base-200">
           {isEdit && (
             <button
               type="button"

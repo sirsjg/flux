@@ -79,7 +79,7 @@ export function DraggableTaskCard({
       <div
         ref={setNodeRef}
         style={style}
-        class={`task-card rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing touch-none ${
+        class={`task-card task-card-condensed rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing touch-manipulation ${
           task.blocked ? 'ring-2 ring-warning/50' : ''
         }`}
         onClick={handleClick}
@@ -95,7 +95,7 @@ export function DraggableTaskCard({
             class="w-2 h-2 rounded-full flex-shrink-0"
             style={{ backgroundColor: epicColor }}
           />
-          <span class="font-medium text-sm truncate flex-1">{task.title}</span>
+          <span class="task-card-title font-medium text-sm truncate flex-1">{task.title}</span>
           {task.blocked && (
             <span class="text-xs bg-warning/20 text-warning px-1.5 py-0.5 rounded font-medium flex-shrink-0">
               Blocked
@@ -129,7 +129,7 @@ export function DraggableTaskCard({
     <div
       ref={setNodeRef}
       style={style}
-      class={`task-card rounded-xl p-4 cursor-grab active:cursor-grabbing touch-none ${
+      class={`task-card rounded-xl p-4 cursor-grab active:cursor-grabbing touch-manipulation ${
         task.blocked ? 'ring-2 ring-warning/50' : ''
       }`}
       onClick={handleClick}
