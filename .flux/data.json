@@ -315,6 +315,43 @@
       ],
       "created_at": "2026-08-21T12:32:18.335Z",
       "updated_at": "2026-08-21T12:35:24.857Z"
+    },
+    {
+      "id": "gjlhb8m",
+      "title": "Make the web UI responsive on mobile without changing desktop behavior",
+      "status": "done",
+      "depends_on": [],
+      "comments": [
+        {
+          "id": "5m1gfun",
+          "body": "Codex: Reviewing mobile layouts and touch interactions across the web UI.",
+          "author": "user",
+          "created_at": "2026-09-09T05:33:18.866Z"
+        },
+        {
+          "id": "pk86swc",
+          "body": "Mobile review: stack status columns below 768px; preserve desktop grid; support swipe scrolling and long-press dragging; fit dialogs and settings to narrow viewports.",
+          "author": "mcp",
+          "agent_name": "Codex",
+          "created_at": "2026-09-09T05:34:15.046Z"
+        },
+        {
+          "id": "z18tmbt",
+          "body": "Implemented responsive board stacking below 768px, mobile-sized navigation and controls, viewport-safe dialogs/forms/settings, touch scrolling with long-press drag, and preserved the desktop four-column layout. Verified at 320/375/430/768/1440px; tested mouse and touch drag; typecheck/build and 284 tests pass.",
+          "author": "mcp",
+          "agent_name": "Codex",
+          "created_at": "2026-09-09T06:01:11.360Z"
+        }
+      ],
+      "project_id": "zpcdjsc",
+      "acceptance_criteria": [
+        "Board, navigation, forms and settings fit mobile screens from 320px with usable touch controls",
+        "Desktop board layout and mouse interactions remain unchanged",
+        "Verify mobile and desktop workflows in a browser and run build/type checks"
+      ],
+      "created_at": "2026-09-09T05:33:18.861Z",
+      "updated_at": "2026-09-09T06:01:11.360Z",
+      "workers": []
     }
   ],
   "blobs": [],
