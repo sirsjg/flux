@@ -226,7 +226,7 @@ export function ProjectList(_props: RoutableProps) {
         </div>
       </div>
 
-      <div class="p-6">
+      <div class="p-3 sm:p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
           <button
             type="button"
@@ -249,7 +249,7 @@ export function ProjectList(_props: RoutableProps) {
             >
               <div class="card-body">
                 <div class="flex items-start justify-between gap-3">
-                  <h3 class="card-title">{project.name}</h3>
+                  <h3 class="card-title min-w-0 [overflow-wrap:anywhere]">{project.name}</h3>
                   <button
                     type="button"
                     class="btn btn-ghost btn-sm btn-circle"
@@ -343,7 +343,7 @@ export function ProjectList(_props: RoutableProps) {
             </ul>
           </div>
 
-          <div class="bg-base-100 rounded-xl border border-base-200 p-4 min-h-[360px]">
+          <div class="min-w-0 bg-base-100 rounded-xl border border-base-200 p-4 min-h-[360px]">
             {settingsSection === "configuration" && (
               <div class="space-y-4">
                 <div>
@@ -357,13 +357,13 @@ export function ProjectList(_props: RoutableProps) {
                     <div class="text-xs uppercase tracking-wide text-base-content/60">
                       API Location
                     </div>
-                    <div class="mt-1 font-mono text-xs">{apiLocation}</div>
+                    <div class="mt-1 font-mono text-xs break-all">{apiLocation}</div>
                   </div>
                   <div class="rounded-lg border border-base-200 p-3">
                     <div class="text-xs uppercase tracking-wide text-base-content/60">
                       Events Stream
                     </div>
-                    <div class="mt-1 font-mono text-xs">{sseLocation}</div>
+                    <div class="mt-1 font-mono text-xs break-all">{sseLocation}</div>
                   </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

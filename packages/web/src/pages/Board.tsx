@@ -3,7 +3,8 @@ import { route, RoutableProps } from "preact-router";
 import {
   DndContext,
   DragEndEvent,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   closestCenter,
@@ -17,7 +18,7 @@ import {
   cleanupProject,
   type TaskWithBlocked,
 } from "../stores";
-import type { Epic } from "@flux/shared";
+import type { Epic, Status } from "@flux/shared";
 import { STATUSES, STATUS_CONFIG, EPIC_COLORS, EPIC_COLOR_UNASSIGNED } from "@flux/shared";
 import {
   TaskForm,
@@ -126,12 +127,15 @@ export function Board({ projectId }: BoardProps) {
     toggleEpicCollapse,
   } = useBoardPreferences(projectId ?? "");
 
-  // Configure sensors with activation constraint to allow clicks
+  // Keep mouse dragging immediate after 8px; let touch users scroll before a long press.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 8,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 8 },
     })
   );
 
@@ -345,6 +349,19 @@ export function Board({ projectId }: BoardProps) {
   const getDropZoneId = (status: string, epicId: string | undefined) =>
     `${status}:${epicId ?? "unassigned"}`;
 
+  const mobileColumnHeader = (status: Status, epicId?: string) => (
+    <>
+      <span class="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_CONFIG[status].color }} />
+      <span class="font-medium text-sm">{STATUS_CONFIG[status].label}</span>
+      <span class="text-base-content/40 text-sm">{getColumnTasks(status, epicId).length}</span>
+      {status === "planning" && (
+        <button class="btn btn-ghost btn-sm btn-circle ml-auto" title="Add task" onClick={() => openNewTask(epicId)}>
+          <PlusIcon className="h-4 w-4" />
+        </button>
+      )}
+    </>
+  );
+
   // Get total task count
   const totalTaskCount = tasks.filter(filterTask).length;
 
@@ -364,12 +381,12 @@ export function Board({ projectId }: BoardProps) {
     >
       <div class="app-shell">
         {/* Header */}
-        <div class="navbar app-navbar mb-4">
-          <div class="flex-1 flex items-center">
-            <button class="btn btn-ghost btn-circle" onClick={() => route("/")}>
+        <div class="navbar app-navbar board-navbar mb-4">
+          <div class="board-heading flex-1 flex items-center">
+            <button class="btn btn-ghost btn-circle" aria-label="Back to projects" onClick={() => route("/")}>
               <ArrowLeftIcon className="h-5 w-5" />
             </button>
-            <div class="flex items-center gap-2 px-2">
+            <div class="board-title flex items-center gap-2 px-2">
               <Squares2X2Icon className="h-6 w-6 text-primary" />
               <h1 class="text-xl font-bold">{projectName}</h1>
               <span class="text-base-content/50 text-lg ml-1">
@@ -377,7 +394,7 @@ export function Board({ projectId }: BoardProps) {
               </span>
             </div>
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-1.5">
+          <div class="board-actions flex flex-wrap items-center justify-end gap-1.5">
             {notificationsSupported() && (
               <button
                 class="btn btn-ghost btn-circle btn-sm"
@@ -471,7 +488,7 @@ export function Board({ projectId }: BoardProps) {
           {/* Filter Bar */}
           <div class="surface-panel board-toolbar rounded-xl p-4 mb-6">
             <div class="board-toolbar-row flex items-center gap-3 sm:gap-4">
-              <div class="relative flex-1 min-w-48">
+              <div class="board-search relative flex-1 min-w-48">
                 <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-base-content/40" />
                 <input
                   ref={searchInputRef}
@@ -494,7 +511,7 @@ export function Board({ projectId }: BoardProps) {
                 </kbd>
               </div>
               <Select
-                class="w-44"
+                class="board-filter w-44"
                 ariaLabel="Filter by epic"
                 value={filterEpicId}
                 onChange={setFilterEpicId}
@@ -508,7 +525,7 @@ export function Board({ projectId }: BoardProps) {
                 ]}
               />
               <Select
-                class="w-40"
+                class="board-filter w-40"
                 ariaLabel="Filter by status"
                 value={filterStatus}
                 onChange={setFilterStatus}
@@ -585,6 +602,8 @@ export function Board({ projectId }: BoardProps) {
           </div>
         </div>
 
+        <p class="px-3 mb-3 text-xs text-base-content/50 md:hidden">Tap a task to edit. Hold to drag between statuses.</p>
+
         {/* Swimlanes */}
         <div class="px-3 sm:px-6 pb-6 space-y-4">
           {/* Epic Swimlanes */}
@@ -604,7 +623,7 @@ export function Board({ projectId }: BoardProps) {
                 >
                   {/* Epic Header */}
                   <div
-                    class="p-4 flex items-center gap-3 cursor-pointer hover:bg-base-200 transition-colors"
+                    class="board-epic-header p-4 flex items-center gap-3 cursor-pointer hover:bg-base-200 transition-colors"
                     onClick={() => toggleEpicCollapse(epic.id)}
                   >
                     <ChevronRightIcon
@@ -616,8 +635,8 @@ export function Board({ projectId }: BoardProps) {
                       class="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: epicColor }}
                     />
-                    <span class="font-semibold">{epic.title}</span>
-                    <span class="text-base-content/40 text-sm bg-base-200 px-2 py-0.5 rounded">
+                    <span class="board-epic-title font-semibold">{epic.title}</span>
+                    <span class="board-epic-count text-base-content/40 text-sm bg-base-200 px-2 py-0.5 rounded">
                       {taskCount} task{taskCount !== 1 ? "s" : ""}
                     </span>
                     <div class="ml-auto flex items-center gap-3">
@@ -649,18 +668,17 @@ export function Board({ projectId }: BoardProps) {
                   {/* Epic Content */}
                   {!isCollapsed && (
                     <div class="board-lane-scroll lane-content-enter px-4 pb-4">
-                      <div class="board-lane-content flex gap-4">
+                      <div class="board-lane-content flex flex-col md:flex-row gap-4">
                         {/* Collapsed Planning Column */}
                         {planningCollapsed && (
                           <div
-                            class="w-8 min-h-[100px] bg-base-200 rounded-lg flex items-center justify-center cursor-pointer hover:bg-base-300 transition-colors relative"
+                            class="board-planning-toggle w-8 min-h-[100px] bg-base-200 rounded-lg flex items-center justify-center cursor-pointer hover:bg-base-300 transition-colors relative"
                             onClick={() => setPlanningCollapsed(false)}
                             title="Show Planning column"
                           >
                             <div class="absolute inset-0 flex items-center justify-center">
                               <span
-                                class="text-xs font-medium text-base-content/60 whitespace-nowrap"
-                                style={{ transform: "rotate(-90deg)" }}
+                                class="board-planning-label text-xs font-medium text-base-content/60 whitespace-nowrap"
                               >
                                 Planning (
                                 {getColumnTasks("planning", epic.id).length})
@@ -674,9 +692,9 @@ export function Board({ projectId }: BoardProps) {
                         <div class="flex-1">
                           {/* Column Headers */}
                           <div
-                            class={`grid ${
+                            class={`board-status-grid grid ${
                               planningCollapsed ? "grid-cols-3" : "grid-cols-4"
-                            } gap-4 mb-3`}
+                            } gap-4 mb-3 hidden md:grid`}
                           >
                             {STATUSES.filter(
                               (s) => !planningCollapsed || s !== "planning"
@@ -720,7 +738,7 @@ export function Board({ projectId }: BoardProps) {
 
                           {/* Columns */}
                           <div
-                            class={`grid ${
+                            class={`board-status-grid grid ${
                               planningCollapsed ? "grid-cols-3" : "grid-cols-4"
                             } gap-4`}
                           >
@@ -730,6 +748,7 @@ export function Board({ projectId }: BoardProps) {
                               <DroppableColumn
                                 key={getDropZoneId(status, epic.id)}
                                 id={getDropZoneId(status, epic.id)}
+                                mobileHeader={mobileColumnHeader(status, epic.id)}
                                 isEmpty={
                                   getColumnTasks(status, epic.id).length === 0
                                 }
@@ -762,7 +781,7 @@ export function Board({ projectId }: BoardProps) {
           {(filterEpicId === "all" || filterEpicId === "unassigned") && (
             <div class="surface-panel rounded-2xl overflow-hidden">
               <div
-                class="p-4 flex items-center gap-3 cursor-pointer hover:bg-base-200 transition-colors"
+                class="board-epic-header p-4 flex items-center gap-3 cursor-pointer hover:bg-base-200 transition-colors"
                 onClick={() => toggleEpicCollapse("unassigned")}
               >
                 <ChevronRightIcon
@@ -771,8 +790,8 @@ export function Board({ projectId }: BoardProps) {
                   }`}
                 />
                 <span class="w-3 h-3 rounded-full bg-base-content/40 flex-shrink-0" />
-                <span class="font-semibold">Unassigned</span>
-                <span class="text-base-content/40 text-sm bg-base-200 px-2 py-0.5 rounded">
+                <span class="board-epic-title font-semibold">Unassigned</span>
+                <span class="board-epic-count text-base-content/40 text-sm bg-base-200 px-2 py-0.5 rounded">
                   {getEpicTaskCount(undefined)} task
                   {getEpicTaskCount(undefined) !== 1 ? "s" : ""}
                 </span>
@@ -780,18 +799,17 @@ export function Board({ projectId }: BoardProps) {
 
               {!collapsedEpics.has("unassigned") && (
                 <div class="board-lane-scroll lane-content-enter px-4 pb-4">
-                  <div class="board-lane-content flex gap-4">
+                  <div class="board-lane-content flex flex-col md:flex-row gap-4">
                     {/* Collapsed Planning Column */}
                     {planningCollapsed && (
                       <div
-                        class="w-8 min-h-[100px] bg-base-200 rounded-lg flex items-center justify-center cursor-pointer hover:bg-base-300 transition-colors relative"
+                        class="board-planning-toggle w-8 min-h-[100px] bg-base-200 rounded-lg flex items-center justify-center cursor-pointer hover:bg-base-300 transition-colors relative"
                         onClick={() => setPlanningCollapsed(false)}
                         title="Show Planning column"
                       >
                         <div class="absolute inset-0 flex items-center justify-center">
                           <span
-                            class="text-xs font-medium text-base-content/60 whitespace-nowrap"
-                            style={{ transform: "rotate(-90deg)" }}
+                            class="board-planning-label text-xs font-medium text-base-content/60 whitespace-nowrap"
                           >
                             Planning (
                             {getColumnTasks("planning", undefined).length})
@@ -804,9 +822,9 @@ export function Board({ projectId }: BoardProps) {
                     {/* Main Columns Container */}
                     <div class="flex-1">
                       <div
-                        class={`grid ${
+                        class={`board-status-grid grid ${
                           planningCollapsed ? "grid-cols-3" : "grid-cols-4"
-                        } gap-4 mb-3`}
+                        } gap-4 mb-3 hidden md:grid`}
                       >
                         {STATUSES.filter(
                           (s) => !planningCollapsed || s !== "planning"
@@ -846,7 +864,7 @@ export function Board({ projectId }: BoardProps) {
                       </div>
 
                       <div
-                        class={`grid ${
+                        class={`board-status-grid grid ${
                           planningCollapsed ? "grid-cols-3" : "grid-cols-4"
                         } gap-4`}
                       >
@@ -856,6 +874,7 @@ export function Board({ projectId }: BoardProps) {
                           <DroppableColumn
                             key={getDropZoneId(status, undefined)}
                             id={getDropZoneId(status, undefined)}
+                            mobileHeader={mobileColumnHeader(status)}
                             isEmpty={
                               getColumnTasks(status, undefined).length === 0
                             }
