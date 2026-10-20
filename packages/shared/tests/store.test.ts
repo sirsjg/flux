@@ -277,6 +277,33 @@ describe('store', () => {
     expect(task.acceptance_criteria?.[0]).toBe('Processes in <100ms');
   });
 
+  it('creates, updates and clears task description', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      description: 'Some context\nacross lines',
+    });
+    expect(task.description).toBe('Some context\nacross lines');
+
+    expect(updateTask(task.id, { description: 'Revised' })?.description).toBe('Revised');
+    expect(updateTask(task.id, { status: 'todo' })?.description).toBe('Revised');
+    expect(updateTask(task.id, { description: '' })?.description).toBeUndefined();
+  });
+
+  it('keeps guardrails when updating other fields', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task', undefined, {
+      guardrails: [{ id: 'g1', number: 1, text: 'Keep me' }],
+    });
+    expect(updateTask(task.id, { status: 'todo' })?.guardrails).toHaveLength(1);
+  });
+
+  it('clears blocked_reason with an empty string', () => {
+    const project = createProject('Project');
+    const task = createTask(project.id, 'Task');
+    updateTask(task.id, { blocked_reason: 'Waiting on vendor' });
+    expect(updateTask(task.id, { blocked_reason: '' })?.blocked_reason).toBeUndefined();
+  });
+
   it('creates task with guardrails and generates IDs', () => {
     const project = createProject('Project');
     const task = createTask(project.id, 'Task', undefined, {

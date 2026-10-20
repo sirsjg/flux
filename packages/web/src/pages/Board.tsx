@@ -265,11 +265,21 @@ export function Board({ projectId }: BoardProps) {
     if (!task) return;
 
     if (task.status !== newStatus || task.epic_id !== newEpicId) {
-      await updateTask(taskId, {
-        status: newStatus,
-        epic_id: newEpicId,
-      });
-      await refreshData();
+      // Move the card locally first so it lands in the target column on drop,
+      // rather than snapping back to its origin while the request is in flight.
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId ? { ...t, status: newStatus, epic_id: newEpicId } : t
+        )
+      );
+      try {
+        await updateTask(taskId, {
+          status: newStatus,
+          epic_id: newEpicId,
+        });
+      } finally {
+        await refreshData();
+      }
     }
   };
 

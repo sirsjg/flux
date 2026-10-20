@@ -89,7 +89,7 @@ export async function taskCommand(
         title = args[1];
       }
       if (!projectId || !title) {
-        console.error('Usage: flux task create [project] <title> [-P priority] [-e epic] [-d|--depends id,...] [--note] [--ac ...] [--guardrail ...]');
+        console.error('Usage: flux task create [project] <title> [-P priority] [-e epic] [-d|--depends id,...] [--desc text] [--note] [--ac ...] [--guardrail ...]');
         console.error('Tip: Set default project with: flux project use <id>');
         process.exit(1);
       }
@@ -100,6 +100,8 @@ export async function taskCommand(
         : undefined;
       const dependsStr = (flags.depends || flags.d) as string | undefined;
       const depends_on = dependsStr ? dependsStr.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+
+      const description = typeof flags.desc === 'string' ? flags.desc : undefined;
 
       // Parse acceptance criteria (--ac can be repeated)
       const acRaw = flags.ac;
@@ -118,7 +120,7 @@ export async function taskCommand(
         if (guardrails.length === 0) guardrails = undefined;
       }
 
-      const task = await createTask(projectId, title, epicId, { priority, depends_on, acceptance_criteria, guardrails });
+      const task = await createTask(projectId, title, epicId, { priority, depends_on, description, acceptance_criteria, guardrails });
       // Add initial comment if --note provided
       if (flags.note) {
         await addTaskComment(task.id, flags.note as string, 'user');
@@ -130,7 +132,7 @@ export async function taskCommand(
     case 'update': {
       const id = args[0];
       if (!id) {
-        console.error('Usage: flux task update <id> [--title] [--status] [--note] [--epic] [-d|--depends id,...] [--blocked "reason"|clear] [--ac ...] [--guardrail ...] [--clear-ac] [--clear-guardrails]');
+        console.error('Usage: flux task update <id> [--title] [--desc text|clear] [--status] [--note] [--epic] [-d|--depends id,...] [--blocked "reason"|clear] [--ac ...] [--guardrail ...] [--clear-ac] [--clear-guardrails]');
         process.exit(1);
       }
 
@@ -141,15 +143,20 @@ export async function taskCommand(
           console.error(`Task not found: ${id}`);
           process.exit(1);
         }
-        if (!flags.title && !flags.status && !flags.epic && !flags.P && !flags.priority && flags.blocked === undefined && !flags.ac && !flags.guardrail && !flags['clear-ac'] && !flags['clear-guardrails']) {
+        if (!flags.title && flags.desc === undefined && !flags.status && !flags.epic && !flags.P && !flags.priority && flags.blocked === undefined && !flags.ac && !flags.guardrail && !flags['clear-ac'] && !flags['clear-guardrails']) {
           const task = await getTask(id);
           output(json ? task : `Added comment to task: ${id}`, json);
           return;
         }
       }
 
-      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority; blocked_reason?: string; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] } = {};
+      const updates: { title?: string; status?: string; epic_id?: string; priority?: Priority; blocked_reason?: string; description?: string; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] } = {};
       if (flags.title) updates.title = flags.title as string;
+      if (flags.desc !== undefined) {
+        // --desc clear (or empty) removes the description
+        const desc = flags.desc === true ? '' : flags.desc as string;
+        updates.description = desc === 'clear' || desc === '-' ? '' : desc;
+      }
       if (flags.status) updates.status = flags.status as string;
       if (flags.epic) updates.epic_id = flags.epic as string;
       if (flags.P || flags.priority) {
@@ -166,7 +173,7 @@ export async function taskCommand(
           process.exit(1);
         }
         const blockedVal = flags.blocked as string;
-        updates.blocked_reason = (blockedVal === 'clear' || blockedVal === '-' || blockedVal === '') ? undefined : blockedVal;
+        updates.blocked_reason = (blockedVal === 'clear' || blockedVal === '-') ? '' : blockedVal;
       }
 
       // Parse acceptance criteria (--ac can be repeated) or clear with --clear-ac

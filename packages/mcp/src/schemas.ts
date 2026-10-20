@@ -64,6 +64,7 @@ export const taskSchema = z
     priority: z.number().optional(),
     blocked: z.boolean().optional(),
     blocked_reason: z.string().optional(),
+    description: z.string().optional(),
     acceptance_criteria: z.array(z.string()).optional(),
     guardrails: z.array(guardrailSchema).optional(),
     comments: z.array(commentSchema).optional(),

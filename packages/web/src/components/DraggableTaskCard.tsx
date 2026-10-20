@@ -39,6 +39,8 @@ export function DraggableTaskCard({
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.5 : 1,
+    // The card's hover transition would make it trail the pointer while dragging
+    transition: isDragging ? 'none' : undefined,
   }
 
   const handleClick = () => {

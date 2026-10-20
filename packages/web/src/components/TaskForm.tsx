@@ -1,4 +1,4 @@
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
@@ -50,6 +50,7 @@ export function TaskForm({
   defaultEpicId,
 }: TaskFormProps) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [status, setStatus] = useState<string>("todo");
   const [epicId, setEpicId] = useState<string>("");
   const [epics, setEpics] = useState<Epic[]>([]);
@@ -72,9 +73,13 @@ export function TaskForm({
   const [uploading, setUploading] = useState(false);
 
   const isEdit = !!task;
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
+      // showModal() focuses the first focusable element (the close button);
+      // for a new task, put the cursor in the title instead.
+      if (!task) requestAnimationFrame(() => titleInputRef.current?.focus());
       setDeleteConfirmOpen(false);
       setDeleteCommentId(null);
       loadFormData();
@@ -100,6 +105,7 @@ export function TaskForm({
     setNewGuardrailText("");
     if (task) {
       setTitle(task.title);
+      setDescription(task.description || "");
       setStatus(task.status);
       setEpicId(task.epic_id || "");
       setDependsOn([...task.depends_on]);
@@ -111,6 +117,7 @@ export function TaskForm({
       setBlobs(blobsData);
     } else {
       setTitle("");
+      setDescription("");
       setStatus("todo");
       setEpicId(defaultEpicId || "");
       setDependsOn([]);
@@ -131,10 +138,12 @@ export function TaskForm({
       if (isEdit && task) {
         await updateTask(task.id, {
           title: title.trim(),
+          // Empty string (not undefined, which JSON drops) so clearing persists
+          description: description.trim(),
           status,
           epic_id: epicId || undefined,
           depends_on: dependsOn,
-          blocked_reason: blockedReason.trim() || undefined,
+          blocked_reason: blockedReason.trim(),
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
           guardrails: guardrails.length > 0 ? guardrails : undefined,
         });
@@ -142,7 +151,8 @@ export function TaskForm({
         const newTask = await createTask(
           projectId,
           title.trim(),
-          epicId || undefined
+          epicId || undefined,
+          description.trim() || undefined
         );
         const updates: Partial<Task> = {};
         if (dependsOn.length > 0) updates.depends_on = dependsOn;
@@ -278,21 +288,36 @@ export function TaskForm({
         size="xl"
       >
         <form onSubmit={handleSubmit}>
+        <div class="form-control mb-4">
+          <label class="label">
+            <span class="label-text">Title *</span>
+          </label>
+          <input
+            ref={titleInputRef}
+            type="text"
+            placeholder="Task title"
+            class="input input-bordered w-full"
+            value={title}
+            onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
+            required
+          />
+        </div>
+
+        <div class="form-control mb-4">
+          <label class="label">
+            <span class="label-text">Description</span>
+          </label>
+          <textarea
+            placeholder="Context, background, approach, links…"
+            class="textarea textarea-bordered w-full min-h-36 resize-y leading-relaxed"
+            value={description}
+            onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}
+            rows={6}
+          />
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-2">
           <div>
-            <div class="form-control mb-4">
-              <label class="label">
-                <span class="label-text">Title *</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Task title"
-                class="input input-bordered w-full"
-                value={title}
-                onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
-                required
-              />
-            </div>
 
             {isEdit && (
               <div class="form-control mb-4">

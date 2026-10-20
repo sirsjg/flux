@@ -48,6 +48,12 @@ export async function showCommand(
     if (task.created_at) console.log(`Created: ${task.created_at}`);
     if (task.updated_at) console.log(`Updated: ${task.updated_at}`);
 
+    if (task.description) {
+      console.log('');
+      console.log('Description:');
+      for (const line of task.description.split('\n')) console.log(`  ${line}`);
+    }
+
     if (task.comments && task.comments.length > 0) {
       console.log('');
       console.log('Comments:');

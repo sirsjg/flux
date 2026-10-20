@@ -8,8 +8,8 @@ const SIZE_CLASSES: Record<ModalSize, string> = {
   sm: 'max-w-md',
   md: 'max-w-xl',
   lg: 'max-w-3xl',
-  xl: 'w-[min(72rem,94vw)] max-w-none',
-  full: 'w-[94vw] h-[88vh] max-w-none max-h-none',
+  xl: 'w-[min(72rem,calc(100vw-6rem))] max-w-none',
+  full: 'w-[calc(100vw-6rem)] h-[calc(100dvh-6rem)] max-w-none max-h-none',
 }
 
 interface ModalProps {

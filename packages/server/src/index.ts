@@ -89,8 +89,11 @@ console.log(`Flux server using: ${DATA_FILE}`);
 // Set up webhook event handler
 setWebhookEventHandler(handleWebhookEvent);
 
-// Validate task fields (acceptance_criteria, guardrails)
+// Validate task fields (description, acceptance_criteria, guardrails)
 function validateTaskFields(body: Record<string, unknown>): { error?: string } {
+  if (body.description !== undefined && body.description !== null && typeof body.description !== 'string') {
+    return { error: 'description must be a string' };
+  }
   if (body.acceptance_criteria !== undefined) {
     if (!Array.isArray(body.acceptance_criteria)) {
       return { error: 'acceptance_criteria must be an array' };
@@ -537,6 +540,7 @@ app.post('/api/projects/:projectId/tasks', async (c) => {
   const task = createTask(projectId, body.title, body.epic_id, {
     priority: body.priority,
     depends_on: body.depends_on,
+    description: body.description ?? undefined,
     acceptance_criteria: body.acceptance_criteria,
     guardrails: body.guardrails,
   });
