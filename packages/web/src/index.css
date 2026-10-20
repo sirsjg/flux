@@ -386,6 +386,11 @@ kbd.kbd {
   animation: flux-pop 260ms var(--flux-ease-spring) backwards;
 }
 
+/* Keep clear of the viewport edges on short screens too */
+.modal-box.modal-surface {
+  max-height: calc(100dvh - 4rem);
+}
+
 /* Expandable modal sections */
 .section-toggle {
   transition: background-color 150ms ease;
