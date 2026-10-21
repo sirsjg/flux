@@ -257,7 +257,7 @@ export async function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { priority?: Priority; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
+  options?: { priority?: Priority; depends_on?: string[]; description?: string; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
 ): Promise<Task> {
   if (serverUrl) {
     return http('POST', `/api/projects/${projectId}/tasks`, {
@@ -265,6 +265,7 @@ export async function createTask(
       epic_id: epicId,
       priority: options?.priority,
       depends_on: options?.depends_on,
+      description: options?.description,
       acceptance_criteria: options?.acceptance_criteria,
       guardrails: options?.guardrails,
     });

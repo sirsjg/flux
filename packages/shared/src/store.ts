@@ -342,7 +342,7 @@ export function createTask(
   projectId: string,
   title: string,
   epicId?: string,
-  options?: { priority?: Priority; depends_on?: string[]; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
+  options?: { priority?: Priority; depends_on?: string[]; description?: string; acceptance_criteria?: string[]; guardrails?: Guardrail[] }
 ): Task {
   const now = new Date().toISOString();
   const id = generateId();
@@ -362,6 +362,7 @@ export function createTask(
     epic_id: epicId,
     project_id: projectId,
     priority: options?.priority,
+    description: options?.description || undefined,
     acceptance_criteria: options?.acceptance_criteria,
     guardrails: ensureGuardrailIds(options?.guardrails),
     created_at: now,
@@ -388,7 +389,11 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task
   }
   const processedUpdates = {
     ...updates,
-    guardrails: updates.guardrails !== undefined ? ensureGuardrailIds(updates.guardrails) : undefined,
+    // Empty strings clear these fields (undefined is dropped from JSON over HTTP)
+    ...(updates.description !== undefined && { description: updates.description || undefined }),
+    ...(updates.blocked_reason !== undefined && { blocked_reason: updates.blocked_reason || undefined }),
+    // Only touch guardrails when provided, otherwise they'd be wiped on every update
+    ...(updates.guardrails !== undefined && { guardrails: ensureGuardrailIds(updates.guardrails) }),
   };
   db.data.tasks[index] = {
     ...db.data.tasks[index],

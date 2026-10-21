@@ -51,6 +51,7 @@ export type Task = {
   archived?: boolean; // Whether the task is archived
   priority?: Priority; // P0 = urgent, P1 = normal, P2 = low
   blocked_reason?: string; // External blocker (meeting, approval, etc.)
+  description?: string; // Free-form details / context for the task
   acceptance_criteria?: string[]; // Observable behavioral outcomes for verification
   guardrails?: Guardrail[]; // Numbered instructions (higher = more critical)
   blob_ids?: string[]; // References to Blob.id

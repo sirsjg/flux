@@ -8,8 +8,8 @@ const SIZE_CLASSES: Record<ModalSize, string> = {
   sm: 'max-w-md',
   md: 'max-w-xl',
   lg: 'max-w-3xl',
-  xl: 'w-[min(72rem,94vw)] max-w-none',
-  full: 'w-[94vw] h-[88vh] max-w-none max-h-none',
+  xl: 'w-[min(72rem,calc(100vw-6rem))] max-w-none',
+  full: 'w-[calc(100vw-6rem)] h-[calc(100dvh-6rem)] max-w-none max-h-none',
 }
 
 interface ModalProps {
@@ -59,7 +59,7 @@ export function Modal({
       onClose={onClose}
     >
       <div
-        class={`modal-box modal-surface w-full p-0 flex flex-col ${SIZE_CLASSES[size]} ${boxClassName ?? ''}`}
+        class={`modal-box modal-surface p-0 flex flex-col ${SIZE_CLASSES[size]} ${boxClassName ?? ''}`}
       >
         <div class="modal-header shrink-0 flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-base-200">
           <div class="min-w-0">

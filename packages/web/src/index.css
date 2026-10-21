@@ -9,12 +9,12 @@
   --flux-border: color-mix(in oklab, var(--color-base-content) 9%, transparent);
   --flux-border-strong: color-mix(in oklab, var(--color-base-content) 15%, transparent);
   --flux-shadow-xs: 0 1px 2px color-mix(in oklab, var(--color-base-content) 5%, transparent);
-  --flux-shadow-sm: 0 1px 2px color-mix(in oklab, var(--color-base-content) 5%, transparent),
-    0 4px 12px color-mix(in oklab, var(--color-base-content) 5%, transparent);
-  --flux-shadow-md: 0 2px 4px color-mix(in oklab, var(--color-base-content) 6%, transparent),
-    0 12px 32px color-mix(in oklab, var(--color-base-content) 9%, transparent);
-  --flux-shadow-lg: 0 4px 8px color-mix(in oklab, black 8%, transparent),
-    0 24px 64px color-mix(in oklab, black 18%, transparent);
+  --flux-shadow-sm: 0 1px 2px color-mix(in oklab, var(--color-base-content) 4%, transparent),
+    0 2px 8px color-mix(in oklab, var(--color-base-content) 4%, transparent);
+  --flux-shadow-md: 0 1px 3px color-mix(in oklab, var(--color-base-content) 5%, transparent),
+    0 6px 16px color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  --flux-shadow-lg: 0 2px 6px color-mix(in oklab, black 6%, transparent),
+    0 12px 32px color-mix(in oklab, black 10%, transparent);
   --flux-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --flux-ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
 }
@@ -22,10 +22,10 @@
 html[data-theme="dark"] {
   --flux-border: color-mix(in oklab, white 9%, transparent);
   --flux-border-strong: color-mix(in oklab, white 16%, transparent);
-  --flux-shadow-sm: 0 1px 2px color-mix(in oklab, black 25%, transparent),
-    0 4px 12px color-mix(in oklab, black 20%, transparent);
-  --flux-shadow-md: 0 2px 4px color-mix(in oklab, black 30%, transparent),
-    0 12px 32px color-mix(in oklab, black 35%, transparent);
+  --flux-shadow-sm: 0 1px 2px color-mix(in oklab, black 18%, transparent),
+    0 2px 8px color-mix(in oklab, black 14%, transparent);
+  --flux-shadow-md: 0 1px 3px color-mix(in oklab, black 22%, transparent),
+    0 6px 16px color-mix(in oklab, black 22%, transparent);
 }
 
 html {
@@ -155,7 +155,7 @@ body {
 .task-card:hover {
   border-color: color-mix(in oklab, var(--color-primary) 28%, var(--flux-border));
   box-shadow: var(--flux-shadow-md);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .task-card:active {
@@ -386,6 +386,11 @@ kbd.kbd {
   animation: flux-pop 260ms var(--flux-ease-spring) backwards;
 }
 
+/* Keep clear of the viewport edges on short screens too */
+.modal-box.modal-surface {
+  max-height: calc(100dvh - 4rem);
+}
+
 /* Expandable modal sections */
 .section-toggle {
   transition: background-color 150ms ease;
@@ -585,10 +590,10 @@ kbd.kbd {
   }
 
   .modal-box.modal-surface {
-    width: calc(100% - 1rem);
+    width: calc(100% - 2rem);
     max-width: none;
-    max-height: calc(100dvh - 1rem);
-    margin: 0.5rem;
+    max-height: calc(100dvh - 2rem);
+    margin: 1rem;
     border-radius: 1rem;
   }
 
