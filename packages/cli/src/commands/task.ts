@@ -268,8 +268,29 @@ export async function taskCommand(
       break;
     }
 
+    case 'move': {
+      const id = args[0];
+      const targetProject = args[1];
+      if (!id || !targetProject) {
+        console.error('Usage: flux task move <task_id> <project_id>');
+        process.exit(1);
+      }
+      const current = await getTask(id);
+      if (!current) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+      const task = await updateTask(id, { project_id: targetProject });
+      if (!task) {
+        console.error(`Task not found: ${id}`);
+        process.exit(1);
+      }
+      output(json ? task : `Moved task ${id} to project ${targetProject}`, json);
+      break;
+    }
+
     default:
-      console.error('Usage: flux task [list|create|update|delete|done|start]');
+      console.error('Usage: flux task [list|create|update|delete|done|start|move]');
       process.exit(1);
   }
 }

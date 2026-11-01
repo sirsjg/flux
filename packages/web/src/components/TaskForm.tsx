@@ -16,7 +16,9 @@ import {
   addTaskComment,
   deleteTaskComment,
   getEpics,
+  getProjects,
   getTasks,
+  moveTask,
   uploadBlob,
   getBlobs,
   deleteBlob,
@@ -54,6 +56,9 @@ export function TaskForm({
   const [status, setStatus] = useState<string>("todo");
   const [epicId, setEpicId] = useState<string>("");
   const [epics, setEpics] = useState<Epic[]>([]);
+  const [targetProjectId, setTargetProjectId] = useState<string>("");
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [moveError, setMoveError] = useState<string>("");
   const [dependsOn, setDependsOn] = useState<string[]>([]);
   const [availableTasks, setAvailableTasks] = useState<TaskWithBlocked[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -90,14 +95,17 @@ export function TaskForm({
   }, [isOpen, task, projectId, defaultEpicId]);
 
   const loadFormData = async () => {
-    const [epicsData, tasksData] = await Promise.all([
+    const [epicsData, tasksData, projectsData] = await Promise.all([
       getEpics(projectId),
       getTasks(projectId),
+      getProjects(),
     ]);
     setEpics(epicsData);
     setAvailableTasks(
       task ? tasksData.filter((t) => t.id !== task.id) : tasksData
     );
+    // Projects the caller can see are the candidates for a move.
+    setProjects(projectsData.map((p) => ({ id: p.id, name: p.name })));
 
     setDependencyFilter("");
     setNewCriterion("");
@@ -108,6 +116,7 @@ export function TaskForm({
       setDescription(task.description || "");
       setStatus(task.status);
       setEpicId(task.epic_id || "");
+      setTargetProjectId(task.project_id || projectId);
       setDependsOn([...task.depends_on]);
       setComments(task.comments ? [...task.comments] : []);
       setBlockedReason(task.blocked_reason || "");
@@ -120,6 +129,7 @@ export function TaskForm({
       setDescription("");
       setStatus("todo");
       setEpicId(defaultEpicId || "");
+      setTargetProjectId(projectId);
       setDependsOn([]);
       setComments([]);
       setBlockedReason("");
@@ -134,6 +144,7 @@ export function TaskForm({
     if (!title.trim() || submitting) return;
 
     setSubmitting(true);
+    setMoveError("");
     try {
       if (isEdit && task) {
         await updateTask(task.id, {
@@ -147,6 +158,16 @@ export function TaskForm({
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
           guardrails: guardrails.length > 0 ? guardrails : undefined,
         });
+        // Moving to another project is a separate call: the server can reject
+        // it (403 no access, 409 epic in another project) and the reason needs
+        // to reach the user instead of collapsing into a null update.
+        if (targetProjectId && targetProjectId !== task.project_id) {
+          const moved = await moveTask(task.id, targetProjectId);
+          if (!moved.ok) {
+            setMoveError(moved.error);
+            return;
+          }
+        }
       } else {
         const newTask = await createTask(
           projectId,
@@ -356,6 +377,34 @@ export function TaskForm({
                     Set to block task on external process. Clear to unblock.
                   </span>
                 </label>
+              </div>
+            )}
+
+            {isEdit && projects.length > 1 && (
+              <div class="form-control mb-4">
+                <label class="label">
+                  <span class="label-text">Project</span>
+                </label>
+                <Select
+                  ariaLabel="Project"
+                  value={targetProjectId}
+                  onChange={setTargetProjectId}
+                  options={projects.map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                  }))}
+                />
+                <label class="label">
+                  <span class="label-text-alt text-base-content/50">
+                    Move this task to another project. Its title, status,
+                    priority and comments come with it.
+                  </span>
+                </label>
+                {moveError && (
+                  <div role="alert" class="alert alert-error mt-2 text-sm">
+                    {moveError}
+                  </div>
+                )}
               </div>
             )}
 

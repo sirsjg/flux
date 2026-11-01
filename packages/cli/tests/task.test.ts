@@ -244,6 +244,30 @@ describe('task command', () => {
     });
   });
 
+  describe('move', () => {
+    it('moves a task to another project', async () => {
+      mockGetTask.mockResolvedValue({ id: 'task-1', title: 'Test', status: 'todo', project_id: 'proj-a' });
+      mockUpdateTask.mockResolvedValue({ id: 'task-1', title: 'Test', status: 'todo', project_id: 'proj-b' });
+
+      await taskCommand('move', ['task-1', 'proj-b'], {}, false);
+
+      expect(mockUpdateTask).toHaveBeenCalledWith('task-1', { project_id: 'proj-b' });
+      expect(getLogs()).toContain('Moved task task-1 to project proj-b');
+    });
+
+    it('exits with error when task not found', async () => {
+      mockGetTask.mockResolvedValue(undefined);
+
+      await expect(taskCommand('move', ['bad-id', 'proj-b'], {}, false)).rejects.toThrow('process.exit(1)');
+      expect(getErrors()).toContain('Task not found: bad-id');
+    });
+
+    it('exits with a usage error when the target project is missing', async () => {
+      await expect(taskCommand('move', ['task-1'], {}, false)).rejects.toThrow('process.exit(1)');
+      expect(getErrors()).toContain('Usage: flux task move <task_id> <project_id>');
+    });
+  });
+
   describe('done', () => {
     it('marks task as done', async () => {
       mockUpdateTask.mockResolvedValue({ id: 'task-1', title: 'Test', status: 'done' });

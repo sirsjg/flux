@@ -134,6 +134,31 @@ export async function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>)
   return res.json();
 }
 
+/**
+ * Move a task to another project.
+ *
+ * The server rejects a move the caller lacks access to (403) or that would
+ * orphan the task's epic (409). `updateTask` collapses every failure to null,
+ * so this variant surfaces the server's reason for the caller to display.
+ */
+export async function moveTask(
+  id: string,
+  projectId: string
+): Promise<{ ok: true; task: TaskWithBlocked } | { ok: false; error: string }> {
+  const res = await authFetch(`${API_BASE}/tasks/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project_id: projectId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message =
+      body && typeof body.error === 'string' ? body.error : res.statusText;
+    return { ok: false, error: message };
+  }
+  return { ok: true, task: await res.json() };
+}
+
 export async function deleteTask(id: string): Promise<boolean> {
   const res = await authFetch(`${API_BASE}/tasks/${id}`, { method: 'DELETE' });
   return res.ok;
