@@ -118,9 +118,37 @@ describe('move task between projects', () => {
   });
 
   it('rejects a move that would orphan an epic cross-project', () => {
-    // Note: the epic-integrity guard is enforced in the server handler (409),
-    // not the store. The store still allows changing project_id; this test
-    // asserts the move is allowed at the store layer and that the guard is a
-    // server-side concern (see packages/server/tests/move-task.test.ts).
+    // The server enforces this as a 409; the store enforces the same rule so
+    // local/file mode behaves identically. The server test asserts the 409
+    // status (packages/server/tests/move-task.test.ts).
+    const projectA = createProject('Project A');
+    const projectB = createProject('Project B');
+    const epic = createEpic(projectA.id, 'Epic in A');
+    const task = createTask(projectA.id, 'Task under epic', epic.id);
+
+    expect(() => updateTask(task.id, { project_id: projectB.id })).toThrow(
+      /belongs to epic "Epic in A" in a different project/
+    );
+    // The task must not have moved.
+    expect(getTask(task.id)?.project_id).toBe(projectA.id);
+  });
+
+  it('allows a move when the epic already belongs to the target project', () => {
+    const projectA = createProject('Project A');
+    const projectB = createProject('Project B');
+    const epic = createEpic(projectB.id, 'Epic in B');
+    const task = createTask(projectA.id, 'Task under epic', epic.id);
+
+    const moved = updateTask(task.id, { project_id: projectB.id });
+    expect(moved?.project_id).toBe(projectB.id);
+  });
+
+  it('allows a move for a task with no epic', () => {
+    const projectA = createProject('Project A');
+    const projectB = createProject('Project B');
+    const task = createTask(projectA.id, 'No epic');
+
+    const moved = updateTask(task.id, { project_id: projectB.id });
+    expect(moved?.project_id).toBe(projectB.id);
   });
 });

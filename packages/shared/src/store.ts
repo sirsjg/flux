@@ -387,6 +387,23 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task
       throw new Error('Circular dependency detected');
     }
   }
+  // Epic integrity: a task's epic must live in the same project as the task.
+  // Moving the task away would orphan it from the epic's task list
+  // (`getTasksByEpic` filters on both project and epic), so the move is
+  // rejected rather than silently restructuring data. The server enforces the
+  // same rule for remote mode; this keeps local/file mode consistent.
+  if (updates.project_id && updates.project_id !== db.data.tasks[index].project_id) {
+    const epicId = db.data.tasks[index].epic_id;
+    if (epicId) {
+      const epic = db.data.epics.find(e => e.id === epicId);
+      if (epic && epic.project_id !== updates.project_id) {
+        throw new Error(
+          `Cannot move task: it belongs to epic "${epic.title}" in a different project. ` +
+            'Remove the task from that epic before moving it.'
+        );
+      }
+    }
+  }
   const processedUpdates = {
     ...updates,
     // Empty strings clear these fields (undefined is dropped from JSON over HTTP)

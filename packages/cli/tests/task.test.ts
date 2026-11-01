@@ -266,6 +266,18 @@ describe('task command', () => {
       await expect(taskCommand('move', ['task-1'], {}, false)).rejects.toThrow('process.exit(1)');
       expect(getErrors()).toContain('Usage: flux task move <task_id> <project_id>');
     });
+
+    it('prints the server reason when the move is rejected', async () => {
+      mockGetTask.mockResolvedValue({ id: 'task-1', title: 'Test', status: 'todo', project_id: 'proj-a' });
+      mockUpdateTask.mockRejectedValue(
+        new Error('Cannot move task: it belongs to epic "Epic in A" in a different project.')
+      );
+
+      await expect(taskCommand('move', ['task-1', 'proj-b'], {}, false)).rejects.toThrow('process.exit(1)');
+      expect(getErrors().some(e => e.includes('belongs to epic'))).toBe(true);
+      // The misleading "Task not found" must not be printed.
+      expect(getErrors().some(e => e.includes('Task not found'))).toBe(false);
+    });
   });
 
   describe('done', () => {

@@ -280,7 +280,16 @@ export async function taskCommand(
         console.error(`Task not found: ${id}`);
         process.exit(1);
       }
-      const task = await updateTask(id, { project_id: targetProject });
+      let task;
+      try {
+        task = await updateTask(id, { project_id: targetProject });
+      } catch (e) {
+        // The server rejects a move the caller cannot make (403) or that would
+        // orphan an epic (409), and the local store throws for the same
+        // condition. Surface the reason instead of a stack trace.
+        console.error(e instanceof Error ? e.message : String(e));
+        process.exit(1);
+      }
       if (!task) {
         console.error(`Task not found: ${id}`);
         process.exit(1);
