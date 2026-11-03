@@ -191,7 +191,7 @@ export function registerTaskTools(server: McpServer): void {
       const updates: Record<string, unknown> = {};
       if (args.title) updates.title = args.title;
       if (args.status) updates.status = args.status;
-      if (args.epic_id !== undefined) updates.epic_id = args.epic_id || undefined;
+      if (args.epic_id !== undefined) updates.epic_id = args.epic_id || null; // null clears (undefined would be dropped by JSON)
       if (args.priority !== undefined) updates.priority = args.priority;
       if (args.depends_on) updates.depends_on = args.depends_on;
       if (args.blocked_reason !== undefined) {

@@ -582,9 +582,20 @@ app.patch('/api/tasks/:id', async (c) => {
     }
     // Epic integrity: a task's epic must live in the same project as the task.
     // Moving the task away would orphan it from the epic's task list, so the
-    // move is rejected rather than silently restructuring data.
-    if (previous.epic_id) {
-      const epic = getEpic(previous.epic_id);
+    // move is rejected rather than silently restructuring data. The store
+    // enforces the same rule for local/file mode.
+    //
+    // The check runs against the POST-UPDATE epic: a save is one atomic
+    // request, so the client may clear the epic (epic_id: null) in the same
+    // PATCH that moves the task. Judge the epic the task will have AFTER the
+    // update so that combined save succeeds: a present epic_id wins
+    // (null/"" = clear); only an omitted key means "epic unchanged".
+    const nextEpicId =
+      'epic_id' in body
+        ? body.epic_id || undefined
+        : previous.epic_id || undefined;
+    if (nextEpicId) {
+      const epic = getEpic(nextEpicId);
       if (epic && epic.project_id !== targetProjectId) {
         return c.json(
           {

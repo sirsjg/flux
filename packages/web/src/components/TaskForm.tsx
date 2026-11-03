@@ -18,7 +18,7 @@ import {
   getEpics,
   getProjects,
   getTasks,
-  moveTask,
+  SaveTaskError,
   uploadBlob,
   getBlobs,
   deleteBlob,
@@ -147,26 +147,43 @@ export function TaskForm({
     setMoveError("");
     try {
       if (isEdit && task) {
-        await updateTask(task.id, {
+        // A save is one atomic request: the field changes and a cross-project
+        // move go out in the same PATCH. If the server rejects the move (403
+        // no access, 409 epic in the old project) nothing is persisted, and
+        // the reason reaches the user instead of collapsing into a silent
+        // no-op. Sending the epic in the same request also lets a combined
+        // "unassign epic + move" save succeed, where it could not across two
+        // sequential calls.
+        const updates: Partial<Omit<Task, "id">> = {
           title: title.trim(),
           // Empty string (not undefined, which JSON drops) so clearing persists
           description: description.trim(),
           status,
-          epic_id: epicId || undefined,
+          // null means "clear the epic" — undefined would be dropped by JSON.
+          epic_id: epicId || null,
           depends_on: dependsOn,
           blocked_reason: blockedReason.trim(),
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
           guardrails: guardrails.length > 0 ? guardrails : undefined,
-        });
-        // Moving to another project is a separate call: the server can reject
-        // it (403 no access, 409 epic in another project) and the reason needs
-        // to reach the user instead of collapsing into a null update.
-        if (targetProjectId && targetProjectId !== task.project_id) {
-          const moved = await moveTask(task.id, targetProjectId);
-          if (!moved.ok) {
-            setMoveError(moved.error);
-            return;
-          }
+        };
+        const isMoving = targetProjectId && targetProjectId !== task.project_id;
+        if (isMoving) {
+          updates.project_id = targetProjectId;
+        }
+        try {
+          await updateTask(task.id, updates);
+        } catch (err: unknown) {
+          // A rejected save throws with the server's message (SaveTaskError);
+          // a network failure throws a generic one. Either way the task is
+          // unchanged, so show the reason and keep the modal open on it.
+          const message =
+            err instanceof SaveTaskError
+              ? err.message
+              : "Save failed — could not reach the server. Your changes were not saved.";
+          setMoveError(
+            isMoving ? `Move failed — the task was not moved. ${message}` : message
+          );
+          return;
         }
       } else {
         const newTask = await createTask(

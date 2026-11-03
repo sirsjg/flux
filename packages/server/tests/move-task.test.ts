@@ -294,5 +294,81 @@ describe('PATCH /api/tasks/:id — move task between projects', () => {
       expect(res.status).toBe(200);
       expect(getTask(task.id)?.project_id).toBe(b.id);
     });
+
+    // The client sends field changes and the move in one PATCH (a save is
+    // atomic). The guard must evaluate the epic the task will have AFTER the
+    // update, not the one it had before — a combined unassign + move must
+    // succeed rather than 409 on the epic about to be removed.
+    it('succeeds when epic_id is cleared in the same PATCH as the move', async () => {
+      const a = createProject('Project A');
+      const b = createProject('Project B');
+      const epic = createEpic(a.id, 'Epic in A');
+      const task = createTask(a.id, 'Task under epic', epic.id);
+
+      const res = await req(
+        'PATCH',
+        `/api/tasks/${task.id}`,
+        { epic_id: null, project_id: b.id },
+        serverKey()
+      );
+
+      expect(res.status).toBe(200);
+      expect(getTask(task.id)?.project_id).toBe(b.id);
+      expect(getTask(task.id)?.epic_id).toBeUndefined();
+    });
+
+    it('still returns 409 when the PATCH assigns an epic from a third project while moving', async () => {
+      const a = createProject('Project A');
+      const b = createProject('Project B');
+      const c = createProject('Project C');
+      const epicInC = createEpic(c.id, 'Epic in C');
+      const task = createTask(a.id, 'Task without epic');
+
+      // The epic is chosen for the task in the same request as the move.
+      // The post-update epic (C's) differs from the target (B), so the move
+      // is still rejected even though the task had no epic before the update.
+      const res = await req(
+        'PATCH',
+        `/api/tasks/${task.id}`,
+        { epic_id: epicInC.id, project_id: b.id },
+        serverKey()
+      );
+
+      expect(res.status).toBe(409);
+      expect(getTask(task.id)?.project_id).toBe(a.id);
+    });
+
+    it('treats an explicit null epic_id as a clear and stores it as absent', async () => {
+      const a = createProject('Project A');
+      const epic = createEpic(a.id, 'Epic in A');
+      const task = createTask(a.id, 'Task under epic', epic.id);
+
+      const res = await req('PATCH', `/api/tasks/${task.id}`, { epic_id: null }, serverKey());
+
+      expect(res.status).toBe(200);
+      const stored = getTask(task.id)!;
+      expect(stored.epic_id).toBeUndefined();
+      // A persisted null would survive the JSON round trip and break strict
+      // equality checks in clients that compare against undefined.
+      const roundTripped = JSON.parse(JSON.stringify(stored));
+      expect('epic_id' in roundTripped).toBe(false);
+    });
+
+    it('does not reject a same-project epic reassignment on an unchanged move', async () => {
+      const a = createProject('Project A');
+      const epic1 = createEpic(a.id, 'First epic');
+      const epic2 = createEpic(a.id, 'Second epic');
+      const task = createTask(a.id, 'Task', epic1.id);
+
+      const res = await req(
+        'PATCH',
+        `/api/tasks/${task.id}`,
+        { epic_id: epic2.id, project_id: a.id },
+        serverKey()
+      );
+
+      expect(res.status).toBe(200);
+      expect(getTask(task.id)?.epic_id).toBe(epic2.id);
+    });
   });
 });

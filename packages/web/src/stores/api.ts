@@ -99,6 +99,23 @@ export async function deleteEpic(id: string): Promise<boolean> {
 
 // ============ Task Operations ============
 
+/** Error from a rejected task mutation, with the server's message. */
+export class SaveTaskError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "SaveTaskError";
+  }
+}
+
+async function saveTaskError(res: Response): Promise<SaveTaskError> {
+  const body = await res.json().catch(() => null);
+  const message =
+    body && typeof body.error === "string" ? body.error : res.statusText;
+  return new SaveTaskError(res.status, message);
+}
+
 export async function getTasks(projectId: string): Promise<TaskWithBlocked[]> {
   const res = await authFetch(`${API_BASE}/projects/${projectId}/tasks`);
   return res.json();
@@ -124,39 +141,17 @@ export async function createTask(
   return res.json();
 }
 
-export async function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Promise<TaskWithBlocked | null> {
+export async function updateTask(
+  id: string,
+  updates: Partial<Omit<Task, 'id'>>
+): Promise<TaskWithBlocked | null> {
   const res = await authFetch(`${API_BASE}/tasks/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw await saveTaskError(res);
   return res.json();
-}
-
-/**
- * Move a task to another project.
- *
- * The server rejects a move the caller lacks access to (403) or that would
- * orphan the task's epic (409). `updateTask` collapses every failure to null,
- * so this variant surfaces the server's reason for the caller to display.
- */
-export async function moveTask(
-  id: string,
-  projectId: string
-): Promise<{ ok: true; task: TaskWithBlocked } | { ok: false; error: string }> {
-  const res = await authFetch(`${API_BASE}/tasks/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_id: projectId }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    const message =
-      body && typeof body.error === 'string' ? body.error : res.statusText;
-    return { ok: false, error: message };
-  }
-  return { ok: true, task: await res.json() };
 }
 
 export async function deleteTask(id: string): Promise<boolean> {

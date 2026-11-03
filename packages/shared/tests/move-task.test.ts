@@ -8,6 +8,7 @@ import {
   updateTask,
   addTaskComment,
   getTasks,
+  getTasksByEpic,
   getProjectStats,
   getTask,
   isTaskBlocked,
@@ -150,5 +151,78 @@ describe('move task between projects', () => {
 
     const moved = updateTask(task.id, { project_id: projectB.id });
     expect(moved?.project_id).toBe(projectB.id);
+  });
+
+  // A save is one atomic update: the client sends the field changes AND the
+  // move in a single PATCH, so the guard must judge the epic the task has
+  // AFTER the other fields are applied (the combined unassign + move).
+  it('unassigns the epic and moves the task when both arrive in one update', () => {
+    const projectA = createProject('Project A');
+    const projectB = createProject('Project B');
+    const epic = createEpic(projectA.id, 'Epic in A');
+    const task = createTask(projectA.id, 'Task under epic', epic.id);
+
+    const moved = updateTask(task.id, { epic_id: null, project_id: projectB.id });
+
+    expect(moved?.project_id).toBe(projectB.id);
+    expect(moved?.epic_id).toBeUndefined();
+    // The task is reachable from the target project and no longer under the
+    // source epic.
+    expect(getTasks(projectB.id)).toEqual([expect.objectContaining({ id: task.id })]);
+    expect(getTasksByEpic(projectA.id, epic.id)).toHaveLength(0);
+  });
+
+  it('applies field changes without moving when only epic_id is cleared', () => {
+    const projectA = createProject('Project A');
+    const task = createTask(projectA.id, 'Task under epic', undefined);
+    const epic = createEpic(projectA.id, 'Epic in A');
+    updateTask(task.id, { epic_id: epic.id });
+
+    const updated = updateTask(task.id, { epic_id: null });
+
+    expect(updated?.epic_id).toBeUndefined();
+    expect(updated?.project_id).toBe(projectA.id);
+    expect(getTasksByEpic(projectA.id, epic.id)).toHaveLength(0);
+  });
+
+  it('stores a cleared epic_id as absent, never as a persisted null', () => {
+    const projectA = createProject('Project A');
+    const task = createTask(projectA.id, 'Task under epic', undefined);
+    const epic = createEpic(projectA.id, 'Epic in A');
+    updateTask(task.id, { epic_id: epic.id });
+
+    updateTask(task.id, { epic_id: null });
+
+    const stored = getTask(task.id)!;
+    expect(stored.epic_id).toBeUndefined();
+    // A null that leaked into the store would survive a JSON round trip and
+    // break the strict `epic_id === undefined` comparisons elsewhere.
+    expect('epic_id' in (JSON.parse(JSON.stringify(stored)))).toBe(false);
+  });
+
+  it('reassigning to an epic in the same project is allowed', () => {
+    const projectA = createProject('Project A');
+    const epic1 = createEpic(projectA.id, 'First epic');
+    const epic2 = createEpic(projectA.id, 'Second epic');
+    const task = createTask(projectA.id, 'Task', epic1.id);
+
+    const updated = updateTask(task.id, { epic_id: epic2.id });
+
+    expect(updated?.epic_id).toBe(epic2.id);
+    expect(getTasksByEpic(projectA.id, epic2.id)).toEqual([
+      expect.objectContaining({ id: task.id }),
+    ]);
+  });
+
+  it('a no-op move still clears the epic when it is the only change', () => {
+    const projectA = createProject('Project A');
+    const task = createTask(projectA.id, 'Task under epic', undefined);
+    const epic = createEpic(projectA.id, 'Epic in A');
+    updateTask(task.id, { epic_id: epic.id });
+
+    const updated = updateTask(task.id, { epic_id: null, project_id: projectA.id });
+
+    expect(updated?.epic_id).toBeUndefined();
+    expect(updated?.project_id).toBe(projectA.id);
   });
 });
