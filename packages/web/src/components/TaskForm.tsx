@@ -16,7 +16,9 @@ import {
   addTaskComment,
   deleteTaskComment,
   getEpics,
+  getProjects,
   getTasks,
+  SaveTaskError,
   uploadBlob,
   getBlobs,
   deleteBlob,
@@ -54,6 +56,9 @@ export function TaskForm({
   const [status, setStatus] = useState<string>("todo");
   const [epicId, setEpicId] = useState<string>("");
   const [epics, setEpics] = useState<Epic[]>([]);
+  const [targetProjectId, setTargetProjectId] = useState<string>("");
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [moveError, setMoveError] = useState<string>("");
   const [dependsOn, setDependsOn] = useState<string[]>([]);
   const [availableTasks, setAvailableTasks] = useState<TaskWithBlocked[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -90,14 +95,17 @@ export function TaskForm({
   }, [isOpen, task, projectId, defaultEpicId]);
 
   const loadFormData = async () => {
-    const [epicsData, tasksData] = await Promise.all([
+    const [epicsData, tasksData, projectsData] = await Promise.all([
       getEpics(projectId),
       getTasks(projectId),
+      getProjects(),
     ]);
     setEpics(epicsData);
     setAvailableTasks(
       task ? tasksData.filter((t) => t.id !== task.id) : tasksData
     );
+    // Projects the caller can see are the candidates for a move.
+    setProjects(projectsData.map((p) => ({ id: p.id, name: p.name })));
 
     setDependencyFilter("");
     setNewCriterion("");
@@ -108,6 +116,7 @@ export function TaskForm({
       setDescription(task.description || "");
       setStatus(task.status);
       setEpicId(task.epic_id || "");
+      setTargetProjectId(task.project_id || projectId);
       setDependsOn([...task.depends_on]);
       setComments(task.comments ? [...task.comments] : []);
       setBlockedReason(task.blocked_reason || "");
@@ -120,6 +129,7 @@ export function TaskForm({
       setDescription("");
       setStatus("todo");
       setEpicId(defaultEpicId || "");
+      setTargetProjectId(projectId);
       setDependsOn([]);
       setComments([]);
       setBlockedReason("");
@@ -134,19 +144,47 @@ export function TaskForm({
     if (!title.trim() || submitting) return;
 
     setSubmitting(true);
+    setMoveError("");
     try {
       if (isEdit && task) {
-        await updateTask(task.id, {
+        // A save is one atomic request: the field changes and a cross-project
+        // move go out in the same PATCH. If the server rejects the move (403
+        // no access, 409 epic in the old project) nothing is persisted, and
+        // the reason reaches the user instead of collapsing into a silent
+        // no-op. Sending the epic in the same request also lets a combined
+        // "unassign epic + move" save succeed, where it could not across two
+        // sequential calls.
+        const updates: Partial<Omit<Task, "id">> = {
           title: title.trim(),
           // Empty string (not undefined, which JSON drops) so clearing persists
           description: description.trim(),
           status,
-          epic_id: epicId || undefined,
+          // null means "clear the epic" — undefined would be dropped by JSON.
+          epic_id: epicId || null,
           depends_on: dependsOn,
           blocked_reason: blockedReason.trim(),
           acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : undefined,
           guardrails: guardrails.length > 0 ? guardrails : undefined,
-        });
+        };
+        const isMoving = targetProjectId && targetProjectId !== task.project_id;
+        if (isMoving) {
+          updates.project_id = targetProjectId;
+        }
+        try {
+          await updateTask(task.id, updates);
+        } catch (err: unknown) {
+          // A rejected save throws with the server's message (SaveTaskError);
+          // a network failure throws a generic one. Either way the task is
+          // unchanged, so show the reason and keep the modal open on it.
+          const message =
+            err instanceof SaveTaskError
+              ? err.message
+              : "Save failed — could not reach the server. Your changes were not saved.";
+          setMoveError(
+            isMoving ? `Move failed — the task was not moved. ${message}` : message
+          );
+          return;
+        }
       } else {
         const newTask = await createTask(
           projectId,
@@ -356,6 +394,34 @@ export function TaskForm({
                     Set to block task on external process. Clear to unblock.
                   </span>
                 </label>
+              </div>
+            )}
+
+            {isEdit && projects.length > 1 && (
+              <div class="form-control mb-4">
+                <label class="label">
+                  <span class="label-text">Project</span>
+                </label>
+                <Select
+                  ariaLabel="Project"
+                  value={targetProjectId}
+                  onChange={setTargetProjectId}
+                  options={projects.map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                  }))}
+                />
+                <label class="label">
+                  <span class="label-text-alt text-base-content/50">
+                    Move this task to another project. Its title, status,
+                    priority and comments come with it.
+                  </span>
+                </label>
+                {moveError && (
+                  <div role="alert" class="alert alert-error mt-2 text-sm">
+                    {moveError}
+                  </div>
+                )}
               </div>
             )}
 

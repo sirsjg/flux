@@ -45,7 +45,8 @@ export type Task = {
   status: string; // e.g. "todo" | "in_progress" | "done"
   depends_on: string[];
   comments?: TaskComment[];
-  epic_id?: string;
+  // Absent (or null, as delivered by JSON PATCH bodies) means "no epic".
+  epic_id?: string | null;
   project_id: string;
   agent?: Agent; // Optional agent assignment
   archived?: boolean; // Whether the task is archived

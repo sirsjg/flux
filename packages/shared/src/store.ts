@@ -387,8 +387,37 @@ export function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Task
       throw new Error('Circular dependency detected');
     }
   }
+  // Epic integrity: a task's epic must live in the same project as the task.
+  // Moving the task away would orphan it from the epic's task list
+  // (`getTasksByEpic` filters on both project and epic), so the move is
+  // rejected rather than silently restructuring data. The server enforces the
+  // same rule for remote mode; this keeps local/file mode consistent.
+  //
+  // The check runs against the POST-UPDATE epic, because a save is one
+  // atomic update: the client may unassign the epic (epic_id: null) in the
+  // same request that moves the task, and that combined save must succeed.
+  if (updates.project_id && updates.project_id !== db.data.tasks[index].project_id) {
+    // Present epic_id in the update wins over the stored one — including
+    // null/"" (an explicit clear); only a key that was omitted entirely
+    // means "the epic is unchanged by this update".
+    const nextEpicId = 'epic_id' in updates
+      ? updates.epic_id || undefined
+      : db.data.tasks[index].epic_id;
+    if (nextEpicId) {
+      const epic = db.data.epics.find(e => e.id === nextEpicId);
+      if (epic && epic.project_id !== updates.project_id) {
+        throw new Error(
+          `Cannot move task: it belongs to epic "${epic.title}" in a different project. ` +
+            'Remove the task from that epic before moving it.'
+        );
+      }
+    }
+  }
   const processedUpdates = {
     ...updates,
+    // A null epic_id (JSON "clear the epic") normalizes to absent so null
+    // never leaks into stored data or serialized responses.
+    ...(updates.epic_id !== undefined && { epic_id: updates.epic_id || undefined }),
     // Empty strings clear these fields (undefined is dropped from JSON over HTTP)
     ...(updates.description !== undefined && { description: updates.description || undefined }),
     ...(updates.blocked_reason !== undefined && { blocked_reason: updates.blocked_reason || undefined }),
