@@ -52,7 +52,7 @@ describe('flux MCP server', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('exposes all 25 tools with schemas and annotations', async () => {
+  it('exposes all 26 tools with schemas and annotations', async () => {
     const client = await connectClient();
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
@@ -62,7 +62,7 @@ describe('flux MCP server', () => {
         'list_projects', 'create_project', 'update_project', 'delete_project',
         'list_epics', 'create_epic', 'update_epic', 'delete_epic',
         'list_tasks', 'list_ready_tasks', 'create_task', 'update_task',
-        'delete_task', 'move_task_status', 'add_task_comment', 'delete_task_comment',
+        'delete_task', 'move_task_status', 'move_task', 'add_task_comment', 'delete_task_comment',
         'list_webhooks', 'create_webhook', 'update_webhook', 'delete_webhook',
         'list_webhook_deliveries',
         'blob_attach', 'blob_get', 'blob_list', 'blob_delete',
@@ -108,6 +108,69 @@ describe('flux MCP server', () => {
     const result = await callTool(client, 'create_project', {}); // missing required name
     expect(result.isError).toBe(true);
     expect(result.content[0].text?.toLowerCase()).toContain('invalid');
+  });
+
+  describe('move_task', () => {
+    async function makeTask(client: Client, projectId: string, title = 'Task') {
+      const created = await callTool(client, 'create_task', {
+        project_id: projectId,
+        title,
+      });
+      return (created.structuredContent as { task: { id: string } }).task;
+    }
+
+    it('moves a task to another project', async () => {
+      const client = await connectClient();
+      const a = (await callTool(client, 'create_project', { name: 'A' })).structuredContent as { project: { id: string } };
+      const b = (await callTool(client, 'create_project', { name: 'B' })).structuredContent as { project: { id: string } };
+      const task = await makeTask(client, a.project.id);
+
+      const moved = await callTool(client, 'move_task', {
+        task_id: task.id,
+        project_id: b.project.id,
+      });
+
+      expect(moved.isError).toBeFalsy();
+      const result = (moved.structuredContent as { task: { project_id: string } }).task;
+      expect(result.project_id).toBe(b.project.id);
+
+      // The task now belongs to B and no longer to A.
+      const inA = await callTool(client, 'list_tasks', { project_id: a.project.id });
+      const inB = await callTool(client, 'list_tasks', { project_id: b.project.id });
+      expect((inA.structuredContent as { tasks: unknown[] }).tasks).toHaveLength(0);
+      expect((inB.structuredContent as { tasks: Array<{ id: string }> }).tasks).toHaveLength(1);
+      expect((inB.structuredContent as { tasks: Array<{ id: string }> }).tasks[0].id).toBe(task.id);
+    });
+
+    it('preserves the task title and status across the move', async () => {
+      const client = await connectClient();
+      const a = (await callTool(client, 'create_project', { name: 'A' })).structuredContent as { project: { id: string } };
+      const b = (await callTool(client, 'create_project', { name: 'B' })).structuredContent as { project: { id: string } };
+      const task = await makeTask(client, a.project.id, 'Keep my title');
+      await callTool(client, 'move_task_status', { task_id: task.id, status: 'todo' });
+
+      const moved = await callTool(client, 'move_task', {
+        task_id: task.id,
+        project_id: b.project.id,
+      });
+
+      const result = (moved.structuredContent as { task: { title: string; status: string } }).task;
+      expect(result.title).toBe('Keep my title');
+      expect(result.status).toBe('todo');
+    });
+
+    it('reports an error for a task that does not exist', async () => {
+      const client = await connectClient();
+      const b = (await callTool(client, 'create_project', { name: 'B' })).structuredContent as { project: { id: string } };
+
+      const moved = await callTool(client, 'move_task', {
+        task_id: 'no-such-task',
+        project_id: b.project.id,
+      });
+
+      expect(moved.isError).toBe(true);
+      expect(moved.content[0].text).toContain('not found');
+    });
   });
 
   it('enforces the planning → todo → in_progress workflow', async () => {

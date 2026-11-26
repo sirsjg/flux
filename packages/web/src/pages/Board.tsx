@@ -273,10 +273,16 @@ export function Board({ projectId }: BoardProps) {
         )
       );
       try {
+        // Epic unassignment rides along here too: clearing the epic is part
+        // of this PATCH, so a task dragged to the Unassigned lane actually
+        // loses its epic (a dropped `epic_id` key would be a no-op).
         await updateTask(taskId, {
           status: newStatus,
-          epic_id: newEpicId,
+          epic_id: newEpicId ?? null,
         });
+      } catch {
+        // The PATCH was rejected (e.g. a cross-project move guard on an
+        // older server). The refresh below re-syncs the card to truth.
       } finally {
         await refreshData();
       }

@@ -109,8 +109,14 @@ flux task start <id>                     # Mark in_progress
 flux task done <id>                      # Mark done
 flux task done <id> --note "completed"   # Done with note
 
+flux task move <id> <project>            # Move task to another project
 flux task delete <id>                    # Delete task
 ```
+
+Moving a task keeps its title, status, priority, comments and dependencies. The
+server rejects the move if you lack write access to the target project, or if
+the task belongs to an epic in a different project — the CLI prints the
+server's reason in both cases.
 
 ### Quick Commands
 

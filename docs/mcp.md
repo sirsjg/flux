@@ -106,6 +106,7 @@ All tools validate input (zod schemas), return structured output
 | `update_task` | Update task details/status/dependencies |
 | `delete_task` | Delete a task *(destructive)* |
 | `move_task_status` | Quick status change (planning/todo/in_progress/done) |
+| `move_task` | Move a task to another project (keeps title, status, priority, comments) |
 | `add_task_comment` | Add a comment to a task (agent memory) |
 | `delete_task_comment` | Delete a task comment *(destructive)* |
 | `list_webhooks` | List configured webhooks *(read-only)* |

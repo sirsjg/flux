@@ -120,7 +120,7 @@ function validateTaskFields(body: Record<string, unknown>): { error?: string } {
 }
 
 // Create Hono app with auth context
-const app = new Hono<{ Variables: { auth: AuthContext } }>();
+export const app = new Hono<{ Variables: { auth: AuthContext } }>();
 
 // Security headers on every response. CSP is scoped to what the built web UI
 // needs: same-origin scripts/connections, inline styles (Tailwind/dnd-kit
@@ -560,6 +560,55 @@ app.patch('/api/tasks/:id', async (c) => {
   const body = await c.req.json();
   const validation = validateTaskFields(body);
   if (validation.error) return c.json({ error: validation.error }, 400);
+
+  // Moving a task between projects: the caller needs write access to BOTH the
+  // source project (checked above) and the target project. `null`/`undefined`
+  // means "keep the current project".
+  const targetProjectId =
+    typeof body.project_id === 'string' && body.project_id.trim()
+      ? body.project_id
+      : undefined;
+  const isMove = targetProjectId !== undefined && targetProjectId !== previous.project_id;
+  // `null` means "keep the current project" — never persist a null project_id.
+  if (body.project_id === null) {
+    delete body.project_id;
+  }
+  if (isMove) {
+    if (!canWriteProject(auth, targetProjectId)) {
+      return c.json({ error: 'Cannot move task: no write access to target project' }, 403);
+    }
+    if (!getProject(targetProjectId)) {
+      return c.json({ error: 'Target project not found' }, 404);
+    }
+    // Epic integrity: a task's epic must live in the same project as the task.
+    // Moving the task away would orphan it from the epic's task list, so the
+    // move is rejected rather than silently restructuring data. The store
+    // enforces the same rule for local/file mode.
+    //
+    // The check runs against the POST-UPDATE epic: a save is one atomic
+    // request, so the client may clear the epic (epic_id: null) in the same
+    // PATCH that moves the task. Judge the epic the task will have AFTER the
+    // update so that combined save succeeds: a present epic_id wins
+    // (null/"" = clear); only an omitted key means "epic unchanged".
+    const nextEpicId =
+      'epic_id' in body
+        ? body.epic_id || undefined
+        : previous.epic_id || undefined;
+    if (nextEpicId) {
+      const epic = getEpic(nextEpicId);
+      if (epic && epic.project_id !== targetProjectId) {
+        return c.json(
+          {
+            error:
+              `Cannot move task: it belongs to epic "${epic.title}" in a different project. ` +
+              'Remove the task from that epic before moving it.',
+          },
+          409
+        );
+      }
+    }
+  }
+
   // Agent team worker tracking
   const agentName = typeof body.agent_name === 'string' ? body.agent_name : undefined;
   if (body.status === 'in_progress' && agentName) {
@@ -582,8 +631,19 @@ app.patch('/api/tasks/:id', async (c) => {
   if (body.archived === true && !previous.archived) {
     events.push('task.archived');
   }
-  for (const event of events) {
-    emitEvent(event, { task, previous }, task.project_id);
+  if (isMove) {
+    // Emit against BOTH projects so the source board drops the task and the
+    // target board gains it. Each event carries the same {task, previous}
+    // payload, so a subscriber can tell the sides apart by comparing
+    // previous.project_id with task.project_id.
+    for (const event of events) {
+      emitEvent(event, { task, previous }, previous.project_id);
+      emitEvent(event, { task, previous }, task.project_id);
+    }
+  } else {
+    for (const event of events) {
+      emitEvent(event, { task, previous }, task.project_id);
+    }
   }
 
   return c.json({ ...task, blocked: isTaskBlocked(task.id) });
@@ -992,8 +1052,10 @@ if (isAuthRequired()) {
   );
 }
 
-serve({
-  fetch: app.fetch,
-  port,
-  hostname,
-});
+if (import.meta.main) {
+  serve({
+    fetch: app.fetch,
+    port,
+    hostname,
+  });
+}

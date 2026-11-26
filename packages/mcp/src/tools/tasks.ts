@@ -10,6 +10,7 @@ import {
   deleteTaskComment,
   isTaskBlocked,
   getReadyTasks,
+  FluxHttpError,
 } from '@flux/shared/client';
 import type { Guardrail, Priority, Status } from '@flux/shared';
 import { commentSchema, guardrailInputSchema, statusSchema, taskSchema } from '../schemas.js';
@@ -190,7 +191,7 @@ export function registerTaskTools(server: McpServer): void {
       const updates: Record<string, unknown> = {};
       if (args.title) updates.title = args.title;
       if (args.status) updates.status = args.status;
-      if (args.epic_id !== undefined) updates.epic_id = args.epic_id || undefined;
+      if (args.epic_id !== undefined) updates.epic_id = args.epic_id || null; // null clears (undefined would be dropped by JSON)
       if (args.priority !== undefined) updates.priority = args.priority;
       if (args.depends_on) updates.depends_on = args.depends_on;
       if (args.blocked_reason !== undefined) {
@@ -254,6 +255,38 @@ export function registerTaskTools(server: McpServer): void {
       const task = await updateTask(task_id, updates);
       if (!task) return errorResult('Task not found');
       return structuredResult({ task }, `Moved task "${task.title}" to ${status}`);
+    }
+  );
+
+  server.registerTool(
+    'move_task',
+    {
+      title: 'Move Task Between Projects',
+      description:
+        'Move a task to a different project. The task keeps its title, status, priority, comments, dependencies and criteria. ' +
+        'Fails if the task belongs to an epic in another project — remove it from that epic first.',
+      inputSchema: {
+        task_id: z.string().describe('Task ID'),
+        project_id: z.string().describe('Target project ID'),
+      },
+      outputSchema: { task: taskSchema },
+      annotations: { idempotentHint: true, openWorldHint: false },
+    },
+    async ({ task_id, project_id }) => {
+      let task;
+      try {
+        task = await updateTask(task_id, { project_id });
+      } catch (e) {
+        // The server rejects a move the caller cannot make (403) or that would
+        // orphan an epic (409). Surface the reason instead of a stack trace.
+        if (e instanceof FluxHttpError) {
+          return errorResult(`Cannot move task: ${e.message}`);
+        }
+        throw e;
+      }
+      if (!task) return errorResult('Task not found');
+      const result = { ...task, blocked: await isTaskBlocked(task.id) };
+      return structuredResult({ task: result }, `Moved task "${task.title}" to project ${project_id}`);
     }
   );
 

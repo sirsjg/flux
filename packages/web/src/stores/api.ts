@@ -99,6 +99,23 @@ export async function deleteEpic(id: string): Promise<boolean> {
 
 // ============ Task Operations ============
 
+/** Error from a rejected task mutation, with the server's message. */
+export class SaveTaskError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "SaveTaskError";
+  }
+}
+
+async function saveTaskError(res: Response): Promise<SaveTaskError> {
+  const body = await res.json().catch(() => null);
+  const message =
+    body && typeof body.error === "string" ? body.error : res.statusText;
+  return new SaveTaskError(res.status, message);
+}
+
 export async function getTasks(projectId: string): Promise<TaskWithBlocked[]> {
   const res = await authFetch(`${API_BASE}/projects/${projectId}/tasks`);
   return res.json();
@@ -124,13 +141,16 @@ export async function createTask(
   return res.json();
 }
 
-export async function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>): Promise<TaskWithBlocked | null> {
+export async function updateTask(
+  id: string,
+  updates: Partial<Omit<Task, 'id'>>
+): Promise<TaskWithBlocked | null> {
   const res = await authFetch(`${API_BASE}/tasks/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw await saveTaskError(res);
   return res.json();
 }
 

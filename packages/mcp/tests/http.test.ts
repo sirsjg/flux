@@ -63,7 +63,7 @@ describe('HTTP transport', () => {
     await client.connect(transport);
 
     const { tools } = await client.listTools();
-    expect(tools.length).toBe(25);
+    expect(tools.length).toBe(26);
 
     const result = await client.callTool({ name: 'list_projects', arguments: {} });
     expect((result as { structuredContent: unknown }).structuredContent).toEqual({ projects: [] });
@@ -79,7 +79,7 @@ describe('HTTP transport', () => {
     const client = new Client({ name: 'http-test', version: '1.0.0' });
     await client.connect(transport);
     const { tools } = await client.listTools();
-    expect(tools.length).toBe(25);
+    expect(tools.length).toBe(26);
     await client.close();
   });
 });
